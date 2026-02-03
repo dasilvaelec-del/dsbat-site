@@ -1,20 +1,74 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <title>Zone - DS.BAT</title>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zone d'intervention - DS.BAT</title>
+    <meta name="description" content="Zones d'intervention DS.BAT en Île-de-France et départements limitrophes avec carte Google Maps centrée sur 58 Grande Rue, Villevaudé.">
+    <style>
+        body { font-family: 'Segoe UI', Arial, sans-serif; background:#f5f7fa; color:#333; margin:0; padding:0; }
+        header { background: linear-gradient(90deg, #1e3a8a, #3b82f6); color:white; text-align:center; padding:2rem 0; }
+        header h1 { margin-bottom:0.5rem; }
+        header p { margin:0.2rem 0; opacity:0.9; }
+        .container { max-width: 1000px; margin: 2rem auto; padding:2rem; background:white; border-radius:12px; box-shadow:0 4px 12px rgba(0,0,0,0.08); }
+        section { margin-bottom:2rem; }
+        h2 { color:#1e3a8a; margin-bottom:1rem; text-align:center; }
+        ul { list-style:none; padding-left:0; }
+        li { margin:0.5rem 0; padding:0.5rem; border-radius:8px; color:white; font-weight:bold; }
+        .vert { background:#10b981; }
+        .jaune { background:#facc15; color:#333; }
+        .orange { background:#f97316; }
+        .rouge { background:#ef4444; }
+        iframe { width:100%; height:450px; border:0; border-radius:12px; margin-top:2rem; }
+        nav { text-align:center; margin:20px 0; }
+        nav a { margin:0 8px; text-decoration:none; color:#1e3a8a; font-weight:bold; }
+        footer { text-align:center; padding:1.5rem; background:#111827; color:#d1d5db; }
+    </style>
 </head>
 <body>
-    <h1>Zone d'Intervention</h1>
-    <p>Villevaudé + 30km (77)</p>
-    
-    <nav>
-        <a href="index.html">Accueil</a> |
-        <a href="services.html">Services</a> |
-        <a href="tarifs.html">Tarifs</a> |
-        <a href="devis.html">Devis</a> |
-        <a href="contact.html">Contact</a>
-    </nav>
+
+<header>
+    <h1>DS.BAT - Zones d'Intervention</h1>
+    <p>Île-de-France et départements limitrophes</p>
+</header>
+
+<nav>
+    <a href="index.html">Accueil</a> |
+    <a href="services.html">Services</a> |
+    <a href="zone.html">Zone</a> |
+    <a href="prix.html">Prix</a> |
+    <a href="devis.html">Devis</a> |
+    <a href="contact.html">Contact</a>
+</nav>
+
+<main class="container">
+    <h2>Nos zones d'intervention</h2>
+
+    <section>
+        <ul>
+            <li class="vert">🟢 Vert – Local ≤ 7 km : Villevaudé, Claye-Souilly, Brou-sur-Chantereine, Courtry, Villeparisis, Vaires-sur-Marne, Thorigny-sur-Marne, Saint-Thibault-des-Vignes</li>
+            <li class="jaune">🟡 Jaune – 8‑15 km : Lagny-sur-Marne, Chelles, Noisiel, Meaux, Chessy</li>
+            <li class="orange">🟠 Orange – 16‑25 km : Torcy, Montfermeil, Mitry-Mory, Dammartin-en-Goële, Pontault-Combault</li>
+            <li class="rouge">🔴 Rouge – 26‑40 km : Melun, Fontainebleau, Paris, Seine-Saint-Denis (93), Marne-la-Vallée, Ermenonville (60), Senlis (60)</li>
+        </ul>
+    </section>
+
+    <!-- Carte Google Maps centrée sur 58 Grande Rue, Villevaudé -->
+    <section>
+        <h2>Carte Google Maps</h2>
+        <iframe 
+            src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2623.621203980194!2d2.616113315673569!3d48.93507207929252!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x47e63ec1b7ec0f69%3A0x40b82c3688c9460!2s58%20Grande%20Rue%2C%2077410%20Villevaud%C3%A9%2C%20France!5e0!3m2!1sfr!2sfr!4v1696826400000!5m2!1sfr!2sfr" 
+            allowfullscreen="" 
+            loading="lazy" 
+            referrerpolicy="no-referrer-when-downgrade">
+        </iframe>
+    </section>
+
+</main>
+
+<footer>
+    <p>&copy; 2026 DS.BAT - Électricité & Rénovation Île-de-France | <a href="mentions-legales.html">Mentions légales</a></p>
+</footer>
+
 </body>
 </html>
