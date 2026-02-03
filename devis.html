@@ -1,35 +1,218 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <title>Devis - DS.BAT</title>
     <meta charset="UTF-8">
+    <title>Devis interactif - DS.BAT</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Devis interactif DS.BAT – estimation rapide électricité neuf ou rénovation">
+
+    <style>
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: #f5f7fa;
+            margin: 0;
+            color: #333;
+        }
+
+        header {
+            background: linear-gradient(90deg, #1e3a8a, #3b82f6);
+            color: white;
+            text-align: center;
+            padding: 2rem 1rem;
+        }
+
+        nav {
+            background: #ffffff;
+            text-align: center;
+            padding: 1rem;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+        }
+
+        nav a {
+            margin: 0 10px;
+            text-decoration: none;
+            color: #1e3a8a;
+            font-weight: bold;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 2rem auto;
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+
+        h2 {
+            color: #1e3a8a;
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 2rem;
+        }
+
+        th, td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: center;
+        }
+
+        th {
+            background: #f1f5f9;
+        }
+
+        select, input {
+            padding: 6px;
+            width: 80px;
+        }
+
+        .total {
+            font-size: 1.5rem;
+            font-weight: bold;
+            text-align: center;
+            margin-top: 1rem;
+            color: #16a34a;
+        }
+
+        .info {
+            text-align: center;
+            margin-top: 1rem;
+            font-style: italic;
+            color: #555;
+        }
+
+        .cta {
+            text-align: center;
+            margin-top: 2rem;
+        }
+
+        .cta a {
+            display: inline-block;
+            background: #1e3a8a;
+            color: white;
+            padding: 1rem 2rem;
+            border-radius: 8px;
+            text-decoration: none;
+            font-size: 1.1rem;
+        }
+
+        .cta a:hover {
+            background: #3b82f6;
+        }
+
+        footer {
+            background: #111827;
+            color: #d1d5db;
+            text-align: center;
+            padding: 1.5rem;
+            margin-top: 2rem;
+        }
+    </style>
 </head>
+
 <body>
-    <h1>Calculateur Devis DS.BAT</h1>
 
-    <h2>Électricité HT</h2>
+<header>
+    <h1>📄 Devis interactif DS.BAT</h1>
+    <p>Électricité – Estimation rapide</p>
+</header>
+
+<nav>
+    <a href="index.html">Accueil</a>
+    <a href="services.html">Services</a>
+    <a href="zone.html">Zone</a>
+    <a href="prix.html">Prix</a>
+    <a href="contact.html">Contact</a>
+</nav>
+
+<div class="container">
+    <h2>Choisissez votre type de chantier</h2>
+
+    <p style="text-align:center;">
+        <select id="typeTravaux" onchange="calculer()">
+            <option value="neuf">Électricité – Neuf</option>
+            <option value="reno">Électricité – Rénovation</option>
+        </select>
+    </p>
+
     <table>
-        <tr><th>Élément</th><th>Neuf</th><th>Rénovation</th></tr>
-        <tr><td>Tableau électrique</td><td>750-1100€</td><td>1000-1900€</td></tr>
-        <tr><td>Prise simple</td><td>70-120€</td><td>50-75€</td></tr>
-        <tr><td>Prise 32A</td><td>75-150€</td><td>100-200€</td></tr>
-        <tr><td>Interrupteur</td><td>65-95€</td><td>80-140€</td></tr>
-        <tr><td>Va-et-vient</td><td>90-150€</td><td>120-200€</td></tr>
-        <tr><td>Télérupteur</td><td>120-200€</td><td>150-270€</td></tr>
+        <tr>
+            <th>Élément</th>
+            <th>Quantité</th>
+            <th>Prix unitaire</th>
+            <th>Total</th>
+        </tr>
+
+        <tr>
+            <td>Prise</td>
+            <td><input type="number" min="0" id="prise" value="0" onchange="calculer()"></td>
+            <td id="pu-prise">90 €</td>
+            <td id="total-prise">0 €</td>
+        </tr>
+
+        <tr>
+            <td>Interrupteur</td>
+            <td><input type="number" min="0" id="inter" value="0" onchange="calculer()"></td>
+            <td id="pu-inter">75 €</td>
+            <td id="total-inter">0 €</td>
+        </tr>
+
+        <tr>
+            <td>Tableau électrique</td>
+            <td><input type="number" min="0" id="tableau" value="0" onchange="calculer()"></td>
+            <td id="pu-tableau">900 €</td>
+            <td id="total-tableau">0 €</td>
+        </tr>
     </table>
 
-    <h2>Peinture HT/m²</h2>
-    <table>
-        <tr><th>Surface</th><th>Standard</th><th>Effets</th></tr>
-        <tr><td>Plafond</td><td>24-42€</td><td>58-77€</td></tr>
-        <tr><td>Murs</td><td>20-55€</td><td>55-70€</td></tr>
-    </table>
+    <div class="total" id="totalGeneral">Total estimé : 0 € HT</div>
 
-    <nav>
-        <a href="index.html">Accueil</a> | <a href="services.html">Services</a> | 
-        <a href="zone.html">Zone</a> | <a href="tarifs.html">Tarifs</a> | 
-        <a href="contact.html">Contact</a>
-    </nav>
+    <div class="info">
+        * Estimation indicative. Le devis définitif sera validé après visite sur site.
+    </div>
+
+    <div class="cta">
+        <a href="contact.html">📅 Prendre rendez-vous pour valider le devis</a>
+    </div>
+</div>
+
+<footer>
+    <p>&copy; 2026 DS.BAT – Électricité & Rénovation | SIREN 978 281 970</p>
+</footer>
+
+<script>
+    const prix = {
+        neuf: { prise: 90, inter: 75, tableau: 900 },
+        reno: { prise: 65, inter: 95, tableau: 1350 }
+    };
+
+    function calculer() {
+        const type = document.getElementById("typeTravaux").value;
+
+        let total = 0;
+
+        ["prise", "inter", "tableau"].forEach(item => {
+            const qte = parseInt(document.getElementById(item).value) || 0;
+            const pu = prix[type][item];
+            const ligne = qte * pu;
+
+            document.getElementById("pu-" + item).innerText = pu + " €";
+            document.getElementById("total-" + item).innerText = ligne + " €";
+
+            total += ligne;
+        });
+
+        document.getElementById("totalGeneral").innerText =
+            "Total estimé : " + total + " € HT";
+    }
+
+    calculer();
+</script>
+
 </body>
 </html>
