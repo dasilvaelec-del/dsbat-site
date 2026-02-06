@@ -4,185 +4,136 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>DS.BAT Électricité & Rénovation | Villevaudé 77</title>
-<meta name="description" content="DS.BAT Électricité DQE et rénovation tous corps d'état. Villevaudé, Seine-et-Marne, Île-de-France. Devis gratuit.">
 
 <style>
-* { margin:0; padding:0; box-sizing:border-box; }
-body { font-family: Arial, sans-serif; background:#f1f5f9; color:#0f172a; line-height:1.6; }
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:Arial, sans-serif;background:#f1f5f9;color:#0f172a}
 
-/* ===== HEADER / HERO ===== */
-header {
-    background: url('https://images.unsplash.com/photo-1581091215367-59ab6f7f5f8b?auto=format&fit=crop&w=1400&q=80') center/cover no-repeat;
-    color: white;
-    text-align: center;
-    padding: 8rem 1rem 6rem 1rem;
-    position: relative;
+/* HERO */
+.hero{
+background:
+linear-gradient(rgba(10,20,40,0.75),rgba(10,20,40,0.75)),
+url("https://images.unsplash.com/photo-1503387762-592deb58ef4e?q=80&w=1600");
+background-size:cover;
+background-position:center;
+color:white;
+text-align:center;
+padding:120px 20px;
 }
-header::after {
-    content: "";
-    position: absolute;
-    top:0; left:0; right:0; bottom:0;
-    background: rgba(10,20,40,0.75); /* overlay bleu nuit sombre */
-    z-index:0;
-}
-header h1, header p { position: relative; z-index:1; }
-header h1 { font-size:3rem; margin-bottom:1rem; }
-header p { font-size:1.2rem; margin-bottom:0.5rem; }
+.hero h1{font-size:3rem;margin-bottom:15px}
+.hero p{font-size:1.2rem;margin-bottom:25px}
 
-/* ===== NAVIGATION ===== */
-nav {
-    background:white;
-    text-align:center;
-    padding:1rem;
-    box-shadow:0 2px 8px rgba(0,0,0,0.05);
+.btn{
+display:inline-block;
+padding:14px 28px;
+margin:5px;
+border-radius:8px;
+text-decoration:none;
+font-weight:bold;
 }
-nav a {
-    margin:0 12px;
-    text-decoration:none;
-    color:#0f172a;
-    font-weight:bold;
-    transition:0.3s;
+.btn-primary{background:#1e3a8a;color:white}
+.btn-gold{background:#c59d5f;color:#0f172a}
+
+/* NAV */
+nav{background:white;padding:15px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.05)}
+nav a{margin:0 10px;text-decoration:none;color:#0f172a;font-weight:bold}
+nav a:hover{color:#c59d5f}
+
+/* SECTIONS */
+.container{max-width:1100px;margin:auto;padding:40px 20px}
+.section{margin-bottom:50px}
+.section h2{text-align:center;margin-bottom:25px}
+
+/* SERVICES */
+.services{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:20px}
+.card{
+background:white;
+padding:25px;
+border-radius:12px;
+box-shadow:0 6px 18px rgba(0,0,0,.05);
+text-align:center;
 }
-nav a:hover { color:#c59d5f; }
+.card span{font-size:40px}
 
-/* ===== CONTAINER ===== */
-.container { max-width:1200px; margin:3rem auto; padding:1rem; }
+/* CTA FINAL */
+.cta{text-align:center;background:#0f172a;color:white;padding:50px 20px}
+.cta h2{margin-bottom:20px}
 
-/* ===== SECTIONS ===== */
-.section {
-    background:white;
-    padding:2.5rem;
-    margin-bottom:2rem;
-    border-radius:12px;
-    box-shadow:0 6px 18px rgba(0,0,0,0.05);
-}
-.section h2 {
-    text-align:center;
-    margin-bottom:2rem;
-    position:relative;
-    color:#0f172a;
-}
-.section h2::after {
-    content:"";
-    width:60px;
-    height:3px;
-    background:#c59d5f;
-    display:block;
-    margin:10px auto 0;
-}
-
-/* ===== SERVICES ===== */
-.services { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:1.5rem; }
-.service {
-    background:#f8fafc;
-    padding:1.5rem;
-    border-radius:10px;
-    border-top:4px solid #1e3a8a;
-    transition:0.3s;
-}
-.service:hover { transform:translateY(-5px); }
-.service h3 { margin-bottom:0.5rem; color:#1e3a8a; }
-
-/* ===== ZONES ===== */
-.zones { display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:1rem; }
-.zone {
-    padding:1rem;
-    border-radius:8px;
-    color:white;
-    font-weight:bold;
-    text-align:center;
-}
-.vert { background:#16a34a; }
-.jaune { background:#ca8a04; }
-.orange { background:#ea580c; }
-.rouge { background:#dc2626; }
-
-/* ===== CTA ===== */
-.cta { text-align:center; margin-top:1rem; }
-.cta a {
-    display:inline-block;
-    margin:10px;
-    padding:14px 28px;
-    background:#1e3a8a;
-    color:white;
-    text-decoration:none;
-    border-radius:8px;
-    font-weight:bold;
-    transition:0.3s;
-}
-.cta a:hover { background:#c59d5f; color:#0f172a; }
-
-/* ===== FOOTER ===== */
-footer { background:#0f172a; color:#d1d5db; text-align:center; padding:2rem; }
-footer a { color:#c59d5f; text-decoration:none; }
-
-/* ===== MOBILE ===== */
-@media(max-width:768px) { header h1 { font-size:2rem; } }
-
+/* FOOTER */
+footer{background:#020617;color:#cbd5e1;text-align:center;padding:20px}
+footer a{color:#c59d5f;text-decoration:none}
 </style>
 </head>
+
 <body>
 
-<header>
-    <h1>🔌 DS.BAT Électricité & Rénovation</h1>
-    <p>Villevaudé 77410 • Seine-et-Marne • Île-de-France</p>
-    <p>Électricité DQE • Rénovation tous corps d'état • Devis gratuit</p>
-</header>
+<!-- HERO -->
+<section class="hero">
+<h1>DS.BAT Électricité & Rénovation</h1>
+<p>Installation • Rénovation • Dépannage en Seine-et-Marne</p>
+<a class="btn btn-primary" href="devis.html">Faire un devis</a>
+<a class="btn btn-gold" href="tel:0600000000">Appeler maintenant</a>
+</section>
 
+<!-- NAV -->
 <nav>
-    <a href="index.html">Accueil</a>
-    <a href="services.html">Services</a>
-    <a href="zone.html">Zone</a>
-    <a href="prix.html">Prix</a>
-    <a href="devis.html">Devis</a>
-    <a href="contact.html">Contact</a>
+<a href="index.html">Accueil</a>
+<a href="services.html">Services</a>
+<a href="zone.html">Zone</a>
+<a href="prix.html">Prix</a>
+<a href="devis.html">Devis</a>
+<a href="contact.html">Contact</a>
 </nav>
 
 <div class="container">
 
-    <!-- SERVICES -->
-    <section class="section">
-        <h2>Nos services</h2>
-        <div class="services">
-            <div class="service">
-                <h3>⚡ Électricité DQE</h3>
-                <p>Installation, rénovation, dépannage, mise aux normes NF C 15-100.</p>
-            </div>
-            <div class="service">
-                <h3>🔨 Rénovation complète</h3>
-                <p>Plomberie, peinture, carrelage, placo, isolation, sols.</p>
-            </div>
-            <div class="service">
-                <h3>📋 Devis & suivi</h3>
-                <p>Étude gratuite, conseils et coordination des travaux.</p>
-            </div>
-        </div>
-    </section>
+<!-- PRESENTATION -->
+<section class="section">
+<h2>Votre artisan de confiance à Villevaudé</h2>
+<p style="text-align:center;max-width:700px;margin:auto">
+DS.BAT réalise vos travaux d’électricité et de rénovation tous corps d’état.
+Intervention rapide, travail soigné et devis gratuit dans toute la Seine-et-Marne
+et l’Île-de-France.
+</p>
+</section>
 
-    <!-- ZONES -->
-    <section class="section">
-        <h2>Zones d’intervention</h2>
-        <div class="zones">
-            <div class="zone vert">Zone locale – Villevaudé & proches</div>
-            <div class="zone jaune">8 à 15 km – Grandes villes alentours</div>
-            <div class="zone orange">16 à 25 km – Seine-et-Marne & IDF</div>
-            <div class="zone rouge">+25 km – Paris, 93, Melun, Fontainebleau</div>
-        </div>
-    </section>
+<!-- SERVICES -->
+<section class="section">
+<h2>Nos prestations</h2>
+<div class="services">
 
-    <!-- CTA -->
-    <section class="section cta">
-        <h2>Un projet ? Un devis rapide ?</h2>
-        <a href="devis.html">📄 Faire un devis</a>
-        <a href="contact.html">📞 Nous contacter</a>
-    </section>
+<div class="card">
+<span>⚡</span>
+<h3>Électricité complète</h3>
+<p>Installation neuve, rénovation, dépannage et mise aux normes.</p>
+</div>
+
+<div class="card">
+<span>🏠</span>
+<h3>Rénovation intérieure</h3>
+<p>Plomberie, peinture, sols, placo et rénovation complète.</p>
+</div>
+
+<div class="card">
+<span>📋</span>
+<h3>Devis & suivi</h3>
+<p>Étude gratuite, conseils et accompagnement du chantier.</p>
+</div>
+
+</div>
+</section>
 
 </div>
 
+<!-- CTA FINAL -->
+<section class="cta">
+<h2>Un projet ? Parlons-en dès maintenant</h2>
+<a class="btn btn-primary" href="devis.html">Demander un devis</a>
+<a class="btn btn-gold" href="tel:0600000000">Téléphoner</a>
+</section>
+
 <footer>
-    <p>&copy; 2026 DS.BAT – Électricité & Rénovation | SIREN 978 281 970 | 
-        <a href="mentions-legales.html">Mentions légales</a>
-    </p>
+<p>© 2026 DS.BAT – Villevaudé | <a href="mentions-legales.html">Mentions légales</a></p>
 </footer>
 
 </body>
