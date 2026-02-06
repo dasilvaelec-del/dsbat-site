@@ -10,67 +10,83 @@
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
         body {
-            font-family: 'Segoe UI', Arial, sans-serif;
-            background: #f5f7fa;
-            color: #333;
+            font-family: Arial, sans-serif;
+            background-color: #f1f5f9;
+            color: #0f172a;
             line-height: 1.6;
         }
 
+        /* ===== HEADER ===== */
         header {
-            background: linear-gradient(90deg, #1e3a8a, #3b82f6);
+            background: #0f172a;
             color: white;
-            padding: 2.5rem 1rem;
+            padding: 3rem 1rem;
             text-align: center;
         }
 
         header h1 {
-            font-size: 2.5rem;
+            font-size: 2.4rem;
             margin-bottom: 0.5rem;
+            letter-spacing: 1px;
         }
 
         header p {
-            font-size: 1.1rem;
-            opacity: 0.95;
+            opacity: 0.9;
         }
 
+        /* ===== NAVIGATION ===== */
         nav {
-            background: #ffffff;
+            background: white;
             text-align: center;
             padding: 1rem;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
         }
 
         nav a {
-            margin: 0 10px;
+            margin: 0 12px;
             text-decoration: none;
-            color: #1e3a8a;
+            color: #0f172a;
             font-weight: bold;
+            transition: 0.3s;
         }
 
         nav a:hover {
-            text-decoration: underline;
+            color: #c59d5f; /* doré discret */
         }
 
+        /* ===== CONTAINER ===== */
         .container {
             max-width: 1200px;
-            margin: 2rem auto;
+            margin: 2.5rem auto;
             padding: 1rem;
         }
 
+        /* ===== SECTIONS ===== */
         .section {
             background: white;
-            padding: 2rem;
+            padding: 2.2rem;
             margin-bottom: 2rem;
             border-radius: 12px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            box-shadow: 0 6px 18px rgba(0,0,0,0.05);
         }
 
         .section h2 {
-            color: #1e3a8a;
             text-align: center;
-            margin-bottom: 1.5rem;
+            margin-bottom: 1.8rem;
+            color: #0f172a;
+            position: relative;
         }
 
+        .section h2::after {
+            content: "";
+            width: 60px;
+            height: 3px;
+            background: #c59d5f;
+            display: block;
+            margin: 10px auto 0;
+        }
+
+        /* ===== SERVICES ===== */
         .services {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -80,8 +96,13 @@
         .service {
             background: #f8fafc;
             padding: 1.5rem;
-            border-left: 5px solid #3b82f6;
-            border-radius: 8px;
+            border-radius: 10px;
+            border-top: 4px solid #1e3a8a;
+            transition: 0.3s;
+        }
+
+        .service:hover {
+            transform: translateY(-5px);
         }
 
         .service h3 {
@@ -89,6 +110,7 @@
             color: #1e3a8a;
         }
 
+        /* ===== ZONES ===== */
         .zones {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
@@ -100,6 +122,7 @@
             border-radius: 8px;
             color: white;
             font-weight: bold;
+            text-align: center;
         }
 
         .vert { background: #16a34a; }
@@ -107,6 +130,7 @@
         .orange { background: #ea580c; }
         .rouge { background: #dc2626; }
 
+        /* ===== CTA ===== */
         .cta {
             text-align: center;
         }
@@ -114,30 +138,34 @@
         .cta a {
             display: inline-block;
             margin: 10px;
-            padding: 1rem 2rem;
+            padding: 12px 28px;
             background: #1e3a8a;
             color: white;
             text-decoration: none;
-            border-radius: 8px;
-            font-size: 1.1rem;
+            border-radius: 6px;
+            font-weight: bold;
+            transition: 0.3s;
         }
 
         .cta a:hover {
-            background: #3b82f6;
+            background: #c59d5f;
+            color: #0f172a;
         }
 
+        /* ===== FOOTER ===== */
         footer {
-            background: #111827;
+            background: #0f172a;
             color: #d1d5db;
             text-align: center;
-            padding: 1.5rem;
+            padding: 1.8rem;
         }
 
         footer a {
-            color: #93c5fd;
+            color: #c59d5f;
             text-decoration: none;
         }
 
+        /* ===== MOBILE ===== */
         @media (max-width: 768px) {
             header h1 { font-size: 2rem; }
         }
@@ -177,7 +205,7 @@
             </div>
             <div class="service">
                 <h3>📋 Devis & suivi</h3>
-                <p>Étude gratuite, conseils, coordination des travaux.</p>
+                <p>Étude gratuite, conseils et coordination des travaux.</p>
             </div>
         </div>
     </section>
@@ -203,7 +231,9 @@
 </div>
 
 <footer>
-    <p>&copy; 2026 DS.BAT – Électricité & Rénovation | SIREN 978 281 970 | <a href="#">Mentions légales</a></p>
+    <p>&copy; 2026 DS.BAT – Électricité & Rénovation | SIREN 978 281 970 |
+        <a href="mentions-legales.html">Mentions légales</a>
+    </p>
 </footer>
 
 </body>
