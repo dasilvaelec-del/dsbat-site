@@ -1,19 +1,18 @@
-
 <!DOCTYPE html>
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DS.BAT Électricité & Rénovation | Villevaudé 77</title>
+<title>DS.BAT Électricité & Rénovation | Villevaudé</title>
 
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:Arial, sans-serif;background:#f1f5f9;color:#0f172a}
+body{font-family:Arial,sans-serif;background:#f1f5f9;color:#0f172a}
 
-/* HERO */
+/* ===== HERO ===== */
 .hero{
 background:
-linear-gradient(rgba(10,20,40,0.75),rgba(10,20,40,0.75)),
+linear-gradient(rgba(10,20,40,.75),rgba(10,20,40,.75)),
 url("https://images.unsplash.com/photo-1503387762-592deb58ef4e?q=80&w=1600");
 background-size:cover;
 background-position:center;
@@ -24,6 +23,7 @@ padding:120px 20px;
 .hero h1{font-size:3rem;margin-bottom:15px}
 .hero p{font-size:1.2rem;margin-bottom:25px}
 
+/* ===== BOUTONS ===== */
 .btn{
 display:inline-block;
 padding:14px 28px;
@@ -35,18 +35,53 @@ font-weight:bold;
 .btn-primary{background:#1e3a8a;color:white}
 .btn-gold{background:#c59d5f;color:#0f172a}
 
-/* NAV */
-nav{background:white;padding:15px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.05)}
-nav a{margin:0 10px;text-decoration:none;color:#0f172a;font-weight:bold}
-nav a:hover{color:#c59d5f}
+/* ===== MENU HAMBURGER ===== */
+.menu-btn{
+position:fixed;
+top:20px;
+right:20px;
+font-size:28px;
+background:#1e3a8a;
+color:white;
+border:none;
+padding:10px 14px;
+border-radius:8px;
+cursor:pointer;
+z-index:1001;
+}
 
-/* SECTIONS */
+.menu{
+position:fixed;
+top:0;
+right:-250px;
+width:250px;
+height:100%;
+background:#0f172a;
+padding-top:80px;
+transition:.3s;
+z-index:1000;
+}
+.menu a{
+display:block;
+color:white;
+padding:15px;
+text-decoration:none;
+border-bottom:1px solid rgba(255,255,255,.1);
+}
+.menu a:hover{background:#1e3a8a}
+
+.menu.open{right:0}
+
+/* ===== SECTIONS ===== */
 .container{max-width:1100px;margin:auto;padding:40px 20px}
 .section{margin-bottom:50px}
 .section h2{text-align:center;margin-bottom:25px}
 
-/* SERVICES */
-.services{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:20px}
+.services{
+display:grid;
+grid-template-columns:repeat(auto-fit,minmax(250px,1fr));
+gap:20px;
+}
 .card{
 background:white;
 padding:25px;
@@ -56,11 +91,26 @@ text-align:center;
 }
 .card span{font-size:40px}
 
-/* CTA FINAL */
+/* ===== CTA ===== */
 .cta{text-align:center;background:#0f172a;color:white;padding:50px 20px}
 .cta h2{margin-bottom:20px}
 
-/* FOOTER */
+/* ===== WHATSAPP FLOAT ===== */
+.whatsapp{
+position:fixed;
+bottom:20px;
+right:20px;
+background:#25D366;
+color:white;
+font-size:26px;
+padding:14px 16px;
+border-radius:50%;
+text-decoration:none;
+box-shadow:0 4px 10px rgba(0,0,0,.3);
+z-index:1001;
+}
+
+/* ===== FOOTER ===== */
 footer{background:#020617;color:#cbd5e1;text-align:center;padding:20px}
 footer a{color:#c59d5f;text-decoration:none}
 </style>
@@ -68,57 +118,57 @@ footer a{color:#c59d5f;text-decoration:none}
 
 <body>
 
-<!-- HERO -->
-<section class="hero">
-<h1>DS.BAT Électricité & Rénovation</h1>
-<p>Installation • Rénovation • Dépannage en Seine-et-Marne</p>
-<a class="btn btn-primary" href="devis.html">Faire un devis</a>
-<a class="btn btn-gold" href="tel:0600000000">Appeler maintenant</a>
-</section>
+<!-- MENU BUTTON -->
+<button class="menu-btn" onclick="toggleMenu()">☰</button>
 
-<!-- NAV -->
-<nav>
+<!-- MENU -->
+<div class="menu" id="menu">
 <a href="index.html">Accueil</a>
 <a href="services.html">Services</a>
 <a href="zone.html">Zone</a>
 <a href="prix.html">Prix</a>
 <a href="devis.html">Devis</a>
 <a href="contact.html">Contact</a>
-</nav>
+</div>
+
+<!-- HERO -->
+<section class="hero">
+<h1>DS.BAT Électricité & Rénovation</h1>
+<p>Installation • Rénovation • Dépannage en Seine-et-Marne</p>
+<a class="btn btn-primary" href="devis.html">Faire un devis</a>
+<a class="btn btn-gold" href="tel:0600000000">Appeler</a>
+</section>
 
 <div class="container">
 
-<!-- PRESENTATION -->
 <section class="section">
 <h2>Votre artisan de confiance à Villevaudé</h2>
 <p style="text-align:center;max-width:700px;margin:auto">
 DS.BAT réalise vos travaux d’électricité et de rénovation tous corps d’état.
-Intervention rapide, travail soigné et devis gratuit dans toute la Seine-et-Marne
-et l’Île-de-France.
+Intervention rapide, travail soigné et devis gratuit.
 </p>
 </section>
 
-<!-- SERVICES -->
 <section class="section">
 <h2>Nos prestations</h2>
 <div class="services">
 
 <div class="card">
 <span>⚡</span>
-<h3>Électricité complète</h3>
-<p>Installation neuve, rénovation, dépannage et mise aux normes.</p>
+<h3>Électricité</h3>
+<p>Installation neuve, rénovation et dépannage.</p>
 </div>
 
 <div class="card">
 <span>🏠</span>
-<h3>Rénovation intérieure</h3>
-<p>Plomberie, peinture, sols, placo et rénovation complète.</p>
+<h3>Rénovation</h3>
+<p>Travaux intérieurs complets tous corps d’état.</p>
 </div>
 
 <div class="card">
 <span>📋</span>
-<h3>Devis & suivi</h3>
-<p>Étude gratuite, conseils et accompagnement du chantier.</p>
+<h3>Devis gratuit</h3>
+<p>Conseils et suivi complet du chantier.</p>
 </div>
 
 </div>
@@ -126,16 +176,23 @@ et l’Île-de-France.
 
 </div>
 
-<!-- CTA FINAL -->
 <section class="cta">
-<h2>Un projet ? Parlons-en dès maintenant</h2>
+<h2>Un projet ? Contactez-nous</h2>
 <a class="btn btn-primary" href="devis.html">Demander un devis</a>
-<a class="btn btn-gold" href="tel:0600000000">Téléphoner</a>
 </section>
 
 <footer>
-<p>© 2026 DS.BAT – Villevaudé | <a href="mentions-legales.html">Mentions légales</a></p>
+<p>© 2026 DS.BAT | <a href="mentions-legales.html">Mentions légales</a></p>
 </footer>
+
+<!-- WHATSAPP -->
+<a class="whatsapp" href="https://wa.me/33600000000" target="_blank">💬</a>
+
+<script>
+function toggleMenu(){
+document.getElementById("menu").classList.toggle("open");
+}
+</script>
 
 </body>
 </html>
