@@ -88,6 +88,7 @@ header{position:relative;z-index:1000}
 }
 
 /* CTA */
+main{min-height:calc(100vh - 120px); display:flex; flex-direction:column;}
 .cta{text-align:center;background:#0f172a;color:white;padding:60px 20px;opacity:0;transform:translateY(40px)}
 .cta h2{margin-bottom:25px;}
 
@@ -96,8 +97,13 @@ header{position:relative;z-index:1000}
 .whatsapp:hover{transform:scale(1.2)}
 
 /* FOOTER */
-footer{background:#020617;color:#cbd5e1;text-align:center;padding:22px}
-footer a{color:#c59d5f;text-decoration:none}
+footer{
+  background:#020617;
+  color:#cbd5e1;
+  text-align:center;
+  padding:22px;
+  flex-shrink:0;
+}
 
 /* ANIMATIONS */
 @keyframes fadeInUp{to{opacity:1; transform:translateY(0);}}
@@ -119,10 +125,11 @@ footer a{color:#c59d5f;text-decoration:none}
     font-size:0.9rem;
     padding:15px 12px;
     margin-top:15px;
+    margin-bottom:20px; /* espace sous la zone verte */
   }
 
   .services{gap:15px}
-  .card{padding:20px}
+  .card{padding:20px; margin-bottom:15px} /* espace entre cartes et zone verte */
 }
 </style>
 </head>
