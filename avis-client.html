@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Avis clients - DS.BAT</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; line-height: 1.6; color: #333; background: #f5f7fa; }
+        header { background: linear-gradient(90deg, #1e3a8a, #3b82f6); color: white; padding: 2rem 0; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        header h1 { font-size: 2.5rem; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+        .section { background: white; margin: 2rem 0; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+        .avis { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; }
+        .avis-item { padding: 1.5rem; background: #f8fafc; border-left: 4px solid #3b82f6; border-radius: 8px; }
+        .avis-item h3 { color: #1e3a8a; margin-bottom: 0.5rem; font-size: 1.2rem; }
+        .avis-item p { font-size: 1rem; color: #555; }
+        nav { text-align: center; margin: 30px 0; }
+        nav a { margin: 0 10px; text-decoration: none; color: #1e3a8a; font-weight: bold; }
+        footer { background: #111827; color: #d1d5db; text-align: center; padding: 1.5rem; }
+        @media (max-width: 768px) { header h1 { font-size: 2rem; } .container { padding: 1rem; } }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>💬 Avis clients</h1>
+    <p>DS.BAT - Électricité & Rénovation Île-de-France</p>
+</header>
+
+<div class="container">
+    <section class="section">
+        <h2 style="color:#1e3a8a; text-align:center; margin-bottom:2rem;">Ce que disent nos clients</h2>
+        <div class="avis">
+            <div class="avis-item">
+                <h3>Jean M. - Villevaudé</h3>
+                <p>Travail impeccable, sérieux et rapide. Je recommande vivement DS.BAT pour tous vos travaux électriques et rénovation.</p>
+            </div>
+            <div class="avis-item">
+                <h3>Claire L. - Meaux</h3>
+                <p>Intervention rapide et devis clair. Les artisans sont très professionnels et le résultat est parfait.</p>
+            </div>
+            <div class="avis-item">
+                <h3>Marc P. - Torcy</h3>
+                <p>Super expérience ! Les travaux ont été faits proprement et dans les délais. Merci à l’équipe DS.BAT.</p>
+            </div>
+        </div>
+    </section>
+</div>
+
+<nav>
+    <a href="index.html">Accueil</a> | 
+    <a href="services.html">Services</a> | 
+    <a href="realisations.html">Réalisations</a> | 
+    <a href="prix.html">Prix</a> | 
+    <a href="devis.html">Devis</a> | 
+    <a href="zone.html">Zone</a> | 
+    <a href="contact.html">Contact</a>
+</nav>
+
+<footer>
+    <p>&copy; 2026 DS.BAT - Électricité & Rénovation Île-de-France</p>
+</footer>
+
+</body>
+</html>
