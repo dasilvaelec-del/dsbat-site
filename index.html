@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <title>DS.BAT Électricité & Rénovation à Villevaudé</title>
-<meta name="description" content="Travaux d’électricité et rénovation à Villevaudé, Seine-et-Marne, Paris et Nord-Est IDF. Devis gratuit.">
+<meta name="description" content="Travaux d’électricité et rénovation à Villevaudé, Seine-et-Marne, Paris et Nord-Est IDF. Devis gratuit et intervention rapide.">
 
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
@@ -59,15 +59,26 @@ main{flex:1}
 .menu a:hover{background:#1e3a8a}
 .menu.open{right:0}
 
-/* ===== HERO ===== */
+/* ===== HERO PLEIN ÉCRAN ===== */
 .hero{
-  background:linear-gradient(rgba(10,20,40,.75),rgba(10,20,40,.75)),
-  url("https://images.unsplash.com/photo-1503387762-592deb58ef4e?q=80&w=1600");
+  height:100vh;
+  min-height:520px;
+  background:
+    linear-gradient(rgba(10,20,40,.65),rgba(10,20,40,.65)),
+    url("https://images.unsplash.com/photo-1503387762-592deb58ef4e?q=80&w=1600");
   background-size:cover;
   background-position:center;
-  color:white;
+  background-repeat:no-repeat;
+
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  align-items:center;
+
   text-align:center;
-  padding:110px 20px;
+  color:white;
+  padding:20px;
+
   animation:fadeIn 1.2s ease;
 }
 
@@ -92,14 +103,16 @@ main{flex:1}
 .btn-phone:hover{transform:translateY(-2px);box-shadow:0 6px 14px rgba(0,0,0,.2)}
 
 /* ===== SECTIONS ===== */
-.container{max-width:1050px;margin:auto;padding:50px 20px}
+.container{max-width:1050px;margin:auto;padding:60px 20px}
+
 .section{
-  margin-bottom:50px;
+  margin-bottom:60px;
   text-align:center;
   opacity:0;
   transform:translateY(40px);
   transition:.8s;
 }
+
 .section.visible{opacity:1;transform:translateY(0)}
 
 /* ===== SERVICES ===== */
@@ -116,6 +129,7 @@ main{flex:1}
   box-shadow:0 6px 18px rgba(0,0,0,.08);
   transition:.4s;
 }
+
 .card:hover{
   transform:translateY(-6px) scale(1.02);
   box-shadow:0 16px 28px rgba(0,0,0,.18);
@@ -125,7 +139,7 @@ main{flex:1}
 .zone-short{
   background:#16a34a;
   color:white;
-  padding:20px;
+  padding:22px;
   border-radius:12px;
   margin-top:25px;
 }
@@ -135,7 +149,7 @@ main{flex:1}
   background:#0f172a;
   color:white;
   text-align:center;
-  padding:60px 20px;
+  padding:70px 20px;
 }
 
 /* ===== FOOTER ===== */
@@ -143,7 +157,7 @@ footer{
   background:#020617;
   color:#cbd5e1;
   text-align:center;
-  padding:20px;
+  padding:22px;
 }
 footer a{color:#c59d5f;text-decoration:none}
 
@@ -186,36 +200,54 @@ footer a{color:#c59d5f;text-decoration:none}
 
 <div class="container">
 
-  <!-- PRESENTATION -->
-  <section class="section">
-    <h2>Votre artisan de confiance</h2>
-    <p>
-      Travaux d’électricité et rénovation tous corps d’état.
-      Intervention rapide et devis gratuit.
-    </p>
-  </section>
+<!-- PRESENTATION -->
+<section class="section">
+  <h2>Votre artisan de confiance</h2>
+  <p>
+    Travaux d’électricité et rénovation tous corps d’état.
+    Intervention rapide, travail soigné et devis gratuit.
+  </p>
+</section>
 
-  <!-- SERVICES -->
-  <section class="section">
-    <h2>Nos prestations</h2>
+<!-- SERVICES -->
+<section class="section">
+  <h2>Nos prestations</h2>
 
-    <div class="services">
-      <div class="card">⚡ Électricité générale</div>
-      <div class="card">🏠 Rénovation intérieure</div>
-      <div class="card">📋 Devis & suivi de chantier</div>
-    </div>
+  <div class="services">
+    <div class="card">⚡ Électricité générale</div>
+    <div class="card">🏠 Rénovation intérieure</div>
+    <div class="card">📋 Devis & suivi de chantier</div>
+  </div>
 
-    <div class="zone-short">
-      Nous intervenons rapidement à Villevaudé, en Seine-et-Marne,
-      dans le Nord-Est de la région parisienne et à Paris.
-    </div>
-  </section>
+  <div class="zone-short">
+    Nous intervenons rapidement à Villevaudé, en Seine-et-Marne,
+    dans le Nord-Est de la région parisienne et à Paris.
+  </div>
+</section>
+
+<!-- POURQUOI NOUS CHOISIR -->
+<section class="section">
+  <h2>Pourquoi choisir DS.BAT ?</h2>
+
+  <div class="services">
+    <div class="card">✔ Intervention rapide</div>
+    <div class="card">✔ Travail soigné</div>
+    <div class="card">✔ Devis gratuit</div>
+  </div>
+</section>
+
+<!-- CONTACT RAPIDE -->
+<section class="section">
+  <h2>Contact rapide</h2>
+  <p>Besoin d’un dépannage ou d’un devis ? Appelez-nous directement.</p>
+  <a class="btn btn-primary" href="tel:0629556627">📞 Appeler maintenant</a>
+</section>
 
 </div>
 
-<!-- CTA -->
+<!-- CTA FINAL -->
 <section class="cta section">
-  <h2>Un projet ? Contactez-nous</h2>
+  <h2>Un projet ? Contactez-nous dès maintenant</h2>
   <a class="btn btn-primary" href="devis.html">Demander un devis</a>
 </section>
 
