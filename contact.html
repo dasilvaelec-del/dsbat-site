@@ -3,178 +3,79 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
 <title>Contact DS.BAT | Électricité & Rénovation à Villevaudé</title>
 <meta name="description" content="Contactez DS.BAT pour vos travaux d’électricité et rénovation à Villevaudé, Seine-et-Marne, Paris et Nord-Est Île-de-France. Téléphone, email et formulaire de contact.">
 
 <style>
-*{margin:0;padding:0;box-sizing:border-box}
+/* RESET & BASE */
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:Arial,sans-serif;color:#0f172a;background:#f1f5f9;min-height:100vh;display:flex;flex-direction:column;}
+main{flex:1;}
+a{transition:.3s;color:inherit;text-decoration:none;}
+a:focus{outline:3px solid #c59d5f;outline-offset:2px;}
 
-body{
-  font-family:Arial,sans-serif;
-  background:#f1f5f9;
-  color:#0f172a;
-  min-height:100vh;
-  display:flex;
-  flex-direction:column;
-}
+/* MENU */
+.menu-btn{position:fixed;top:18px;right:18px;font-size:26px;background:#1e3a8a;color:white;border:none;padding:10px 14px;border-radius:8px;cursor:pointer;z-index:1001;}
+.menu-btn:focus{outline:3px solid #c59d5f;}
+.menu{position:fixed;top:0;right:-260px;width:260px;height:100%;background:#0f172a;padding-top:80px;transition:.3s;z-index:1000;}
+.menu.open{right:0;}
+.menu a{display:block;color:white;padding:16px;text-decoration:none;border-bottom:1px solid rgba(255,255,255,.1);}
+.menu a:hover{background:#1e3a8a;}
 
-main{flex:1}
-
-/* ===== MENU ===== */
-.menu-btn{
-  position:fixed;
-  top:18px;
-  right:18px;
-  font-size:26px;
-  background:#1e3a8a;
-  color:white;
-  border:none;
-  padding:10px 14px;
-  border-radius:8px;
-  cursor:pointer;
-  z-index:1001;
-}
-
-.menu{
-  position:fixed;
-  top:0;
-  right:-260px;
-  width:260px;
-  height:100%;
-  background:#0f172a;
-  padding-top:80px;
-  transition:.3s;
-  z-index:1000;
-}
-
-.menu a{
-  display:block;
-  color:white;
-  padding:16px;
-  text-decoration:none;
-  border-bottom:1px solid rgba(255,255,255,.1);
-}
-
-.menu a:hover{background:#1e3a8a}
-.menu.open{right:0}
-
-/* ===== HERO ===== */
+/* HERO */
 .hero{
-  height:45vh;
-  min-height:280px;
-  background:
-    linear-gradient(rgba(10,20,40,.7),rgba(10,20,40,.7)),
-    url("https://images.unsplash.com/photo-1503387762-592deb58ef4e?q=80&w=1600");
-  background-size:cover;
-  background-position:center;
-
-  display:flex;
-  flex-direction:column;
-  justify-content:center;
-  align-items:center;
-  text-align:center;
-  color:white;
-  padding:20px;
+  height:45vh; min-height:280px;
+  background: linear-gradient(rgba(10,20,40,.65), rgba(10,20,40,.65)),
+              url("image/chantier-verriere.jpg") center / cover no-repeat;
+  display:flex; flex-direction:column; justify-content:center; align-items:center;
+  text-align:center; color:white; padding:20px;
 }
+.hero h1{font-size:2.2rem;margin-bottom:8px;}
+.hero p{opacity:.9;}
 
-.hero h1{font-size:2.2rem;margin-bottom:8px}
-.hero p{opacity:.9}
+/* CONTAINER */
+.container{max-width:900px;margin:auto;padding:60px 20px;background:white;border-radius:10px;box-shadow:0 4px 10px rgba(0,0,0,0.08);}
 
-/* ===== CONTAINER ===== */
-.container{max-width:900px;margin:auto;padding:60px 20px}
+/* SECTIONS */
+.section{margin-bottom:60px;text-align:left;opacity:0;transform:translateY(40px);transition:.8s;}
+.section.visible{opacity:1;transform:translateY(0);}
+.section p{line-height:1.6;margin-bottom:15px;}
 
-/* ===== SECTIONS ===== */
-.section{
-  margin-bottom:60px;
-  text-align:center;
-  opacity:0;
-  transform:translateY(40px);
-  transition:.8s;
+/* FORM & COORDS */
+.coords p{margin:10px 0;font-size:1.1rem;}
+.coords a{color:#1e3a8a;font-weight:bold;text-decoration:none;}
+form{display:flex;flex-direction:column;gap:14px;margin-top:20px;}
+input, textarea{padding:12px;border-radius:10px;border:1px solid #ccc;font-size:1rem;width:100%;}
+button{padding:14px;border:none;border-radius:10px;background:#1e3a8a;color:white;font-size:1.05rem;font-weight:bold;cursor:pointer;transition:.3s;}
+button:hover{transform:translateY(-2px);box-shadow:0 6px 14px rgba(0,0,0,.2);}
+
+/* MAP */
+.map{margin-top:30px;border-radius:14px;overflow:hidden;box-shadow:0 6px 18px rgba(0,0,0,.15);}
+.map iframe{width:100%;height:360px;border:0;}
+
+/* FOOTER */
+footer{background:#020617;color:#cbd5e1;text-align:center;padding:22px;}
+footer a{color:#c59d5f;text-decoration:none;}
+
+/* WHATSAPP FLOTTANT */
+.whatsapp-float{
+  position:fixed;width:60px;height:60px;bottom:20px;right:20px;
+  background:#25D366;color:white;border-radius:50%;display:flex;justify-content:center;align-items:center;
+  z-index:1002;box-shadow:0 4px 12px rgba(0,0,0,0.3);transition:transform .3s,box-shadow .3s;
 }
+.whatsapp-float:hover{transform:scale(1.1);box-shadow:0 6px 20px rgba(0,0,0,0.4);}
+.whatsapp-float img{width:35px;height:35px;}
 
-.section.visible{opacity:1;transform:translateY(0)}
-
-.coords p{
-  margin:10px 0;
-  font-size:1.1rem;
-}
-
-.coords a{
-  color:#1e3a8a;
-  font-weight:bold;
-  text-decoration:none;
-}
-
-/* ===== FORM ===== */
-form{
-  display:flex;
-  flex-direction:column;
-  gap:14px;
-  margin-top:20px;
-}
-
-input, textarea{
-  padding:12px;
-  border-radius:10px;
-  border:1px solid #ccc;
-  font-size:1rem;
-  width:100%;
-}
-
-button{
-  padding:14px;
-  border:none;
-  border-radius:10px;
-  background:#1e3a8a;
-  color:white;
-  font-size:1.05rem;
-  font-weight:bold;
-  cursor:pointer;
-  transition:.3s;
-}
-
-button:hover{
-  transform:translateY(-2px);
-  box-shadow:0 6px 14px rgba(0,0,0,.2);
-}
-
-/* ===== MAP ===== */
-.map{
-  margin-top:30px;
-  border-radius:14px;
-  overflow:hidden;
-  box-shadow:0 6px 18px rgba(0,0,0,.15);
-}
-
-.map iframe{
-  width:100%;
-  height:360px;
-  border:0;
-}
-
-/* ===== FOOTER ===== */
-footer{
-  background:#020617;
-  color:#cbd5e1;
-  text-align:center;
-  padding:22px;
-}
-footer a{color:#c59d5f;text-decoration:none}
-
-/* ===== MOBILE ===== */
-@media(max-width:600px){
-  .hero h1{font-size:1.8rem}
-}
+/* RESPONSIVE */
+@media(max-width:600px){.hero h1{font-size:1.8rem;}}
 </style>
 </head>
 
 <body>
 
 <!-- MENU -->
-<button class="menu-btn" onclick="toggleMenu()">☰</button>
-
-<nav class="menu" id="menu">
+<button class="menu-btn" aria-label="Ouvrir le menu" aria-expanded="false" aria-controls="menu">☰</button>
+<nav class="menu" id="menu" aria-hidden="true">
   <a href="index.html">Accueil</a>
   <a href="services.html">Services</a>
   <a href="zone.html">Zone</a>
@@ -184,13 +85,12 @@ footer a{color:#c59d5f;text-decoration:none}
 </nav>
 
 <!-- HERO -->
-<header class="hero">
+<section class="hero">
   <h1>Contactez DS.BAT</h1>
   <p>Électricité & rénovation à Villevaudé, Seine-et-Marne et Paris</p>
-</header>
+</section>
 
-<main>
-<div class="container">
+<main class="container">
 
 <!-- COORDONNÉES -->
 <section class="section coords">
@@ -204,7 +104,6 @@ footer a{color:#c59d5f;text-decoration:none}
 <!-- FORMULAIRE -->
 <section class="section">
   <h2>Envoyez-nous un message</h2>
-
   <form action="mailto:contact@dsbat.fr" method="post" enctype="text/plain">
     <input type="text" name="nom" placeholder="Votre nom" required>
     <input type="email" name="email" placeholder="Votre email" required>
@@ -216,38 +115,39 @@ footer a{color:#c59d5f;text-decoration:none}
 <!-- MAP -->
 <section class="section">
   <h2>Nous trouver</h2>
-
   <div class="map">
-    <iframe
-      src="https://www.google.com/maps?q=58+Grande+Rue,+77410+Villevaudé&output=embed"
-      loading="lazy">
-    </iframe>
+    <iframe src="https://www.google.com/maps?q=58+Grande+Rue,+77410+Villevaudé&output=embed" loading="lazy"></iframe>
   </div>
 </section>
 
-</div>
 </main>
 
-<!-- FOOTER -->
+<!-- WHATSAPP FLOTTANT -->
+<a href="https://wa.me/33629556627" target="_blank" rel="noopener noreferrer" class="whatsapp-float" aria-label="Contact WhatsApp">
+  <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" alt="WhatsApp">
+</a>
+
 <footer>
-  © 2026 DS.BAT |
-  <a href="mentions-legales.html">Mentions légales</a>
+  © 2026 DS.BAT | <a href="mentions-legales.html">Mentions légales</a>
 </footer>
 
 <script>
-function toggleMenu(){
-  document.getElementById("menu").classList.toggle("open");
-}
+// MENU TOGGLE
+const menu=document.getElementById("menu");
+const btn=document.querySelector(".menu-btn");
+btn.addEventListener("click",()=>{
+  const isOpen=menu.classList.toggle("open");
+  btn.setAttribute("aria-expanded",isOpen);
+  menu.setAttribute("aria-hidden",!isOpen);
+});
 
+// SCROLL REVEAL
 const sections=document.querySelectorAll(".section");
 const observer=new IntersectionObserver(entries=>{
   entries.forEach(entry=>{
-    if(entry.isIntersecting){
-      entry.target.classList.add("visible");
-    }
+    if(entry.isIntersecting) entry.target.classList.add("visible");
   });
 },{threshold:0.2});
-
 sections.forEach(sec=>observer.observe(sec));
 </script>
 
