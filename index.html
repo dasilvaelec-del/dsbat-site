@@ -4,13 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>DS.BAT Électricité & Rénovation à Villevaudé</title>
-<meta name="description" content="Travaux d’électricité et rénovation à Villevaudé, Seine-et-Marne, Paris et Nord-Est IDF. Devis gratuit et intervention rapide.">
 
 <style>
-* { margin:0; padding:0; box-sizing:border-box; }
+*{margin:0;padding:0;box-sizing:border-box}
 
-body {
-  font-family: Arial, sans-serif;
+body{
+  font-family:Arial,sans-serif;
   background:#f1f5f9;
   color:#0f172a;
   min-height:100vh;
@@ -18,7 +17,7 @@ body {
   flex-direction:column;
 }
 
-main { flex:1; }
+main{flex:1}
 
 /* ===== MENU ===== */
 .menu-btn{
@@ -58,7 +57,7 @@ main { flex:1; }
 .menu a:hover{background:#1e3a8a}
 .menu.open{right:0}
 
-/* ===== HERO PLEIN ÉCRAN ===== */
+/* ===== HERO ===== */
 .hero{
   height:100vh;
   min-height:520px;
@@ -66,7 +65,7 @@ main { flex:1; }
     linear-gradient(rgba(10,20,40,.65), rgba(10,20,40,.65)),
     url("image/chantier-verriere.jpg");
   background-size:cover;
-  background-position:center center;
+  background-position:center center; /* mobile parfait */
   background-repeat:no-repeat;
 
   display:flex;
@@ -77,12 +76,17 @@ main { flex:1; }
   text-align:center;
   color:white;
   padding:20px;
-
-  animation:fadeIn 1.2s ease;
 }
 
-.hero h1{font-size:2.8rem;margin-bottom:15px;animation:slideUp 1s ease}
-.hero p{margin-bottom:25px;animation:slideUp 1.2s ease}
+/* ===== AJUSTEMENT PC (voir les prises) ===== */
+@media(min-width:900px){
+  .hero{
+    background-position:center 70%;
+  }
+}
+
+.hero h1{font-size:2.8rem;margin-bottom:15px}
+.hero p{margin-bottom:25px}
 
 /* ===== BOUTONS ===== */
 .btn{
@@ -92,14 +96,10 @@ main { flex:1; }
   border-radius:10px;
   text-decoration:none;
   font-weight:bold;
-  transition:.3s;
 }
 
 .btn-primary{background:#1e3a8a;color:white}
-.btn-primary:hover{transform:translateY(-2px);box-shadow:0 6px 14px rgba(0,0,0,.2)}
-
 .btn-phone{background:#c59d5f;color:#0f172a}
-.btn-phone:hover{transform:translateY(-2px);box-shadow:0 6px 14px rgba(0,0,0,.2)}
 
 /* ===== SECTIONS ===== */
 .container{max-width:1050px;margin:auto;padding:60px 20px}
@@ -114,7 +114,6 @@ main { flex:1; }
 
 .section.visible{opacity:1;transform:translateY(0)}
 
-/* ===== SERVICES ===== */
 .services{
   display:grid;
   grid-template-columns:repeat(auto-fit,minmax(230px,1fr));
@@ -126,15 +125,8 @@ main { flex:1; }
   padding:25px;
   border-radius:14px;
   box-shadow:0 6px 18px rgba(0,0,0,.08);
-  transition:.4s;
 }
 
-.card:hover{
-  transform:translateY(-6px) scale(1.02);
-  box-shadow:0 16px 28px rgba(0,0,0,.18);
-}
-
-/* ===== ZONE VERTE ===== */
 .zone-short{
   background:#16a34a;
   color:white;
@@ -159,17 +151,11 @@ footer{
   padding:22px;
 }
 footer a{color:#c59d5f;text-decoration:none}
-footer .social {margin-top:10px;}
-footer .social a {margin:0 8px; text-decoration:none; color:#cbd5e1; font-size:1.2rem;}
-
-/* ===== ANIMATIONS ===== */
-@keyframes fadeIn{from{opacity:0}to{opacity:1}}
-@keyframes slideUp{from{opacity:0;transform:translateY(40px)}to{opacity:1;transform:translateY(0)}}
+footer .social{margin-top:10px}
 
 /* ===== MOBILE ===== */
 @media(max-width:600px){
   .hero h1{font-size:2rem}
-  .hero p{font-size:0.95rem}
 }
 </style>
 </head>
@@ -188,9 +174,8 @@ footer .social a {margin:0 8px; text-decoration:none; color:#cbd5e1; font-size:1
   <a href="prix.html">Prix</a>
   <a href="devis.html">Devis</a>
   <a href="contact.html">Contact</a>
-  <hr style="border-color: rgba(255,255,255,.2); margin:10px 0;">
-  <a href="https://www.instagram.com/" target="_blank">Instagram</a>
-  <a href="https://www.facebook.com/" target="_blank">Facebook</a>
+  <a href="https://instagram.com" target="_blank">Instagram</a>
+  <a href="https://facebook.com" target="_blank">Facebook</a>
 </nav>
 
 <main>
@@ -206,7 +191,6 @@ footer .social a {margin:0 8px; text-decoration:none; color:#cbd5e1; font-size:1
 
 <div class="container">
 
-<!-- PRESENTATION -->
 <section class="section">
   <h2>Votre artisan de confiance</h2>
   <p>
@@ -215,7 +199,6 @@ footer .social a {margin:0 8px; text-decoration:none; color:#cbd5e1; font-size:1
   </p>
 </section>
 
-<!-- SERVICES -->
 <section class="section">
   <h2>Nos prestations</h2>
 
@@ -226,12 +209,10 @@ footer .social a {margin:0 8px; text-decoration:none; color:#cbd5e1; font-size:1
   </div>
 
   <div class="zone-short">
-    Nous intervenons rapidement à Villevaudé, en Seine-et-Marne,
-    dans le Nord-Est de la région parisienne et à Paris.
+    Intervention rapide à Villevaudé, en Seine-et-Marne, à Paris et Nord-Est IDF.
   </div>
 </section>
 
-<!-- POURQUOI NOUS CHOISIR -->
 <section class="section">
   <h2>Pourquoi choisir DS.BAT ?</h2>
 
@@ -242,7 +223,6 @@ footer .social a {margin:0 8px; text-decoration:none; color:#cbd5e1; font-size:1
   </div>
 </section>
 
-<!-- CONTACT RAPIDE -->
 <section class="section">
   <h2>Contact rapide</h2>
   <p>Besoin d’un dépannage ou d’un devis ? Appelez-nous directement.</p>
@@ -251,7 +231,6 @@ footer .social a {margin:0 8px; text-decoration:none; color:#cbd5e1; font-size:1
 
 </div>
 
-<!-- CTA FINAL -->
 <section class="cta section">
   <h2>Un projet ? Contactez-nous dès maintenant</h2>
   <a class="btn btn-primary" href="devis.html">Demander un devis</a>
@@ -259,22 +238,32 @@ footer .social a {margin:0 8px; text-decoration:none; color:#cbd5e1; font-size:1
 
 </main>
 
-<!-- FOOTER -->
 <footer>
   © 2026 DS.BAT |
   <a href="mentions-legales.html">Mentions légales</a>
+
   <div class="social">
-    <a href="https://www.instagram.com/" target="_blank">Instagram</a> |
-    <a href="https://www.facebook.com/" target="_blank">Facebook</a>
+    <a href="https://instagram.com" target="_blank">Instagram</a> |
+    <a href="https://facebook.com" target="_blank">Facebook</a>
   </div>
 </footer>
 
 <script>
+const menu=document.getElementById("menu");
+
 function toggleMenu(){
-  document.getElementById("menu").classList.toggle("open");
+  menu.classList.toggle("open");
 }
 
-/* Scroll reveal */
+/* fermer le menu si clic ailleurs */
+document.addEventListener("click",function(e){
+  const btn=document.querySelector(".menu-btn");
+  if(!menu.contains(e.target) && !btn.contains(e.target)){
+    menu.classList.remove("open");
+  }
+});
+
+/* animation apparition sections */
 const sections=document.querySelectorAll(".section");
 const observer=new IntersectionObserver(entries=>{
   entries.forEach(entry=>{
