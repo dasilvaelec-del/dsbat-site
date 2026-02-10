@@ -67,7 +67,7 @@ main{flex:1}
   height:55vh;
   min-height:360px;
   background:
-    linear-gradient(rgba(10,20,40,.7),rgba(10,20,40,.7)),
+    linear-gradient(rgba(10,20,40,.7), rgba(10,20,40,.7)),
     url("image/chantier-verriere.webp");
   background-size:cover;
   background-position:center;
@@ -106,8 +106,8 @@ main{flex:1}
 /* ===== SERVICES GRID ===== */
 .services{
   display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
-  gap:30px;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 30px;
   margin-top:30px;
 }
 
@@ -138,7 +138,7 @@ main{flex:1}
   padding:80px 20px;
 }
 
-/* ===== BOUTON ===== */
+/* ===== BOUTONS ===== */
 .btn{
   display:inline-block;
   padding:14px 28px;
@@ -156,6 +156,33 @@ main{flex:1}
   box-shadow:0 6px 14px rgba(0,0,0,.2);
 }
 
+/* ===== BOUTON WHATSAPP FLOTTANT ===== */
+.whatsapp-float{
+  position:fixed;
+  bottom:20px;
+  right:20px;
+  background:#25D366;
+  color:white;
+  width:60px;
+  height:60px;
+  border-radius:50%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  box-shadow:0 4px 12px rgba(0,0,0,.25);
+  z-index:1002;
+  transition:transform .3s;
+}
+
+.whatsapp-float:hover{
+  transform:scale(1.1);
+}
+
+.whatsapp-float svg{
+  width:32px;
+  height:32px;
+}
+
 /* ===== FOOTER ===== */
 footer{
   background:#020617;
@@ -165,36 +192,12 @@ footer{
 }
 footer a{color:#c59d5f;text-decoration:none}
 
-/* ===== WHATSAPP FLOAT ===== */
-.whatsapp-float{
-  position:fixed;
-  bottom:20px;
-  right:20px;
-  width:60px;
-  height:60px;
-  background:#25D366;
-  border-radius:50%;
-  display:flex;
-  justify-content:center;
-  align-items:center;
-  box-shadow:0 4px 12px rgba(0,0,0,.3);
-  z-index:999;
-  transition:transform .3s;
-}
-.whatsapp-float:hover{
-  transform:scale(1.1);
-}
-.whatsapp-float svg{
-  width:35px;
-  height:35px;
-  fill:white;
+/* ===== RESPONSIVE ===== */
+@media(max-width:768px){
+  .services{ grid-template-columns: 1fr; gap: 20px; }
+  .whatsapp-float{ bottom:80px; }
 }
 
-/* ===== MEDIA ===== */
-@media(max-width:768px){
-  .services{grid-template-columns:1fr;gap:20px}
-  .whatsapp-float{bottom:80px;} /* évite le footer */
-}
 @media(max-width:600px){
   .hero h1{font-size:1.9rem}
 }
@@ -205,7 +208,6 @@ footer a{color:#c59d5f;text-decoration:none}
 
 <!-- MENU -->
 <button class="menu-btn" onclick="toggleMenu()">☰</button>
-
 <nav class="menu" id="menu">
   <a href="index.html">Accueil</a>
   <a href="services.html">Services</a>
@@ -221,87 +223,84 @@ footer a{color:#c59d5f;text-decoration:none}
   <p>Intervention rapide à Villevaudé, en Seine-et-Marne, à Paris et dans le Nord-Est de l’Île-de-France</p>
 </header>
 
-<!-- MAIN -->
 <main>
 <div class="container">
 
+<!-- SECTION ACCOMPAGNEMENT -->
 <section class="section">
   <h2>Un accompagnement complet pour vos travaux</h2>
   <p>
-    DS.BAT accompagne les particuliers et professionnels dans tous leurs projets :
-    électricité générale, rénovation intérieure, remise aux normes et dépannage.
-    Nous assurons un travail soigné et un suivi complet de votre chantier.
+    DS.BAT accompagne les particuliers et professionnels dans leurs projets
+    d’électricité générale, de rénovation intérieure, de remise aux normes et
+    petits dépannages. Travail soigné, conseils personnalisés et suivi complet
+    du chantier jusqu’à la livraison.
   </p>
 </section>
 
+<!-- SECTION SERVICES -->
 <section class="section">
   <h2>Nos prestations détaillées</h2>
-
   <div class="services">
-
     <div class="card">
       <h3>⚡ Électricité générale</h3>
       <p>Mise aux normes NF C 15-100, tableaux électriques, circuits dédiés et éclairages.</p>
     </div>
-
     <div class="card">
       <h3>🔨 Rénovation intérieure</h3>
       <p>Démolition, isolation, cloisons, peinture, sols, carrelage, plomberie et finitions.</p>
     </div>
-
     <div class="card">
-      <h3>📋 Devis et suivi de chantier</h3>
-      <p>Conseils personnalisés, planification et coordination de vos travaux jusqu’à la réception.</p>
+      <h3>📋 Devis et suivi</h3>
+      <p>Étude gratuite, planification, coordination des interventions et réception finale.</p>
     </div>
-
     <div class="card">
       <h3>🛠️ Petits travaux et dépannages</h3>
-      <p>Remplacement de prises, luminaires, réparations électriques et interventions rapides.</p>
+      <p>Remplacement de prises, interrupteurs, luminaires et dépannage électrique rapide.</p>
     </div>
-
     <div class="card">
       <h3>🏠 Travaux tous corps d’état</h3>
-      <p>Plomberie, revêtements de sols, peinture, isolation et aménagement intérieur complet.</p>
+      <p>Rénovation complète incluant plomberie, peinture, sols, isolation et aménagement intérieur.</p>
     </div>
-
   </div>
 </section>
 
+<!-- SECTION ZONE -->
 <section class="section">
   <h2>Zone d’intervention</h2>
-  <p>Nous intervenons principalement à Villevaudé, en Seine-et-Marne, à Paris et dans le Nord-Est de l’Île-de-France.</p>
+  <p>
+    Nous intervenons principalement à Villevaudé, en Seine-et-Marne, à Paris et dans le Nord-Est de l’Île-de-France,
+    avec des délais rapides et un service de proximité.
+  </p>
 </section>
 
-</div>
-
+<!-- CTA -->
 <section class="cta section">
   <h2>Besoin d’un devis gratuit ?</h2>
   <p>Contactez DS.BAT dès maintenant pour étudier votre projet.</p>
   <a class="btn" href="devis.html">Demander un devis</a>
 </section>
 
+</div>
 </main>
 
-<!-- Footer -->
-<footer>
-  © 2026 DS.BAT |
-  <a href="mentions-legales.html">Mentions légales</a>
-</footer>
-
-<!-- WhatsApp Flottant -->
-<a href="https://wa.me/33629556627?text=Bonjour,%20je%20souhaite%20un%20devis%20pour%20mes%20travaux%20de%20rénovation" 
+<!-- BOUTON WHATSAPP FLOTTANT -->
+<a href="https://wa.me/33629556627?text=Bonjour,%20je%20souhaite%20un%20devis%20pour%20mes%20travaux%20de%20rénovation%20ou%20dépannage" 
    class="whatsapp-float" target="_blank" rel="noopener noreferrer" aria-label="WhatsApp">
-  <svg viewBox="0 0 24 24">
+  <svg viewBox="0 0 24 24" fill="currentColor">
     <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347"/>
   </svg>
 </a>
+
+<footer>
+  © 2026 DS.BAT | <a href="mentions-legales.html">Mentions légales</a>
+</footer>
 
 <script>
 function toggleMenu(){
   document.getElementById("menu").classList.toggle("open");
 }
 
-// Scroll reveal des sections
+// Scroll reveal
 const sections=document.querySelectorAll(".section");
 const observer=new IntersectionObserver(entries=>{
   entries.forEach(entry=>{
