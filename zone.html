@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Zone d’intervention – DS.BAT Électricité & Rénovation</title>
 <meta name="description" content="Découvrez les zones d’intervention de DS.BAT en Seine-et-Marne, Paris et Île-de-France. Intervention rapide depuis Villevaudé.">
-<meta name="theme-color" content="#1e3a8a">
 
 <style>
 /* RESET & BASE */
@@ -43,27 +42,64 @@ a:focus{outline:3px solid #c59d5f; outline-offset:2px;}
 .section p{max-width:800px;margin:12px auto 0;line-height:1.6;}
 
 /* ZONES */
-.zones{margin-top:30px;display:grid;gap:14px;}
-.zone{padding:16px;border-radius:10px;color:white;font-weight:bold;line-height:1.5;}
+.zones{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(250px,1fr));
+  gap:16px;
+  margin-top:20px;
+}
+.zone{
+  padding:16px;
+  border-radius:12px;
+  font-weight:bold;
+  line-height:1.5;
+  color:white;
+  box-shadow:0 4px 12px rgba(0,0,0,0.08);
+  transition:transform 0.3s, box-shadow 0.3s;
+}
+.zone:hover{
+  transform:translateY(-3px);
+  box-shadow:0 8px 20px rgba(0,0,0,0.15);
+}
 .vert{background:#10b981;}
 .jaune{background:#facc15;color:#333;}
 .orange{background:#f97316;}
 .rouge{background:#ef4444;}
 
 /* MAP */
-.map{margin-top:30px;border-radius:14px;overflow:hidden;box-shadow:0 6px 18px rgba(0,0,0,.15);}
-.map iframe{width:100%;height:420px;border:0;}
+.map{
+  margin-top:30px;
+  border-radius:14px;
+  overflow:hidden;
+  box-shadow:0 6px 18px rgba(0,0,0,.15);
+}
+.map iframe{
+  width:100%;
+  height:420px;
+  border:0;
+}
 
 /* CTA */
 .cta{background:#0f172a;color:white;text-align:center;padding:70px 20px;}
-.btn{display:inline-block;padding:14px 28px;margin-top:20px;border-radius:10px;text-decoration:none;font-weight:bold;background:#1e3a8a;color:white;transition:.3s;}
-.btn:hover,.btn:focus{transform:translateY(-2px);box-shadow:0 6px 14px rgba(0,0,0,.2);}
+.btn-green{background:#10b981;color:#0f172a;}
+.btn-phone{background:#1e3a8a;color:white;margin-right:10px;margin-bottom:10px;}
+.btn, .btn-green, .btn-phone{
+  display:inline-block;padding:14px 28px;border-radius:10px;font-weight:bold;text-decoration:none;transition:.3s;
+}
+.btn:hover, .btn-green:hover, .btn-phone:hover,
+.btn:focus, .btn-green:focus, .btn-phone:focus{
+  transform:translateY(-2px);
+  box-shadow:0 6px 14px rgba(0,0,0,.2);
+}
 
 /* FOOTER */
 footer{background:#020617;color:#cbd5e1;text-align:center;padding:22px;}
 footer a{color:#c59d5f;text-decoration:none;}
 
-/* MOBILE */
+/* RESPONSIVE */
+@media(max-width:768px){
+  .map iframe{height:300px;}
+}
 @media(max-width:600px){.hero h1{font-size:1.8rem;}}
 </style>
 </head>
@@ -104,58 +140,58 @@ footer a{color:#c59d5f;text-decoration:none;}
   </p>
 </section>
 
+<!-- ZONES & CARTE -->
 <section class="section">
   <h2>Détail des zones</h2>
   <div class="zones">
-    <div class="zone vert">🟢 Local ≤ 7 km : Villevaudé, Claye-Souilly, Brou-sur-Chantereine, Courtry, Villeparisis, Vaires-sur-Marne, Thorigny-sur-Marne, Saint-Thibault-des-Vignes</div>
-    <div class="zone jaune">🟡 8-15 km : Lagny-sur-Marne, Chelles, Noisiel, Meaux, Chessy</div>
-    <div class="zone orange">🟠 16-25 km : Torcy, Montfermeil, Mitry-Mory, Dammartin-en-Goële, Pontault-Combault</div>
-    <div class="zone rouge">🔴 26-40 km : Paris, Melun, Fontainebleau, Seine-Saint-Denis (93), Marne-la-Vallée, Senlis, Ermenonville</div>
+    <div class="zone vert">🟢 <strong>≤ 7 km</strong> (15 min) : Villevaudé, Claye-Souilly, Brou-sur-Chantereine, Courtry, Villeparisis, Vaires-sur-Marne, Thorigny-sur-Marne, Saint-Thibault-des-Vignes, <strong>Chelles</strong></div>
+    <div class="zone jaune">🟡 <strong>8-15 km</strong> (20-30 min) : Lagny-sur-Marne, Noisiel, Meaux, Chessy, Roissy-en-Brie</div>
+    <div class="zone orange">🟠 <strong>16-25 km</strong> (30-40 min) : Torcy, Montfermeil, Mitry-Mory, <strong>Dammartin-en-Goële</strong>, Pontault-Combault, Gretz-Armainvilliers</div>
+    <div class="zone rouge">🔴 <strong>26-40 km</strong> (45 min-1h) : Paris (est), Melun, Fontainebleau, Le Mesnil-Amelot, Senlis, <strong>Marne-la-Vallée</strong></div>
   </div>
-</section>
 
-<section class="section">
-  <h2>Carte de localisation</h2>
   <div class="map">
-    <iframe src="https://www.google.com/maps?q=58+Grande+Rue,+77410+Villevaudé&output=embed" loading="lazy"></iframe>
+    <iframe 
+      src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2624.123456789!2d2.639!3d48.944!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x47e67f0a8b0b0b0b%3A0x1234567890abcdef!2s58+Grande+Rue,+77410+Villevaud%C3%A9!5e0!3m2!1sfr!2sfr!4v1700000000000!5m2!1sfr!2sfr" 
+      allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade">
+    </iframe>
   </div>
 </section>
 
-</div>
-
+<!-- CTA FINAL -->
 <section class="cta section">
   <h2>Votre commune n’est pas listée ?</h2>
   <p>Contactez-nous pour vérifier la possibilité d’intervention.</p>
-  <a class="btn" href="contact.html">Nous contacter</a>
+  <a class="btn btn-phone" href="tel:+33629556627">📞 Appeler 06 29 55 66 27</a>
+  <a class="btn btn-green" href="devis.html">Demander un devis</a>
 </section>
 
+</div>
 </main>
 
 <footer>
   © 2026 DS.BAT | <a href="mentions-legales.html">Mentions légales</a>
 </footer>
 
+<!-- JS MENU + SCROLL REVEAL -->
 <script>
-// MENU
-const menu = document.getElementById("menu");
-const btn = document.querySelector(".menu-btn");
+const menu=document.getElementById("menu");
+const btn=document.querySelector(".menu-btn");
 
 btn.addEventListener("click",()=>{
-  const isOpen = menu.classList.toggle("open");
-  btn.setAttribute("aria-expanded", isOpen);
+  const isOpen=menu.classList.toggle("open");
+  btn.setAttribute("aria-expanded",isOpen);
   menu.setAttribute("aria-hidden",!isOpen);
 });
 
-// fermer menu si clic en dehors
 document.addEventListener("click",e=>{
-  if(!menu.contains(e.target) && !btn.contains(e.target)){
+  if(!menu.contains(e.target)&&!btn.contains(e.target)){
     menu.classList.remove("open");
     btn.setAttribute("aria-expanded","false");
     menu.setAttribute("aria-hidden","true");
   }
 });
 
-// fermer menu avec ESC
 document.addEventListener("keydown",e=>{
   if(e.key==="Escape"){
     menu.classList.remove("open");
