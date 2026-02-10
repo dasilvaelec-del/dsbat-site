@@ -3,12 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
   <title>Électricien à Villevaudé – DS.BAT Électricité & Rénovation</title>
   <meta name="description" content="DS.BAT, électricien à Villevaudé (Seine-et-Marne) : électricité générale, rénovation intérieure, dépannage rapide, devis gratuit. Intervention sur Paris et Nord-Est Île-de-France.">
   <meta name="robots" content="index,follow">
+  <meta name="theme-color" content="#1e3a8a">
 
-  <!-- Données LocalBusiness pour Google -->
+  <!-- JSON-LD LocalBusiness -->
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
@@ -44,29 +44,30 @@
     *{margin:0;padding:0;box-sizing:border-box;}
     body{font-family:Arial,sans-serif;color:#0f172a;background:#f1f5f9;min-height:100vh;display:flex;flex-direction:column;}
     main{flex:1;}
+    a{transition:.3s;color:inherit;text-decoration:none;}
+    a:focus{outline:3px solid #c59d5f; outline-offset:2px;}
 
     /* MENU */
     .menu-btn{
       position:fixed; top:18px; right:18px; font-size:26px; background:#1e3a8a; color:white;
       border:none; padding:10px 14px; border-radius:8px; cursor:pointer; z-index:1001;
     }
+    .menu-btn:focus{outline:3px solid #c59d5f;}
     .menu{
       position:fixed; top:0; right:-260px; width:260px; height:100%; background:#0f172a;
-      padding-top:80px; transition:.3s; z-index:1000;
+      padding-top:80px; transition:right 0.35s ease-in-out; z-index:1000;
     }
+    .menu.open{right:0;}
     .menu a{
-      display:block; color:white; padding:16px; text-decoration:none; border-bottom:1px solid rgba(255,255,255,.1);
+      display:block; padding:16px; border-bottom:1px solid rgba(255,255,255,.1);
+      color:white;
     }
     .menu a:hover{background:#1e3a8a;}
-    .menu.open{right:0;}
 
     /* HERO */
     .hero{
       height:100vh; min-height:520px;
-      background:linear-gradient(rgba(10,20,40,.65), rgba(10,20,40,.65)), url("image/chantier-verriere.jpg");
-      background-size:cover;
-      background-position:center center;
-      background-repeat:no-repeat;
+      background:linear-gradient(rgba(10,20,40,.65), rgba(10,20,40,.65)), url("https://dsbat.fr/image/chantier-verriere.jpg") center 75% / cover no-repeat;
       display:flex; justify-content:center; align-items:center;
       text-align:center; color:white; padding:20px;
       animation:fadeIn 1.2s ease;
@@ -74,62 +75,57 @@
     .hero-content{max-width:700px;}
     .hero h1{font-size:2.8rem;margin-bottom:15px;animation:slideUp 1s ease;}
     .hero p{margin-bottom:25px;animation:slideUp 1.2s ease;}
-    .btn{display:inline-block;padding:14px 26px;margin:6px;border-radius:10px;text-decoration:none;font-weight:bold;transition:.3s;}
-    .btn-primary{background:#1e3a8a;color:white;}
-    .btn-primary:hover{transform:translateY(-2px);box-shadow:0 6px 14px rgba(0,0,0,.2);}
+    .hero-buttons{display:flex; flex-wrap:wrap; justify-content:center; gap:12px;}
+    .btn{
+      display:inline-block; padding:14px 26px; border-radius:10px; font-weight:bold; transition: transform .3s, box-shadow .3s;
+      text-decoration:none;
+    }
+    .btn-primary{background:#1e3a8a;color:#fff;}
+    .btn-primary:hover,.btn-primary:focus{transform:translateY(-2px); box-shadow:0 6px 14px rgba(0,0,0,.2);}
     .btn-phone{background:#c59d5f;color:#0f172a;}
-    .btn-phone:hover{transform:translateY(-2px);box-shadow:0 6px 14px rgba(0,0,0,.2);}
+    .btn-phone:hover,.btn-phone:focus{transform:translateY(-2px); box-shadow:0 6px 14px rgba(0,0,0,.2);}
 
     /* SECTIONS */
     .container{max-width:1050px;margin:auto;padding:60px 20px;}
     .section{margin-bottom:60px;text-align:center;opacity:0;transform:translateY(40px);transition:.8s;}
     .section.visible{opacity:1;transform:translateY(0);}
 
-    /* SERVICES */
     .services{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:22px;}
     .card{background:white;padding:25px;border-radius:14px;box-shadow:0 6px 18px rgba(0,0,0,.08);transition:.4s;}
     .card:hover{transform:translateY(-6px) scale(1.02);box-shadow:0 16px 28px rgba(0,0,0,.18);}
     .card h3{margin-bottom:10px;}
 
-    /* ZONE VERTE */
     .zone-short{background:#16a34a;color:white;padding:22px;border-radius:12px;margin-top:25px;}
 
-    /* CTA */
     .cta{background:#0f172a;color:white;text-align:center;padding:70px 20px;}
 
-    /* FOOTER */
     footer{background:#020617;color:#cbd5e1;text-align:center;padding:22px;}
-    footer a{color:#c59d5f;text-decoration:none;}
+    footer a{color:#c59d5f;}
 
     /* ANIMATIONS */
     @keyframes fadeIn{from{opacity:0}to{opacity:1}}
     @keyframes slideUp{from{opacity:0;transform:translateY(40px)}to{opacity:1;transform:translateY(0)}}
 
-    /* MOBILE */
+    /* RESPONSIVE */
     @media(max-width:600px){
-      .hero{padding:60px 16px;}
-      .hero-content{max-width:100%;}
       .hero h1{font-size:1.9rem;}
       .hero p{font-size:0.95rem;}
-      .btn{width:100%;max-width:260px;}
+      .btn{width:100%; max-width:260px;}
     }
-    /* TABLETTE */
     @media(min-width:601px) and (max-width:900px){
       .hero h1{ font-size:2.4rem;}
       .hero p{ font-size:1rem;}
       .btn{ max-width:220px;}
     }
-    /* HERO ajustement PC pour voir le bas de la photo */
-    @media (min-width:900px){
+    @media(min-width:900px){
       .hero{background-position:center 75%;}
     }
   </style>
 </head>
-
 <body>
 
   <!-- MENU -->
-  <button class="menu-btn" onclick="toggleMenu()" aria-label="Ouvrir le menu" aria-expanded="false" aria-controls="menu">
+  <button class="menu-btn" aria-label="Ouvrir le menu" aria-expanded="false" aria-controls="menu">
     ☰
   </button>
 
@@ -142,24 +138,24 @@
     <a href="prix.html">Prix</a>
     <a href="devis.html">Devis</a>
     <a href="contact.html">Contact</a>
-    <a href="https://www.instagram.com/TONCOMPTE" target="_blank">Instagram</a>
-    <a href="https://www.facebook.com/TONCOMPTE" target="_blank">Facebook</a>
+    <a href="https://www.instagram.com/TONCOMPTE" target="_blank" rel="noopener noreferrer">Instagram</a>
+    <a href="https://www.facebook.com/TONCOMPTE" target="_blank" rel="noopener noreferrer">Facebook</a>
   </nav>
 
   <main>
-
     <!-- HERO -->
     <section class="hero">
       <div class="hero-content">
         <h1>Électricien à Villevaudé – DS.BAT Électricité & Rénovation</h1>
         <p>Intervention à Villevaudé, en Seine-et-Marne (77), à Paris et dans le Nord-Est de l’Île-de-France pour tous vos travaux d’électricité et de rénovation.</p>
-        <a class="btn btn-primary" href="devis.html">Demander un devis gratuit</a>
-        <a class="btn btn-phone" href="tel:0629556627">Appeler le 06 29 55 66 27</a>
+        <div class="hero-buttons">
+          <a class="btn btn-primary" href="devis.html">Demander un devis gratuit</a>
+          <a class="btn btn-phone" href="tel:0629556627">Appeler le 06 29 55 66 27</a>
+        </div>
       </div>
     </section>
 
     <div class="container">
-
       <!-- SERVICES -->
       <section class="section">
         <h2>Nos prestations d’électricité et de rénovation à Villevaudé</h2>
@@ -187,7 +183,6 @@
         <h2>Un projet ? Contactez-nous dès maintenant</h2>
         <a class="btn btn-primary" href="devis.html">Demander un devis</a>
       </section>
-
     </div>
   </main>
 
@@ -197,7 +192,6 @@
   </footer>
 
   <!-- JS -->
-  <script src="script.js" defer></script>
   <script>
     const menu = document.getElementById("menu");
     const btn = document.querySelector(".menu-btn");
@@ -208,16 +202,24 @@
       menu.setAttribute("aria-hidden", !isOpen);
     }
 
-    // Fermer le menu si clic en dehors
-    document.addEventListener("click", function(e){
+    document.addEventListener("click", e=>{
       if(!menu.contains(e.target) && !btn.contains(e.target)){
         menu.classList.remove("open");
-        btn.setAttribute("aria-expanded", "false");
-        menu.setAttribute("aria-hidden", "true");
+        btn.setAttribute("aria-expanded","false");
+        menu.setAttribute("aria-hidden","true");
       }
     });
 
-    // Scroll reveal
+    document.addEventListener("keydown", e=>{
+      if(e.key==="Escape"){
+        menu.classList.remove("open");
+        btn.setAttribute("aria-expanded","false");
+        menu.setAttribute("aria-hidden","true");
+        btn.focus();
+      }
+    });
+
+    // ScrollReveal amélioré
     const sections = document.querySelectorAll(".section");
     const observer = new IntersectionObserver(entries=>{
       entries.forEach(entry=>{
@@ -225,10 +227,8 @@
           entry.target.classList.add("visible");
         }
       });
-    },{threshold:0.2});
-
+    }, {threshold:0.15, rootMargin:"-50px"});
     sections.forEach(sec=>observer.observe(sec));
   </script>
-
 </body>
 </html>
