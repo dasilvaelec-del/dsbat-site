@@ -5,30 +5,34 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <title>Services DS.BAT | Électricité & Rénovation à Villevaudé</title>
-<meta name="description" content="DS.BAT réalise vos travaux d’électricité, rénovation intérieure, petits travaux et mise aux normes en Seine-et-Marne, Paris et Nord-Est Île-de-France. Devis gratuit et intervention rapide.">
+<meta name="description" content="DS.BAT réalise vos travaux d’électricité, rénovation intérieure, petits travaux et dépannage en Seine-et-Marne, Paris et Nord-Est Île-de-France. Devis gratuit et intervention rapide.">
 
-<!-- Preload hero image -->
+<!-- Préchargement image Hero -->
 <link rel="preload" href="image/chantier-verriere.webp" as="image">
 
 <style>
-/* ===== RESET ===== */
-*{margin:0;padding:0;box-sizing:border-box;}
-body{font-family:Arial,sans-serif;color:#0f172a;background:#f1f5f9;min-height:100vh;display:flex;flex-direction:column;}
+*{margin:0;padding:0;box-sizing:border-box}
+body{
+  font-family:Arial,sans-serif;
+  background:#f1f5f9;
+  color:#0f172a;
+  min-height:100vh;
+  display:flex;
+  flex-direction:column;
+}
 main{flex:1}
 
 /* ===== MENU ===== */
 .menu-btn{
-  position:fixed; top:18px; right:18px; font-size:26px;
-  background:#1e3a8a; color:white; border:none; padding:10px 14px;
-  border-radius:8px; cursor:pointer; z-index:1001;
+  position:fixed; top:18px; right:18px; font-size:26px; background:#1e3a8a; color:white;
+  border:none; padding:10px 14px; border-radius:8px; cursor:pointer; z-index:1001;
 }
 .menu{
-  position:fixed; top:0; right:-260px; width:260px; height:100%;
-  background:#0f172a; padding-top:80px; transition:.3s; z-index:1000;
+  position:fixed; top:0; right:-260px; width:260px; height:100%; background:#0f172a;
+  padding-top:80px; transition:.3s; z-index:1000;
 }
 .menu a{
-  display:block; color:white; padding:16px; text-decoration:none;
-  border-bottom:1px solid rgba(255,255,255,.1);
+  display:block; color:white; padding:16px; text-decoration:none; border-bottom:1px solid rgba(255,255,255,.1);
 }
 .menu a:hover{background:#1e3a8a;}
 .menu.open{right:0;}
@@ -36,39 +40,36 @@ main{flex:1}
 /* ===== HERO ===== */
 .hero{
   height:55vh; min-height:360px;
-  background: linear-gradient(rgba(10,20,40,.7),rgba(10,20,40,.7)),
-              url("image/chantier-verriere.webp");
+  background: linear-gradient(rgba(10,20,40,.7),rgba(10,20,40,.7)), url("image/chantier-verriere.webp");
   background-size:cover;
   background-position:center;
   display:flex; flex-direction:column; justify-content:center; align-items:center;
   text-align:center; color:white; padding:20px;
 }
-.hero h1{font-size:2.4rem;margin-bottom:10px;}
-.hero p{opacity:.9;}
+.hero h1{font-size:2.4rem;margin-bottom:10px}
+.hero p{opacity:.9}
 
 /* ===== CONTAINER ===== */
-.container{max-width:1100px;margin:auto;padding:60px 20px;}
+.container{max-width:1100px;margin:auto;padding:60px 20px}
 
 /* ===== SECTIONS ===== */
 .section{
-  margin-bottom:70px; text-align:center;
-  opacity:0; transform:translateY(40px); transition:.8s;
+  margin-bottom:70px;
+  text-align:center;
+  opacity:0;
+  transform:translateY(40px);
+  transition:.8s;
 }
-.section.visible{opacity:1; transform:translateY(0);}
-.section p{max-width:800px; margin:12px auto 0; line-height:1.6;}
+.section.visible{opacity:1;transform:translateY(0);}
+.section p{max-width:800px;margin:12px auto 0;line-height:1.6;}
 
 /* ===== SERVICES GRID ===== */
 .services{
   display:grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 30px;
+  grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
+  gap:30px;
   margin-top:30px;
 }
-@media (max-width: 768px){
-  .services{ grid-template-columns: 1fr; gap: 20px; }
-  .whatsapp-float{ bottom: 80px; }
-}
-
 .card{
   background:white; padding:28px; border-radius:14px;
   box-shadow:0 6px 18px rgba(0,0,0,.08);
@@ -78,8 +79,7 @@ main{flex:1}
   transform:translateY(-6px) scale(1.02);
   box-shadow:0 16px 28px rgba(0,0,0,.18);
 }
-.card h3{margin-bottom:12px; color:#1e3a8a;}
-.card svg{margin-bottom:12px;}
+.card h3{margin-bottom:12px;color:#1e3a8a;}
 
 /* ===== CTA ===== */
 .cta{
@@ -94,26 +94,25 @@ main{flex:1}
   transform:translateY(-2px); box-shadow:0 6px 14px rgba(0,0,0,.2);
 }
 
-/* ===== FOOTER ===== */
-footer{
-  background:#020617; color:#cbd5e1; text-align:center; padding:22px;
-}
-footer a{color:#c59d5f; text-decoration:none;}
-
-/* ===== WHATSAPP FLOAT ===== */
+/* ===== WHATSAPP FLOATING BUTTON ===== */
 .whatsapp-float{
-  position:fixed; width:60px; height:60px; bottom:20px; right:20px;
-  background:#25D366; color:white; border-radius:50%;
-  display:flex; justify-content:center; align-items:center;
-  text-decoration:none; box-shadow:0 4px 12px rgba(0,0,0,0.3);
-  z-index:10000; transition: transform 0.3s;
+  position:fixed; bottom:40px; right:25px; z-index:1002;
+  width:60px; height:60px; border-radius:50%; background:#25D366;
+  display:flex; justify-content:center; align-items:center; box-shadow:0 4px 12px rgba(0,0,0,.25);
+  transition:.3s; cursor:pointer;
 }
-.whatsapp-float:hover{
-  transform: scale(1.1); box-shadow:0 6px 16px rgba(0,0,0,0.3);
-}
-.whatsapp-float svg{width:35px; height:35px;}
+.whatsapp-float:hover{transform:translateY(-4px) scale(1.05); box-shadow:0 8px 20px rgba(0,0,0,.3);}
+.whatsapp-float svg{width:32px; height:32px; fill:white;}
 
-/* ===== MOBILE ===== */
+/* ===== FOOTER ===== */
+footer{background:#020617;color:#cbd5e1;text-align:center;padding:22px;}
+footer a{color:#c59d5f;text-decoration:none;}
+
+/* ===== RESPONSIVE ===== */
+@media(max-width:768px){
+  .services{grid-template-columns:1fr; gap:20px;}
+  .whatsapp-float{bottom:80px;} /* éviter le footer mobile */
+}
 @media(max-width:600px){
   .hero h1{font-size:1.9rem;}
 }
@@ -123,8 +122,8 @@ footer a{color:#c59d5f; text-decoration:none;}
 <body>
 
 <!-- MENU -->
-<button class="menu-btn" onclick="toggleMenu()">☰</button>
-<nav class="menu" id="menu">
+<button class="menu-btn" onclick="toggleMenu()" aria-label="Ouvrir le menu">☰</button>
+<nav class="menu" id="menu" aria-hidden="true">
   <a href="index.html">Accueil</a>
   <a href="services.html">Services</a>
   <a href="zone.html">Zone</a>
@@ -155,47 +154,26 @@ footer a{color:#c59d5f; text-decoration:none;}
 <section class="section">
   <h2>Nos prestations détaillées</h2>
   <div class="services">
-
     <div class="card">
-      <svg viewBox="0 0 24 24" fill="#1e3a8a">
-        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-      </svg>
       <h3>⚡ Électricité générale</h3>
-      <p>Mise aux normes NF C 15-100, tableaux électriques, création de circuits, éclairages et dépannage rapide.</p>
+      <p>Mise aux normes NF C 15-100, tableaux électriques, circuits spécialisés et dépannage rapide.</p>
     </div>
-
     <div class="card">
-      <svg viewBox="0 0 24 24" fill="#1e3a8a">
-        <path d="M3 6h18v2H3V6zm0 5h18v2H3v-2zm0 5h12v2H3v-2z"/>
-      </svg>
       <h3>🔨 Rénovation intérieure</h3>
-      <p>Démolition, isolation, cloisons, peinture, sols, carrelage, plomberie et finitions pour un résultat clé en main.</p>
+      <p>Travaux complets ou partiels : cloisonnement, peinture, sols, plomberie et finitions.</p>
     </div>
-
     <div class="card">
-      <svg viewBox="0 0 24 24" fill="#1e3a8a">
-        <path d="M12 7h0v6h0V7zm0 8h0v2h0v-2z"/>
-      </svg>
       <h3>📋 Devis et suivi de chantier</h3>
-      <p>Étude gratuite du projet, conseils techniques, planification et coordination jusqu’à la réception finale.</p>
+      <p>Devis gratuit, conseils personnalisés et suivi complet de vos travaux jusqu’à la livraison.</p>
     </div>
-
     <div class="card">
-      <svg viewBox="0 0 24 24" fill="#1e3a8a">
-        <path d="M12 2l3.5 7h-7L12 2zm0 20v-7l-3.5 7h7l-3.5-7z"/>
-      </svg>
       <h3>🛠️ Petits travaux et dépannages</h3>
-      <p>Remplacement de prises, interrupteurs, luminaires, réparations électriques et interventions rapides à domicile.</p>
+      <p>Interventions rapides pour prises, interrupteurs, luminaires et toutes pannes électriques ou générales.</p>
     </div>
-
     <div class="card">
-      <svg viewBox="0 0 24 24" fill="#1e3a8a">
-        <path d="M12 4l4 8H8l4-8zm0 16l-4-8h8l-4 8z"/>
-      </svg>
       <h3>🏠 Travaux tous corps d’état</h3>
-      <p>Rénovation complète incluant plomberie, revêtements de sols, peinture, isolation et aménagement intérieur.</p>
+      <p>Gestion complète de vos projets de rénovation, incluant plomberie, peinture, isolation et aménagement intérieur.</p>
     </div>
-
   </div>
 </section>
 
@@ -203,7 +181,8 @@ footer a{color:#c59d5f; text-decoration:none;}
   <h2>Zone d’intervention</h2>
   <p>
     Nous intervenons principalement à Villevaudé, dans toute la Seine-et-Marne,
-    à Paris ainsi que dans le Nord-Est de l’Île-de-France, avec des délais rapides et un service de proximité.
+    à Paris ainsi que dans le Nord-Est de l’Île-de-France, avec des délais
+    rapides et un service de proximité.
   </p>
 </section>
 
@@ -215,23 +194,39 @@ footer a{color:#c59d5f; text-decoration:none;}
   <a class="btn" href="devis.html">Demander un devis</a>
 </section>
 
-<!-- WhatsApp flottant -->
-<a href="https://wa.me/33629556627?text=Bonjour%2C%20je%20souhaite%20un%20devis%20pour%20mes%20travaux%20d%E2%80%99%C3%A9lectricit%C3%A9" 
-   class="whatsapp-float" target="_blank" rel="noopener noreferrer" aria-label="WhatsApp (06 29 55 66 27)">
-  <svg viewBox="0 0 24 24" fill="currentColor">
-    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884"/>
-  </svg>
-</a>
+</main>
 
+<!-- FOOTER -->
 <footer>
   © 2026 DS.BAT | <a href="mentions-legales.html">Mentions légales</a>
 </footer>
 
+<!-- BOUTON WHATSAPP FLOTTANT -->
+<a href="https://wa.me/33629556627?text=Bonjour%2C%20je%20souhaite%20obtenir%20des%20informations%20ou%20un%20devis%20pour%20mes%20travaux%20%C3%A0%20[Ville]"
+   class="whatsapp-float" target="_blank" rel="noopener noreferrer" aria-label="WhatsApp (06 29 55 66 27)">
+  <svg viewBox="0 0 24 24">
+    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893A11.821 11.821 0 0020.885 3.488"/>
+  </svg>
+</a>
+
+<!-- JS -->
 <script>
 function toggleMenu(){
-  document.getElementById("menu").classList.toggle("open");
+  const menu = document.getElementById("menu");
+  const isOpen = menu.classList.toggle("open");
+  menu.setAttribute("aria-hidden", !isOpen);
 }
 
+document.addEventListener("click", function(e){
+  const menu = document.getElementById("menu");
+  const btn = document.querySelector(".menu-btn");
+  if(!menu.contains(e.target) && !btn.contains(e.target)){
+    menu.classList.remove("open");
+    menu.setAttribute("aria-hidden", "true");
+  }
+});
+
+// Scroll reveal
 const sections=document.querySelectorAll(".section");
 const observer=new IntersectionObserver(entries=>{
   entries.forEach(entry=>{
