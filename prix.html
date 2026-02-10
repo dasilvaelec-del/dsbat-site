@@ -1,56 +1,148 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Prix - DS.BAT Électricité DQE</title>
-    <meta name="description" content="Découvrez les tarifs DS.BAT pour électricité et rénovation tous corps d'état en Île-de-France. Déplacements inclus et devis gratuit.">
-    <link rel="stylesheet" href="css/style.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Prix - DS.BAT Électricité & Rénovation</title>
+<meta name="description" content="Découvrez les tarifs DS.BAT pour électricité et rénovation tous corps d'état en Île-de-France. Déplacements inclus et devis gratuit.">
+
+<style>
+/* RESET & BASE */
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:Arial,sans-serif;color:#0f172a;background:#f1f5f9;min-height:100vh;display:flex;flex-direction:column;}
+main{flex:1;}
+a{transition:.3s;color:inherit;text-decoration:none;}
+a:focus{outline:3px solid #c59d5f;outline-offset:2px;}
+
+/* MENU */
+.menu-btn{position:fixed;top:18px;right:18px;font-size:26px;background:#1e3a8a;color:white;border:none;padding:10px 14px;border-radius:8px;cursor:pointer;z-index:1001;}
+.menu-btn:focus{outline:3px solid #c59d5f;}
+.menu{position:fixed;top:0;right:-260px;width:260px;height:100%;background:#0f172a;padding-top:80px;transition:right .35s ease-in-out;z-index:1000;}
+.menu.open{right:0;}
+.menu a{display:block;padding:16px;border-bottom:1px solid rgba(255,255,255,.1);color:white;}
+.menu a:hover{background:#1e3a8a;}
+
+/* HERO */
+.hero{
+  height:55vh; min-height:360px;
+  background: linear-gradient(rgba(10,20,40,.65), rgba(10,20,40,.65)),
+              url("image/chantier-verriere.jpg") center / cover no-repeat;
+  display:flex; flex-direction:column; justify-content:center; align-items:center;
+  text-align:center; color:white; padding:20px;
+}
+.hero h1{font-size:2.4rem;margin-bottom:12px;}
+.hero p{opacity:.9;font-size:1rem;}
+
+/* CONTAINER */
+.container{max-width:1050px;margin:auto;padding:60px 20px;}
+
+/* SECTIONS */
+.section{margin-bottom:60px;text-align:center;opacity:0;transform:translateY(40px);transition:.8s;}
+.section.visible{opacity:1;transform:translateY(0);}
+.section p, .section ul{max-width:800px;margin:12px auto 0;line-height:1.6;text-align:left;}
+.section ul{list-style-type: disc;padding-left:20px;}
+
+/* CTA BUTTONS */
+.btn{display:inline-block;padding:14px 28px;margin:10px 5px;border-radius:10px;font-weight:bold;text-decoration:none;transition:.3s;background:#1e3a8a;color:white;}
+.btn:hover{transform:translateY(-2px);box-shadow:0 6px 14px rgba(0,0,0,.2);}
+
+/* FOOTER */
+footer{background:#020617;color:#cbd5e1;text-align:center;padding:22px;}
+footer a{color:#c59d5f;text-decoration:none;}
+
+/* RESPONSIVE */
+@media(max-width:768px){.section p, .section ul{text-align:left;}}
+@media(max-width:600px){.hero h1{font-size:1.9rem;} .hero p{font-size:0.95rem;}}
+</style>
 </head>
+
 <body>
-    <!-- HEADER / HERO -->
-    <header class="hero">
-        <h1>🔌 DS.BAT Électricité DQE</h1>
-        <p><strong>Villevaudé 77410 • Seine-et-Marne 77 • Île-de-France</strong></p>
-        <p>Rénovation tous corps d'état • Devis gratuit • Intervention rapide</p>
-    </header>
 
-    <!-- NAVIGATION PRINCIPALE -->
-    <nav class="main-nav">
-        <a href="index.html">Accueil</a> |
-        <a href="services.html">Services</a> |
-        <a href="zone.html">Zone</a> |
-        <a href="prix.html">Prix</a> |
-        <a href="devis.html">Devis</a> |
-        <a href="contact.html">Contact</a>
-    </nav>
+<!-- MENU -->
+<button class="menu-btn" aria-label="Ouvrir le menu" aria-expanded="false" aria-controls="menu">☰</button>
+<nav class="menu" id="menu" aria-hidden="true">
+  <a href="index.html">Accueil</a>
+  <a href="services.html">Services</a>
+  <a href="zone.html">Zone</a>
+  <a href="prix.html">Prix</a>
+  <a href="devis.html">Devis</a>
+  <a href="contact.html">Contact</a>
+</nav>
 
-    <!-- CONTENU PRINCIPAL -->
-    <main class="container">
-        <section class="section">
-            <h2 style="color:#1e3a8a; text-align:center; margin-bottom:2rem;">Nos Tarifs</h2>
+<!-- HERO -->
+<section class="hero">
+  <h1>🔌 Nos tarifs</h1>
+  <p>Électricité et rénovation tous corps d’état à Villevaudé et Île-de-France</p>
+</section>
 
-            <h3>Déplacement</h3>
-            <p><strong>Frais minimum :</strong> 20€</p>
-            <p><em>Pour les zones supérieures à 10 km : +1€ par km supplémentaire</em></p>
+<main>
+<div class="container">
 
-            <h3>Tarifs indicatifs</h3>
-            <ul>
-                <li>Électricité : à partir de 95€ / prise simple</li>
-                <li>Tableau électrique : à partir de 925€</li>
-                <li>Peinture : 33€/m² standard, 62€/m² effets</li>
-                <li>Plomberie : 75€/m linéaire (tuyauterie), 550€ (évier), 600€ (chauffe-eau)</li>
-                <li>Carrelage : 35€/m², Placo : 35€/m², Isolation murs : 75€/m²</li>
-                <li>Parquet : 60€/m², Sol souple : 22€/m²</li>
-            </ul>
+<!-- TARIFS -->
+<section class="section">
+  <h2>Déplacement</h2>
+  <p><strong>Frais minimum :</strong> 20€</p>
+  <p><em>Pour les zones supérieures à 10 km : +1€ par km supplémentaire</em></p>
+</section>
 
-            <p>Pour un devis précis et personnalisé, utilisez notre page <a href="devis.html">Devis interactif</a>.</p>
-        </section>
-    </main>
+<section class="section">
+  <h2>Tarifs indicatifs (main-d’œuvre + fournitures de base)</h2>
+  <ul>
+    <li>Électricité : à partir de 95€ / prise simple (hors saignée importante ou contraintes particulières)</li>
+    <li>Tableau électrique : à partir de 925€ (remplacement et mise aux normes NF C 15-100)</li>
+    <li>Peinture : à partir de 33€/m² (standard), à partir de 62€/m² (effets décoratifs)</li>
+    <li>Plomberie : à partir de 75€/m linéaire (tuyauterie), 550€ (pose évier + raccordements), 600€ (chauffe-eau hors appareil)</li>
+    <li>Carrelage : à partir de 35€/m², Placo : à partir de 35€/m², Isolation murs : à partir de 75€/m²</li>
+    <li>Parquet : à partir de 60€/m², Sol souple : à partir de 22€/m²</li>
+  </ul>
+  <p>Ces prix sont donnés à titre indicatif et peuvent varier selon l’accès, l’état des supports, la qualité des matériaux et la surface à traiter.</p>
+  <p>Pour un devis précis et personnalisé, utilisez notre page <a href="devis.html">Devis interactif</a>.</p>
+</section>
 
-    <!-- FOOTER -->
-    <footer>
-        <p>&copy; 2026 DS.BAT - Électricité & Rénovation Île-de-France | <a href="mentions-legales.html">Mentions légales</a></p>
-    </footer>
+</div>
+</main>
+
+<!-- FOOTER -->
+<footer>
+  © 2026 DS.BAT | <a href="mentions-legales.html">Mentions légales</a>
+</footer>
+
+<script>
+// MENU TOGGLE
+const menu=document.getElementById("menu");
+const btn=document.querySelector(".menu-btn");
+
+btn.addEventListener("click",()=>{
+  const isOpen=menu.classList.toggle("open");
+  btn.setAttribute("aria-expanded",isOpen);
+  menu.setAttribute("aria-hidden",!isOpen);
+});
+
+document.addEventListener("click",e=>{
+  if(!menu.contains(e.target)&&!btn.contains(e.target)){
+    menu.classList.remove("open");
+    btn.setAttribute("aria-expanded","false");
+    menu.setAttribute("aria-hidden","true");
+  }
+});
+document.addEventListener("keydown",e=>{
+  if(e.key==="Escape"){
+    menu.classList.remove("open");
+    btn.setAttribute("aria-expanded","false");
+    menu.setAttribute("aria-hidden","true");
+    btn.focus();
+  }
+});
+
+// SCROLL REVEAL
+const sections=document.querySelectorAll(".section");
+const observer=new IntersectionObserver(entries=>{
+  entries.forEach(entry=>{
+    if(entry.isIntersecting) entry.target.classList.add("visible");
+  });
+},{threshold:0.2});
+sections.forEach(sec=>observer.observe(sec));
+</script>
+
 </body>
 </html>
