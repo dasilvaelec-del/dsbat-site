@@ -1,280 +1,234 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DS.BAT Électricité & Rénovation à Villevaudé</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<style>
-*{margin:0;padding:0;box-sizing:border-box}
+  <title>Électricien à Villevaudé – DS.BAT Électricité & Rénovation</title>
+  <meta name="description" content="DS.BAT, électricien à Villevaudé (Seine-et-Marne) : électricité générale, rénovation intérieure, dépannage rapide, devis gratuit. Intervention sur Paris et Nord-Est Île-de-France.">
+  <meta name="robots" content="index,follow">
 
-body{
-  font-family:Arial,sans-serif;
-  background:#f1f5f9;
-  color:#0f172a;
-  min-height:100vh;
-  display:flex;
-  flex-direction:column;
-}
-
-main{flex:1}
-
-/* ===== MENU ===== */
-.menu-btn{
-  position:fixed;
-  top:18px;
-  right:18px;
-  font-size:26px;
-  background:#1e3a8a;
-  color:white;
-  border:none;
-  padding:10px 14px;
-  border-radius:8px;
-  cursor:pointer;
-  z-index:1001;
-}
-
-.menu{
-  position:fixed;
-  top:0;
-  right:-260px;
-  width:260px;
-  height:100%;
-  background:#0f172a;
-  padding-top:80px;
-  transition:.3s;
-  z-index:1000;
-}
-
-.menu a{
-  display:block;
-  color:white;
-  padding:16px;
-  text-decoration:none;
-  border-bottom:1px solid rgba(255,255,255,.1);
-}
-
-.menu a:hover{background:#1e3a8a}
-.menu.open{right:0}
-
-/* ===== HERO ===== */
-.hero{
-  height:100vh;
-  min-height:520px;
-  background:
-    linear-gradient(rgba(10,20,40,.65), rgba(10,20,40,.65)),
-    url("image/chantier-verriere.jpg");
-  background-size:cover;
-  background-position:center center; /* mobile parfait */
-  background-repeat:no-repeat;
-
-  display:flex;
-  flex-direction:column;
-  justify-content:center;
-  align-items:center;
-
-  text-align:center;
-  color:white;
-  padding:20px;
-}
-
-/* ===== AJUSTEMENT PC (voir les prises) ===== */
-@media(min-width:900px){
-  .hero{
-    background-position:center 70%;
+  <!-- Données LocalBusiness pour Google -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Electrician",
+    "name": "DS.BAT",
+    "image": "https://dsbat.fr/image/chantier-verriere.jpg",
+    "telephone": "+33629556627",
+    "priceRange": "€€",
+    "address": {
+      "@type": "PostalAddress",
+      "streetAddress": "58 Grande Rue",
+      "addressLocality": "Villevaudé",
+      "postalCode": "77410",
+      "addressCountry": "FR"
+    },
+    "geo": {
+      "@type": "GeoCoordinates",
+      "latitude": "48.923",
+      "longitude": "2.68"
+    },
+    "areaServed": ["Villevaudé", "Seine-et-Marne", "Paris", "Nord-Est Île-de-France"],
+    "openingHours": "Mo-Sa 08:00-19:00",
+    "url": "https://dsbat.fr",
+    "sameAs": [
+      "https://www.instagram.com/TONCOMPTE",
+      "https://www.facebook.com/TONCOMPTE"
+    ]
   }
-}
+  </script>
 
-.hero h1{font-size:2.8rem;margin-bottom:15px}
-.hero p{margin-bottom:25px}
+  <style>
+    /* RESET & BASE */
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{font-family:Arial,sans-serif;color:#0f172a;background:#f1f5f9;min-height:100vh;display:flex;flex-direction:column;}
+    main{flex:1;}
 
-/* ===== BOUTONS ===== */
-.btn{
-  display:inline-block;
-  padding:14px 26px;
-  margin:6px;
-  border-radius:10px;
-  text-decoration:none;
-  font-weight:bold;
-}
+    /* MENU */
+    .menu-btn{
+      position:fixed; top:18px; right:18px; font-size:26px; background:#1e3a8a; color:white;
+      border:none; padding:10px 14px; border-radius:8px; cursor:pointer; z-index:1001;
+    }
+    .menu{
+      position:fixed; top:0; right:-260px; width:260px; height:100%; background:#0f172a;
+      padding-top:80px; transition:.3s; z-index:1000;
+    }
+    .menu a{
+      display:block; color:white; padding:16px; text-decoration:none; border-bottom:1px solid rgba(255,255,255,.1);
+    }
+    .menu a:hover{background:#1e3a8a;}
+    .menu.open{right:0;}
 
-.btn-primary{background:#1e3a8a;color:white}
-.btn-phone{background:#c59d5f;color:#0f172a}
+    /* HERO */
+    .hero{
+      height:100vh; min-height:520px;
+      background:linear-gradient(rgba(10,20,40,.65), rgba(10,20,40,.65)), url("image/chantier-verriere.jpg");
+      background-size:cover;
+      background-position:center center;
+      background-repeat:no-repeat;
+      display:flex; justify-content:center; align-items:center;
+      text-align:center; color:white; padding:20px;
+      animation:fadeIn 1.2s ease;
+    }
+    .hero-content{max-width:700px;}
+    .hero h1{font-size:2.8rem;margin-bottom:15px;animation:slideUp 1s ease;}
+    .hero p{margin-bottom:25px;animation:slideUp 1.2s ease;}
+    .btn{display:inline-block;padding:14px 26px;margin:6px;border-radius:10px;text-decoration:none;font-weight:bold;transition:.3s;}
+    .btn-primary{background:#1e3a8a;color:white;}
+    .btn-primary:hover{transform:translateY(-2px);box-shadow:0 6px 14px rgba(0,0,0,.2);}
+    .btn-phone{background:#c59d5f;color:#0f172a;}
+    .btn-phone:hover{transform:translateY(-2px);box-shadow:0 6px 14px rgba(0,0,0,.2);}
 
-/* ===== SECTIONS ===== */
-.container{max-width:1050px;margin:auto;padding:60px 20px}
+    /* SECTIONS */
+    .container{max-width:1050px;margin:auto;padding:60px 20px;}
+    .section{margin-bottom:60px;text-align:center;opacity:0;transform:translateY(40px);transition:.8s;}
+    .section.visible{opacity:1;transform:translateY(0);}
 
-.section{
-  margin-bottom:60px;
-  text-align:center;
-  opacity:0;
-  transform:translateY(40px);
-  transition:.8s;
-}
+    /* SERVICES */
+    .services{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:22px;}
+    .card{background:white;padding:25px;border-radius:14px;box-shadow:0 6px 18px rgba(0,0,0,.08);transition:.4s;}
+    .card:hover{transform:translateY(-6px) scale(1.02);box-shadow:0 16px 28px rgba(0,0,0,.18);}
+    .card h3{margin-bottom:10px;}
 
-.section.visible{opacity:1;transform:translateY(0)}
+    /* ZONE VERTE */
+    .zone-short{background:#16a34a;color:white;padding:22px;border-radius:12px;margin-top:25px;}
 
-.services{
-  display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(230px,1fr));
-  gap:22px;
-}
+    /* CTA */
+    .cta{background:#0f172a;color:white;text-align:center;padding:70px 20px;}
 
-.card{
-  background:white;
-  padding:25px;
-  border-radius:14px;
-  box-shadow:0 6px 18px rgba(0,0,0,.08);
-}
+    /* FOOTER */
+    footer{background:#020617;color:#cbd5e1;text-align:center;padding:22px;}
+    footer a{color:#c59d5f;text-decoration:none;}
 
-.zone-short{
-  background:#16a34a;
-  color:white;
-  padding:22px;
-  border-radius:12px;
-  margin-top:25px;
-}
+    /* ANIMATIONS */
+    @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+    @keyframes slideUp{from{opacity:0;transform:translateY(40px)}to{opacity:1;transform:translateY(0)}}
 
-/* ===== CTA ===== */
-.cta{
-  background:#0f172a;
-  color:white;
-  text-align:center;
-  padding:70px 20px;
-}
-
-/* ===== FOOTER ===== */
-footer{
-  background:#020617;
-  color:#cbd5e1;
-  text-align:center;
-  padding:22px;
-}
-footer a{color:#c59d5f;text-decoration:none}
-footer .social{margin-top:10px}
-
-/* ===== MOBILE ===== */
-@media(max-width:600px){
-  .hero h1{font-size:2rem}
-}
-</style>
+    /* MOBILE */
+    @media(max-width:600px){
+      .hero{padding:60px 16px;}
+      .hero-content{max-width:100%;}
+      .hero h1{font-size:1.9rem;}
+      .hero p{font-size:0.95rem;}
+      .btn{width:100%;max-width:260px;}
+    }
+    /* TABLETTE */
+    @media(min-width:601px) and (max-width:900px){
+      .hero h1{ font-size:2.4rem;}
+      .hero p{ font-size:1rem;}
+      .btn{ max-width:220px;}
+    }
+    /* HERO ajustement PC pour voir le bas de la photo */
+    @media (min-width:900px){
+      .hero{background-position:center 75%;}
+    }
+  </style>
 </head>
 
 <body>
 
-<!-- MENU -->
-<button class="menu-btn" onclick="toggleMenu()">☰</button>
+  <!-- MENU -->
+  <button class="menu-btn" onclick="toggleMenu()" aria-label="Ouvrir le menu" aria-expanded="false" aria-controls="menu">
+    ☰
+  </button>
 
-<nav class="menu" id="menu">
-  <a href="index.html">Accueil</a>
-  <a href="services.html">Services</a>
-  <a href="realisations.html">Réalisation</a>
-  <a href="faq.html">F.A.Q</a>
-  <a href="zone.html">Zone</a>
-  <a href="prix.html">Prix</a>
-  <a href="devis.html">Devis</a>
-  <a href="contact.html">Contact</a>
-  <a href="https://instagram.com" target="_blank">Instagram</a>
-  <a href="https://facebook.com" target="_blank">Facebook</a>
-</nav>
+  <nav class="menu" id="menu" aria-hidden="true">
+    <a href="index.html">Accueil</a>
+    <a href="services.html">Services</a>
+    <a href="realisation.html">Réalisation</a>
+    <a href="faq.html">F.A.Q</a>
+    <a href="zone.html">Zone</a>
+    <a href="prix.html">Prix</a>
+    <a href="devis.html">Devis</a>
+    <a href="contact.html">Contact</a>
+    <a href="https://www.instagram.com/TONCOMPTE" target="_blank">Instagram</a>
+    <a href="https://www.facebook.com/TONCOMPTE" target="_blank">Facebook</a>
+  </nav>
 
-<main>
+  <main>
 
-<!-- HERO -->
-<section class="hero">
-  <h1>DS.BAT Électricité & Rénovation</h1>
-  <p>Villevaudé • Seine-et-Marne • Paris • Nord-Est IDF</p>
+    <!-- HERO -->
+    <section class="hero">
+      <div class="hero-content">
+        <h1>Électricien à Villevaudé – DS.BAT Électricité & Rénovation</h1>
+        <p>Intervention à Villevaudé, en Seine-et-Marne (77), à Paris et dans le Nord-Est de l’Île-de-France pour tous vos travaux d’électricité et de rénovation.</p>
+        <a class="btn btn-primary" href="devis.html">Demander un devis gratuit</a>
+        <a class="btn btn-phone" href="tel:0629556627">Appeler le 06 29 55 66 27</a>
+      </div>
+    </section>
 
-  <a class="btn btn-primary" href="devis.html">Demander un devis</a>
-  <a class="btn btn-phone" href="tel:0629556627">Appeler</a>
-</section>
+    <div class="container">
 
-<div class="container">
+      <!-- SERVICES -->
+      <section class="section">
+        <h2>Nos prestations d’électricité et de rénovation à Villevaudé</h2>
+        <div class="services">
+          <div class="card">
+            <h3>⚡ Électricité générale</h3>
+            <p>Mise aux normes électriques, tableaux, prises et éclairages, dépannage rapide à Villevaudé et alentours.</p>
+          </div>
+          <div class="card">
+            <h3>🏠 Rénovation intérieure</h3>
+            <p>Rénovation complète ou partielle de maison et appartement : peinture, sols, cloisonnement, remise à neuf.</p>
+          </div>
+          <div class="card">
+            <h3>📋 Devis et suivi de chantier</h3>
+            <p>Devis gratuit, conseils personnalisés et suivi complet de vos travaux du début à la livraison.</p>
+          </div>
+        </div>
+        <div class="zone-short">
+          Nous intervenons rapidement à Villevaudé, en Seine-et-Marne, dans le Nord-Est de la région parisienne et à Paris.
+        </div>
+      </section>
 
-<section class="section">
-  <h2>Votre artisan de confiance</h2>
-  <p>
-    Travaux d’électricité et rénovation tous corps d’état.
-    Intervention rapide, travail soigné et devis gratuit.
-  </p>
-</section>
+      <!-- CTA FINAL -->
+      <section class="cta section">
+        <h2>Un projet ? Contactez-nous dès maintenant</h2>
+        <a class="btn btn-primary" href="devis.html">Demander un devis</a>
+      </section>
 
-<section class="section">
-  <h2>Nos prestations</h2>
+    </div>
+  </main>
 
-  <div class="services">
-    <div class="card">⚡ Électricité générale</div>
-    <div class="card">🏠 Rénovation intérieure</div>
-    <div class="card">📋 Devis & suivi de chantier</div>
-  </div>
+  <!-- FOOTER -->
+  <footer>
+    © 2026 DS.BAT | <a href="mentions-legales.html">Mentions légales</a>
+  </footer>
 
-  <div class="zone-short">
-    Intervention rapide à Villevaudé, en Seine-et-Marne, à Paris et Nord-Est IDF.
-  </div>
-</section>
+  <!-- JS -->
+  <script src="script.js" defer></script>
+  <script>
+    const menu = document.getElementById("menu");
+    const btn = document.querySelector(".menu-btn");
 
-<section class="section">
-  <h2>Pourquoi choisir DS.BAT ?</h2>
-
-  <div class="services">
-    <div class="card">✔ Intervention rapide</div>
-    <div class="card">✔ Travail soigné</div>
-    <div class="card">✔ Devis gratuit</div>
-  </div>
-</section>
-
-<section class="section">
-  <h2>Contact rapide</h2>
-  <p>Besoin d’un dépannage ou d’un devis ? Appelez-nous directement.</p>
-  <a class="btn btn-primary" href="tel:0629556627">📞 Appeler maintenant</a>
-</section>
-
-</div>
-
-<section class="cta section">
-  <h2>Un projet ? Contactez-nous dès maintenant</h2>
-  <a class="btn btn-primary" href="devis.html">Demander un devis</a>
-</section>
-
-</main>
-
-<footer>
-  © 2026 DS.BAT |
-  <a href="mentions-legales.html">Mentions légales</a>
-
-  <div class="social">
-    <a href="https://instagram.com" target="_blank">Instagram</a> |
-    <a href="https://facebook.com" target="_blank">Facebook</a>
-  </div>
-</footer>
-
-<script>
-const menu=document.getElementById("menu");
-
-function toggleMenu(){
-  menu.classList.toggle("open");
-}
-
-/* fermer le menu si clic ailleurs */
-document.addEventListener("click",function(e){
-  const btn=document.querySelector(".menu-btn");
-  if(!menu.contains(e.target) && !btn.contains(e.target)){
-    menu.classList.remove("open");
-  }
-});
-
-/* animation apparition sections */
-const sections=document.querySelectorAll(".section");
-const observer=new IntersectionObserver(entries=>{
-  entries.forEach(entry=>{
-    if(entry.isIntersecting){
-      entry.target.classList.add("visible");
+    function toggleMenu(){
+      const isOpen = menu.classList.toggle("open");
+      btn.setAttribute("aria-expanded", isOpen);
+      menu.setAttribute("aria-hidden", !isOpen);
     }
-  });
-},{threshold:0.2});
 
-sections.forEach(sec=>observer.observe(sec));
-</script>
+    // Fermer le menu si clic en dehors
+    document.addEventListener("click", function(e){
+      if(!menu.contains(e.target) && !btn.contains(e.target)){
+        menu.classList.remove("open");
+        btn.setAttribute("aria-expanded", "false");
+        menu.setAttribute("aria-hidden", "true");
+      }
+    });
+
+    // Scroll reveal
+    const sections = document.querySelectorAll(".section");
+    const observer = new IntersectionObserver(entries=>{
+      entries.forEach(entry=>{
+        if(entry.isIntersecting){
+          entry.target.classList.add("visible");
+        }
+      });
+    },{threshold:0.2});
+
+    sections.forEach(sec=>observer.observe(sec));
+  </script>
 
 </body>
 </html>
