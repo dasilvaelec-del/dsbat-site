@@ -3,187 +3,80 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<title>Zone d’intervention DS.BAT | Île-de-France</title>
-<meta name="description" content="Découvrez les zones d’intervention de DS.BAT en Seine-et-Marne, Paris, Île-de-France et départements limitrophes. Intervention rapide depuis Villevaudé.">
+<title>Zone d’intervention – DS.BAT Électricité & Rénovation</title>
+<meta name="description" content="Découvrez les zones d’intervention de DS.BAT en Seine-et-Marne, Paris et Île-de-France. Intervention rapide depuis Villevaudé.">
+<meta name="theme-color" content="#1e3a8a">
 
 <style>
-*{margin:0;padding:0;box-sizing:border-box}
+/* RESET & BASE */
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:Arial,sans-serif;color:#0f172a;background:#f1f5f9;min-height:100vh;display:flex;flex-direction:column;}
+main{flex:1;}
+a{transition:.3s;color:inherit;text-decoration:none;}
+a:focus{outline:3px solid #c59d5f; outline-offset:2px;}
 
-body{
-  font-family:Arial,sans-serif;
-  background:#f1f5f9;
-  color:#0f172a;
-  min-height:100vh;
-  display:flex;
-  flex-direction:column;
-}
+/* MENU */
+.menu-btn{position:fixed;top:18px;right:18px;font-size:26px;background:#1e3a8a;color:white;border:none;padding:10px 14px;border-radius:8px;cursor:pointer;z-index:1001;}
+.menu-btn:focus{outline:3px solid #c59d5f;}
+.menu{position:fixed;top:0;right:-260px;width:260px;height:100%;background:#0f172a;padding-top:80px;transition:right .35s ease-in-out;z-index:1000;}
+.menu.open{right:0;}
+.menu a{display:block;padding:16px;border-bottom:1px solid rgba(255,255,255,.1);color:white;}
+.menu a:hover{background:#1e3a8a;}
 
-main{flex:1}
-
-/* ===== MENU ===== */
-.menu-btn{
-  position:fixed;
-  top:18px;
-  right:18px;
-  font-size:26px;
-  background:#1e3a8a;
-  color:white;
-  border:none;
-  padding:10px 14px;
-  border-radius:8px;
-  cursor:pointer;
-  z-index:1001;
-}
-
-.menu{
-  position:fixed;
-  top:0;
-  right:-260px;
-  width:260px;
-  height:100%;
-  background:#0f172a;
-  padding-top:80px;
-  transition:.3s;
-  z-index:1000;
-}
-
-.menu a{
-  display:block;
-  color:white;
-  padding:16px;
-  text-decoration:none;
-  border-bottom:1px solid rgba(255,255,255,.1);
-}
-
-.menu a:hover{background:#1e3a8a}
-.menu.open{right:0}
-
-/* ===== HERO ===== */
+/* HERO */
 .hero{
-  height:45vh;
-  min-height:280px;
-  background:
-    linear-gradient(rgba(10,20,40,.7),rgba(10,20,40,.7)),
-    url("https://images.unsplash.com/photo-1503387762-592deb58ef4e?q=80&w=1600");
-  background-size:cover;
-  background-position:center;
-
-  display:flex;
-  flex-direction:column;
-  justify-content:center;
-  align-items:center;
-  text-align:center;
-  color:white;
-  padding:20px;
+  height:45vh; min-height:280px;
+  background:linear-gradient(rgba(10,20,40,.7),rgba(10,20,40,.7)), url("https://images.unsplash.com/photo-1503387762-592deb58ef4e?q=80&w=1600") center / cover no-repeat;
+  display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; color:white; padding:20px;
 }
+.hero h1{font-size:2.2rem;margin-bottom:8px;}
+.hero p{opacity:.9;}
 
-.hero h1{font-size:2.2rem;margin-bottom:8px}
-.hero p{opacity:.9}
+/* CONTAINER */
+.container{max-width:1050px;margin:auto;padding:60px 20px;}
 
-/* ===== CONTAINER ===== */
-.container{max-width:1000px;margin:auto;padding:60px 20px}
+/* SECTIONS */
+.section{margin-bottom:60px;text-align:center;opacity:0;transform:translateY(40px);transition:.8s;}
+.section.visible{opacity:1;transform:translateY(0);}
+.section p{max-width:800px;margin:12px auto 0;line-height:1.6;}
 
-/* ===== SECTIONS ===== */
-.section{
-  margin-bottom:60px;
-  text-align:center;
-  opacity:0;
-  transform:translateY(40px);
-  transition:.8s;
-}
+/* ZONES */
+.zones{margin-top:30px;display:grid;gap:14px;}
+.zone{padding:16px;border-radius:10px;color:white;font-weight:bold;line-height:1.5;}
+.vert{background:#10b981;}
+.jaune{background:#facc15;color:#333;}
+.orange{background:#f97316;}
+.rouge{background:#ef4444;}
 
-.section.visible{opacity:1;transform:translateY(0)}
+/* MAP */
+.map{margin-top:30px;border-radius:14px;overflow:hidden;box-shadow:0 6px 18px rgba(0,0,0,.15);}
+.map iframe{width:100%;height:420px;border:0;}
 
-.section p{
-  max-width:800px;
-  margin:12px auto 0;
-  line-height:1.6;
-}
+/* CTA */
+.cta{background:#0f172a;color:white;text-align:center;padding:70px 20px;}
+.btn{display:inline-block;padding:14px 28px;margin-top:20px;border-radius:10px;text-decoration:none;font-weight:bold;background:#1e3a8a;color:white;transition:.3s;}
+.btn:hover,.btn:focus{transform:translateY(-2px);box-shadow:0 6px 14px rgba(0,0,0,.2);}
 
-/* ===== LISTE ZONES ===== */
-.zones{
-  margin-top:30px;
-  display:grid;
-  gap:14px;
-}
+/* FOOTER */
+footer{background:#020617;color:#cbd5e1;text-align:center;padding:22px;}
+footer a{color:#c59d5f;text-decoration:none;}
 
-.zone{
-  padding:16px;
-  border-radius:10px;
-  color:white;
-  font-weight:bold;
-  line-height:1.5;
-}
-
-.vert{background:#10b981}
-.jaune{background:#facc15;color:#333}
-.orange{background:#f97316}
-.rouge{background:#ef4444}
-
-/* ===== MAP ===== */
-.map{
-  margin-top:30px;
-  border-radius:14px;
-  overflow:hidden;
-  box-shadow:0 6px 18px rgba(0,0,0,.15);
-}
-
-.map iframe{
-  width:100%;
-  height:420px;
-  border:0;
-}
-
-/* ===== CTA ===== */
-.cta{
-  background:#0f172a;
-  color:white;
-  text-align:center;
-  padding:80px 20px;
-}
-
-.btn{
-  display:inline-block;
-  padding:14px 28px;
-  margin-top:20px;
-  border-radius:10px;
-  text-decoration:none;
-  font-weight:bold;
-  background:#1e3a8a;
-  color:white;
-  transition:.3s;
-}
-
-.btn:hover{
-  transform:translateY(-2px);
-  box-shadow:0 6px 14px rgba(0,0,0,.2);
-}
-
-/* ===== FOOTER ===== */
-footer{
-  background:#020617;
-  color:#cbd5e1;
-  text-align:center;
-  padding:22px;
-}
-footer a{color:#c59d5f;text-decoration:none}
-
-/* ===== MOBILE ===== */
-@media(max-width:600px){
-  .hero h1{font-size:1.8rem}
-}
+/* MOBILE */
+@media(max-width:600px){.hero h1{font-size:1.8rem;}}
 </style>
 </head>
 
 <body>
 
 <!-- MENU -->
-<button class="menu-btn" onclick="toggleMenu()">☰</button>
+<button class="menu-btn" aria-label="Ouvrir le menu" aria-expanded="false" aria-controls="menu">
+  ☰
+</button>
 
-<nav class="menu" id="menu">
+<nav class="menu" id="menu" aria-hidden="true">
   <a href="index.html">Accueil</a>
   <a href="services.html">Services</a>
+  <a href="realisation.html">Réalisation</a>
   <a href="zone.html">Zone</a>
   <a href="prix.html">Prix</a>
   <a href="devis.html">Devis</a>
@@ -191,10 +84,10 @@ footer a{color:#c59d5f;text-decoration:none}
 </nav>
 
 <!-- HERO -->
-<header class="hero">
+<section class="hero">
   <h1>Nos zones d’intervention</h1>
-  <p>Déplacements rapides en Seine-et-Marne, Île-de-France et alentours</p>
-</header>
+  <p>Déplacements rapides en Seine-et-Marne, Paris et Île-de-France</p>
+</section>
 
 <main>
 <div class="container">
@@ -211,26 +104,18 @@ footer a{color:#c59d5f;text-decoration:none}
 
 <section class="section">
   <h2>Détail des zones</h2>
-
   <div class="zones">
     <div class="zone vert">🟢 Local ≤ 7 km : Villevaudé, Claye-Souilly, Brou-sur-Chantereine, Courtry, Villeparisis, Vaires-sur-Marne, Thorigny-sur-Marne, Saint-Thibault-des-Vignes</div>
-
     <div class="zone jaune">🟡 8-15 km : Lagny-sur-Marne, Chelles, Noisiel, Meaux, Chessy</div>
-
     <div class="zone orange">🟠 16-25 km : Torcy, Montfermeil, Mitry-Mory, Dammartin-en-Goële, Pontault-Combault</div>
-
     <div class="zone rouge">🔴 26-40 km : Paris, Melun, Fontainebleau, Seine-Saint-Denis (93), Marne-la-Vallée, Senlis, Ermenonville</div>
   </div>
 </section>
 
 <section class="section">
   <h2>Carte de localisation</h2>
-
   <div class="map">
-    <iframe
-      src="https://www.google.com/maps?q=58+Grande+Rue,+77410+Villevaudé&output=embed"
-      loading="lazy">
-    </iframe>
+    <iframe src="https://www.google.com/maps?q=58+Grande+Rue,+77410+Villevaudé&output=embed" loading="lazy"></iframe>
   </div>
 </section>
 
@@ -245,24 +130,46 @@ footer a{color:#c59d5f;text-decoration:none}
 </main>
 
 <footer>
-  © 2026 DS.BAT |
-  <a href="mentions-legales.html">Mentions légales</a>
+  © 2026 DS.BAT | <a href="mentions-legales.html">Mentions légales</a>
 </footer>
 
 <script>
-function toggleMenu(){
-  document.getElementById("menu").classList.toggle("open");
-}
+// MENU
+const menu = document.getElementById("menu");
+const btn = document.querySelector(".menu-btn");
 
+btn.addEventListener("click",()=>{
+  const isOpen = menu.classList.toggle("open");
+  btn.setAttribute("aria-expanded", isOpen);
+  menu.setAttribute("aria-hidden",!isOpen);
+});
+
+// fermer menu si clic en dehors
+document.addEventListener("click",e=>{
+  if(!menu.contains(e.target) && !btn.contains(e.target)){
+    menu.classList.remove("open");
+    btn.setAttribute("aria-expanded","false");
+    menu.setAttribute("aria-hidden","true");
+  }
+});
+
+// fermer menu avec ESC
+document.addEventListener("keydown",e=>{
+  if(e.key==="Escape"){
+    menu.classList.remove("open");
+    btn.setAttribute("aria-expanded","false");
+    menu.setAttribute("aria-hidden","true");
+    btn.focus();
+  }
+});
+
+// SCROLL REVEAL
 const sections=document.querySelectorAll(".section");
 const observer=new IntersectionObserver(entries=>{
   entries.forEach(entry=>{
-    if(entry.isIntersecting){
-      entry.target.classList.add("visible");
-    }
+    if(entry.isIntersecting) entry.target.classList.add("visible");
   });
-},{threshold:0.2});
-
+},{threshold:0.15, rootMargin:"-50px"});
 sections.forEach(sec=>observer.observe(sec));
 </script>
 
