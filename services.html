@@ -3,216 +3,104 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Services d'électricité et rénovation – DS.BAT à Villevaudé (77)</title>
+<meta name="description" content="DS.BAT réalise vos travaux d’électricité, rénovation intérieure, dépannage et mise aux normes en Seine-et-Marne, Paris et Nord-Est IDF. Devis gratuit.">
+<link rel="canonical" href="https://dasilvaelec-del.github.io/dsbat-site/services.html">
 
-<title>Services DS.BAT | Électricité & Rénovation à Villevaudé</title>
-<meta name="description" content="DS.BAT réalise vos travaux d’électricité, rénovation intérieure, petits travaux et mise aux normes en Seine-et-Marne, Paris et Nord-Est Île-de-France. Devis gratuit et intervention rapide.">
-<meta name="robots" content="index, follow">
-<link rel="canonical" href="https://tonsite.fr/services.html">
+<!-- JSON‑LD LocalBusiness -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "LocalBusiness",
+  "name": "DS.BAT Électricité & Rénovation",
+  "image": "https://dasilvaelec-del.github.io/dsbat-site/image/chantier-verriere.jpg",
+  "telephone": "06 29 55 66 27",
+  "email": "contact@dsbat.fr",
+  "address": {
+    "@type": "PostalAddress",
+    "streetAddress": "58 Grande Rue",
+    "addressLocality": "Villevaudé",
+    "addressRegion": "Île-de-France",
+    "postalCode": "77410",
+    "addressCountry": "FR"
+  },
+  "areaServed": ["Villevaudé","Chessy","Claye-Souilly","Montévrain","Paris","Nord-Est Île-de-France"],
+  "priceRange": "€€",
+  "openingHours": "Mo-Fr 08:00-19:00",
+  "sameAs": [
+    "https://www.instagram.com/votrecompte",
+    "https://www.facebook.com/votrecompte"
+  ]
+}
+</script>
 
 <style>
-*{margin:0;padding:0;box-sizing:border-box}
-
-body{
-  font-family:Arial,sans-serif;
-  background:#f1f5f9;
-  color:#0f172a;
-  min-height:100vh;
-  display:flex;
-  flex-direction:column;
-}
-
-main{flex:1}
-
-/* ===== MENU ===== */
-.menu-btn{
-  position:fixed;
-  top:18px;
-  right:18px;
-  font-size:26px;
-  background:#1e3a8a;
-  color:white;
-  border:none;
-  padding:10px 14px;
-  border-radius:8px;
-  cursor:pointer;
-  z-index:1001;
-}
-
-.menu{
-  position:fixed;
-  top:0;
-  right:-260px;
-  width:260px;
-  height:100%;
-  background:#0f172a;
-  padding-top:80px;
-  transition:.3s;
-  z-index:1000;
-}
-
-.menu a{
-  display:block;
-  color:white;
-  padding:16px;
-  text-decoration:none;
-  border-bottom:1px solid rgba(255,255,255,.1);
-}
-
-.menu a:hover{background:#1e3a8a}
-.menu.open{right:0}
-
-/* ===== HERO IDENTIQUE INDEX & ZONE ===== */
+/* Style global identique à index.html (copie) */
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:Arial,sans-serif;color:#0f172a;background:#f1f5f9;min-height:100vh;display:flex;flex-direction:column;}
+main{flex:1;}
+a{transition:.3s;color:inherit;text-decoration:none;}
+a:focus{outline:3px solid #c59d5f;outline-offset:2px;}
+.menu-btn{position:fixed;top:18px;right:18px;font-size:26px;background:#1e3a8a;color:white;border:none;padding:10px 14px;border-radius:8px;cursor:pointer;z-index:1001;}
+.menu{position:fixed;top:0;right:-260px;width:260px;height:100%;background:#0f172a;padding-top:80px;transition:right .35s ease-in-out;z-index:1000;}
+.menu.open{right:0;}
+.menu a{display:block;padding:16px;border-bottom:1px solid rgba(255,255,255,.1);color:white;}
+.menu a:hover{background:#1e3a8a;}
 .hero{
-  height:100vh;
-  min-height:520px;
-  background:
-    linear-gradient(rgba(10,20,40,.65), rgba(10,20,40,.65)),
-    url("image/chantier-verriere.jpg") center / cover no-repeat;
-  display:flex;
-  justify-content:center;
-  align-items:center;
-  text-align:center;
-  color:white;
-  padding:20px;
+  height:70vh; min-height:400px;
+  background: linear-gradient(rgba(10,20,40,.65), rgba(10,20,40,.65)),
+              url("image/chantier-verriere.jpg") center / cover no-repeat;
+  display:flex; flex-direction:column; justify-content:center; align-items:center;
+  text-align:center; color:white; padding:20px;
 }
-
-.hero-content{max-width:700px;}
-.hero h1{font-size:2.8rem;margin-bottom:15px;}
-.hero p{margin-bottom:25px;opacity:.95}
-
-/* ===== CONTAINER ===== */
-.container{max-width:1100px;margin:auto;padding:60px 20px}
-
-/* ===== SECTIONS ===== */
-.section{
-  margin-bottom:70px;
-  text-align:center;
-  opacity:0;
-  transform:translateY(40px);
-  transition:.8s;
-}
-
-.section.visible{opacity:1;transform:translateY(0)}
-
-.section p{
-  max-width:800px;
-  margin:12px auto 0;
-  line-height:1.6;
-}
-
-/* ===== SERVICES GRID ===== */
-.services{
-  display:grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap:30px;
-  margin-top:30px;
-}
-
-.card{
-  background:white;
-  padding:28px;
-  border-radius:14px;
-  box-shadow:0 6px 18px rgba(0,0,0,.08);
-  transition:.35s;
-  text-align:left;
-}
-
-.card:hover{
-  transform:translateY(-6px) scale(1.02);
-  box-shadow:0 16px 28px rgba(0,0,0,.18);
-}
-
-.card h3{
-  margin-bottom:12px;
-  color:#1e3a8a;
-}
-
-/* ===== CTA ===== */
-.cta{
-  background:#0f172a;
-  color:white;
-  text-align:center;
-  padding:80px 20px;
-}
-
-/* ===== BOUTON ===== */
-.btn{
-  display:inline-block;
-  padding:14px 28px;
-  margin-top:20px;
-  border-radius:10px;
-  text-decoration:none;
-  font-weight:bold;
-  background:#1e3a8a;
-  color:white;
-  transition:.3s;
-}
-
-.btn:hover{
-  transform:translateY(-2px);
-  box-shadow:0 6px 14px rgba(0,0,0,.2);
-}
-
-/* ===== WHATSAPP ===== */
-.whatsapp-float{
-  position:fixed;
-  bottom:20px;
-  right:20px;
-  background:#25D366;
-  color:white;
-  width:60px;
-  height:60px;
-  border-radius:50%;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  box-shadow:0 4px 12px rgba(0,0,0,.25);
-  z-index:1002;
-  transition:transform .3s;
-}
-
-.whatsapp-float:hover{transform:scale(1.1)}
-.whatsapp-float img{width:32px;height:32px}
-
-/* ===== FOOTER ===== */
-footer{
-  background:#020617;
-  color:#cbd5e1;
-  text-align:center;
-  padding:22px;
-}
-footer a{color:#c59d5f;text-decoration:none}
-
-/* ===== RESPONSIVE ===== */
-@media(max-width:768px){
-  .services{grid-template-columns:1fr;gap:20px;}
-  .whatsapp-float{bottom:80px;}
-}
-
-@media(max-width:600px){
-  .hero h1{font-size:1.9rem}
-}
+.hero h1{font-size:2.6rem;margin-bottom:15px;}
+.hero p{font-size:1.2rem;}
+.container{max-width:1100px;margin:auto;padding:60px 20px;}
+.section{margin-bottom:70px;text-align:center;opacity:0;transform:translateY(40px);transition:.8s;}
+.section.visible{opacity:1;transform:translateY(0);}
+.section p{max-width:800px;margin:12px auto 0;line-height:1.6;}
+.services{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:30px;margin-top:30px;}
+.card{background:white;padding:28px;border-radius:14px;box-shadow:0 6px 18px rgba(0,0,0,.08);transition:.35s;text-align:left;}
+.card:hover{transform:translateY(-6px) scale(1.02);box-shadow:0 16px 28px rgba(0,0,0,.18);}
+.card h3{margin-bottom:12px;color:#1e3a8a;}
+.badges{background:#f8fafc; padding:20px; border-radius:40px; margin:30px 0; display:flex; flex-wrap:wrap; gap:15px; justify-content:center;}
+.badge{background:#1e3a8a; color:white; padding:10px 20px; border-radius:40px; font-weight:500;}
+.cta{background:#0f172a; color:white; text-align:center; padding:80px 20px;}
+.btn{display:inline-block;padding:14px 28px;border-radius:10px;font-weight:bold;text-decoration:none;transition:.3s;background:#1e3a8a;color:white;}
+.btn:hover{transform:translateY(-2px);box-shadow:0 6px 14px rgba(0,0,0,.2);}
+.btn-phone{background:#c59d5f; color:#0f172a;}
+.whatsapp-float{position:fixed;width:60px;height:60px;bottom:20px;right:20px;background:#25D366;border-radius:50%;display:flex;justify-content:center;align-items:center;z-index:1002;box-shadow:0 4px 12px rgba(0,0,0,0.3);transition:transform 0.3s, box-shadow 0.3s;}
+.whatsapp-float:hover{transform:scale(1.1);box-shadow:0 6px 20px rgba(0,0,0,0.4);}
+.whatsapp-float img{width:35px;height:35px;}
+footer{background:#020617;color:#cbd5e1;text-align:center;padding:22px;}
+footer a{color:#c59d5f;text-decoration:none;}
+@media(max-width:768px){.services{grid-template-columns:1fr;}.hero h1{font-size:2rem;}}
+@media(max-width:600px){.hero h1{font-size:1.8rem;}}
 </style>
 </head>
-
 <body>
 
-<button class="menu-btn" onclick="toggleMenu()" aria-label="Ouvrir le menu">☰</button>
-
-<nav class="menu" id="menu">
+<!-- MENU UNIFIÉ -->
+<button class="menu-btn" id="menuBtn" aria-label="Ouvrir le menu" aria-expanded="false" aria-controls="menu">☰</button>
+<nav class="menu" id="menu" aria-hidden="true">
   <a href="index.html">Accueil</a>
   <a href="services.html">Services</a>
+  <a href="realisations.html">Réalisations</a>
   <a href="zone.html">Zone</a>
   <a href="prix.html">Prix</a>
   <a href="devis.html">Devis</a>
   <a href="contact.html">Contact</a>
+  <a href="avis.html">Avis</a>
+  <a href="faq.html">FAQ</a>
+  <a href="https://www.instagram.com/votrecompte" target="_blank">Instagram</a>
+  <a href="https://www.facebook.com/votrecompte" target="_blank">Facebook</a>
 </nav>
 
 <!-- HERO -->
 <section class="hero">
   <div class="hero-content">
     <h1>Nos services d’électricité et rénovation</h1>
-    <p>Intervention rapide à Villevaudé, en Seine-et-Marne, à Paris et dans le Nord-Est de l’Île-de-France.</p>
+    <p>Intervention rapide à Villevaudé, Seine-et-Marne, Paris et Nord-Est IDF.</p>
   </div>
 </section>
 
@@ -221,78 +109,110 @@ footer a{color:#c59d5f;text-decoration:none}
 
 <section class="section">
   <h2>Un accompagnement complet pour vos travaux</h2>
-  <p>
-    DS.BAT accompagne particuliers et professionnels pour leurs projets
-    d’électricité générale, rénovation intérieure, remise aux normes et
-    dépannages rapides, avec un suivi sérieux jusqu’à la livraison finale.
-  </p>
+  <p>DS.BAT accompagne particuliers et professionnels pour leurs projets d’électricité générale, rénovation intérieure, remise aux normes et dépannages rapides, avec un suivi sérieux jusqu’à la livraison finale.</p>
 </section>
 
 <section class="section">
   <h2>Nos prestations détaillées</h2>
-
   <div class="services">
-
-    <div class="card">
-      <h3>⚡ Électricité générale</h3>
-      <p>Mise aux normes NF C 15-100, tableaux électriques, circuits dédiés et éclairages.</p>
-    </div>
-
-    <div class="card">
-      <h3>🔨 Rénovation intérieure</h3>
-      <p>Démolition, isolation, cloisons, peinture, sols, carrelage et finitions complètes.</p>
-    </div>
-
-    <div class="card">
-      <h3>📋 Devis et suivi de chantier</h3>
-      <p>Étude gratuite, planification des travaux et coordination jusqu’à la réception finale.</p>
-    </div>
-
-    <div class="card">
-      <h3>🛠️ Dépannages et petits travaux</h3>
-      <p>Remplacement de prises, interrupteurs, luminaires et dépannage électrique rapide.</p>
-    </div>
-
-    <div class="card">
-      <h3>🏠 Rénovation tous corps d’état</h3>
-      <p>Projet complet incluant plomberie, peinture, sols, isolation et aménagement intérieur.</p>
-    </div>
-
+    <div class="card"><h3>⚡ Électricité générale</h3><p>Mise aux normes NF C 15-100, tableaux électriques, circuits dédiés et éclairages.</p></div>
+    <div class="card"><h3>🔨 Rénovation intérieure</h3><p>Démolition, isolation, cloisons, peinture, sols, carrelage et finitions complètes.</p></div>
+    <div class="card"><h3>📋 Devis et suivi de chantier</h3><p>Étude gratuite, planification des travaux et coordination jusqu’à la réception finale.</p></div>
+    <div class="card"><h3>🛠️ Dépannages et petits travaux</h3><p>Remplacement de prises, interrupteurs, luminaires et dépannage électrique rapide.</p></div>
+    <div class="card"><h3>🏠 Rénovation tous corps d’état</h3><p>Projet complet incluant plomberie, peinture, sols, isolation et aménagement intérieur.</p></div>
   </div>
 </section>
+
+<!-- BADGES DE CONFIANCE -->
+<div class="badges">
+  <span class="badge">✔️ Artisan certifié</span>
+  <span class="badge">✔️ Assurance décennale</span>
+  <span class="badge">✔️ Devis gratuit</span>
+  <span class="badge">✔️ Intervention 6j/7</span>
+  <span class="badge">⭐ 4,9/5 – 12 avis</span>
+</div>
 
 <section class="cta section">
   <h2>Besoin d’un devis gratuit ?</h2>
   <p>Contactez DS.BAT dès maintenant pour étudier votre projet.</p>
   <a class="btn" href="devis.html">Demander un devis</a>
+  <a class="btn btn-phone" href="#" data-phone-base64="MDYyOTU1NjYyNw==">📞 06<!-- -->29<!-- -->55<!-- -->66<!-- -->27</a>
 </section>
 
 </div>
 </main>
 
-<a href="https://wa.me/33629556627" class="whatsapp-float" target="_blank" rel="noopener noreferrer" aria-label="WhatsApp">
+<!-- WHATSAPP FLOTTANT -->
+<a href="https://wa.me/33629556627" target="_blank" rel="noopener noreferrer" class="whatsapp-float" aria-label="Contact WhatsApp">
   <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" alt="WhatsApp">
 </a>
 
 <footer>
-  © 2026 DS.BAT | <a href="mentions-legales.html">Mentions légales</a>
+  <p>© 2026 DS.BAT – 58 Grande Rue, 77410 Villevaudé | <a href="mentions-legales.html">Mentions légales</a></p>
 </footer>
 
 <script>
-function toggleMenu(){
-  document.getElementById("menu").classList.toggle("open");
-}
-
-const sections=document.querySelectorAll(".section");
-const observer=new IntersectionObserver(entries=>{
-  entries.forEach(entry=>{
-    if(entry.isIntersecting){
-      entry.target.classList.add("visible");
-    }
+// ---------- PROTECTION NUMÉRO TÉLÉPHONE (BASE64) ----------
+document.querySelectorAll('[data-phone-base64]').forEach(link => {
+  link.addEventListener('click', (e) => {
+    e.preventDefault();
+    const phone = atob(link.dataset.phoneBase64);
+    window.location.href = `tel:${phone}`;
   });
-},{threshold:0.2});
+});
 
-sections.forEach(sec=>observer.observe(sec));
+// ---------- MENU TOGGLE (ARIA) ----------
+const menu = document.getElementById('menu');
+const btn = document.getElementById('menuBtn');
+
+btn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  const isOpen = menu.classList.toggle('open');
+  btn.setAttribute('aria-expanded', isOpen);
+  menu.setAttribute('aria-hidden', !isOpen);
+});
+
+document.addEventListener('click', (e) => {
+  if (!menu.contains(e.target) && !btn.contains(e.target)) {
+    menu.classList.remove('open');
+    btn.setAttribute('aria-expanded', 'false');
+    menu.setAttribute('aria-hidden', 'true');
+  }
+});
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    menu.classList.remove('open');
+    btn.setAttribute('aria-expanded', 'false');
+    menu.setAttribute('aria-hidden', 'true');
+    btn.focus();
+  }
+});
+
+document.querySelectorAll('.menu a').forEach(link => {
+  link.addEventListener('click', () => {
+    menu.classList.remove('open');
+    btn.setAttribute('aria-expanded', 'false');
+    menu.setAttribute('aria-hidden', 'true');
+  });
+});
+
+// ---------- SCROLL REVEAL ----------
+const sections = document.querySelectorAll('.section');
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) entry.target.classList.add('visible');
+  });
+}, { threshold: 0.2 });
+
+sections.forEach(sec => observer.observe(sec));
+
+window.addEventListener('load', () => {
+  sections.forEach(sec => {
+    const rect = sec.getBoundingClientRect();
+    if (rect.top < window.innerHeight * 0.8) sec.classList.add('visible');
+  });
+});
 </script>
 
 </body>

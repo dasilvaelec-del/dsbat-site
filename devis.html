@@ -3,187 +3,26 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Devis interactif avancé - DS.BAT</title>
-<meta name="description" content="Devis interactif DS.BAT – estimation rapide électricité, rénovation intérieure, plomberie et plus.">
-
-<!-- html2pdf.js pour PDF -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<title>Page non trouvée – DS.BAT Électricien Villevaudé</title>
+<meta name="description" content="Erreur 404 - La page que vous cherchez n'existe pas. Retournez à l'accueil ou contactez DS.BAT.">
 
 <style>
-/* RESET & BASE */
-* { margin:0; padding:0; box-sizing:border-box; font-family:Arial,sans-serif; }
-body { background:#f1f5f9; color:#0f172a; min-height:100vh; display:flex; flex-direction:column; }
-main { flex:1; }
-a { color:inherit; text-decoration:none; transition:.3s; }
-a:hover { color:#3b82f6; }
-
-/* MENU */
-.menu-btn { position:fixed; top:18px; right:18px; font-size:26px; background:#1e3a8a; color:white; border:none; padding:10px 14px; border-radius:8px; cursor:pointer; z-index:1001; }
-.menu { position:fixed; top:0; right:-260px; width:260px; height:100%; background:#0f172a; padding-top:80px; transition:.3s; z-index:1000; }
-.menu.open { right:0; }
-.menu a { display:block; padding:16px; color:white; border-bottom:1px solid rgba(255,255,255,.1); }
-.menu a:hover { background:#1e3a8a; }
-
-/* HERO */
-.hero{
-  height:45vh; min-height:280px;
-  background: linear-gradient(rgba(10,20,40,.7), rgba(10,20,40,.7)),
-              url("image/chantier-verriere.webp") center/cover no-repeat;
-  display:flex; flex-direction:column; justify-content:center; align-items:center;
-  text-align:center; color:white; padding:20px;
-}
-.hero h1 { font-size:2.4rem; margin-bottom:8px; }
-.hero p { opacity:.9; }
-
-/* CONTAINER */
-.container { max-width:1000px; margin:40px auto; background:white; padding:30px; border-radius:12px; box-shadow:0 6px 18px rgba(0,0,0,.08); }
-
-/* TABLEAU DEVIS */
-table { width:100%; border-collapse:collapse; margin-top:20px; }
-th, td { border:1px solid #ddd; padding:10px; text-align:center; }
-th { background:#f1f5f9; }
-input[type=number] { width:80px; padding:6px; border-radius:6px; border:1px solid #ccc; }
-
-/* TOTAL & BOUTONS */
-.total { font-size:1.5rem; font-weight:bold; margin:20px 0; text-align:center; color:#16a34a; }
-.btn { display:inline-block; padding:14px 28px; border-radius:10px; font-weight:bold; cursor:pointer; margin:5px; border:none; transition:.3s; }
-.btn-pdf { background:#ef4444; color:white; }
-.btn-whatsapp { background:#25D366; color:white; }
-.btn:hover { transform:translateY(-2px); box-shadow:0 6px 14px rgba(0,0,0,.2); }
-
-/* SELECT TYPE */
-.select-type { text-align:center; margin:20px 0; }
-select { padding:8px 12px; font-size:1rem; border-radius:6px; border:1px solid #ccc; }
-
-/* FOOTER */
-footer { background:#020617; color:#cbd5e1; text-align:center; padding:22px; margin-top:40px; }
-footer a { color:#c59d5f; }
-
-/* RESPONSIVE */
-@media(max-width:768px){ .hero h1 { font-size:1.9rem; } table th, table td { font-size:.9rem; padding:6px; } }
+/* Style global minimal, cohérent */
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:Arial,sans-serif;background:#f1f5f9;color:#0f172a;min-height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:20px;}
+.container{max-width:600px;background:white;padding:50px;border-radius:20px;box-shadow:0 10px 25px rgba(0,0,0,0.05);}
+h1{font-size:3rem;color:#1e3a8a;margin-bottom:10px;}
+p{font-size:1.2rem;margin-bottom:30px;color:#334155;}
+.btn{display:inline-block;padding:14px 28px;background:#1e3a8a;color:white;text-decoration:none;border-radius:10px;font-weight:bold;transition:.3s;}
+.btn:hover{transform:translateY(-2px);box-shadow:0 6px 14px rgba(0,0,0,.2);}
 </style>
 </head>
-
 <body>
-
-<!-- MENU -->
-<button class="menu-btn" aria-label="Ouvrir le menu">☰</button>
-<nav class="menu">
-  <a href="index.html">Accueil</a>
-  <a href="services.html">Services</a>
-  <a href="zone.html">Zone</a>
-  <a href="prix.html">Prix</a>
-  <a href="devis.html">Devis</a>
-  <a href="contact.html">Contact</a>
-</nav>
-
-<!-- HERO -->
-<header class="hero">
-  <h1>📄 Devis interactif DS.BAT</h1>
-  <p>Électricité, rénovation intérieure, plomberie et plus – Estimation rapide</p>
-</header>
-
-<main class="container" id="contenuDevis">
-
-<div class="select-type">
-  <label for="typeTravaux"><strong>Type de travaux : </strong></label>
-  <select id="typeTravaux" onchange="calculer()">
-    <option value="neuf">Électricité – Neuf</option>
-    <option value="reno">Électricité – Rénovation</option>
-  </select>
+<div class="container">
+  <h1>404</h1>
+  <p>Oups ! La page que vous recherchez n’existe pas ou a été déplacée.</p>
+  <a href="index.html" class="btn">← Retour à l’accueil</a>
+  <p style="margin-top:30px; font-size:0.9rem;">DS.BAT – Électricité & Rénovation à Villevaudé</p>
 </div>
-
-<table>
-  <tr><th>Élément</th><th>Quantité</th><th>Prix unitaire</th><th>Total</th></tr>
-
-  <tr><td colspan="4" style="background:#e0f2fe;font-weight:bold;">⚡ ÉLECTRICITÉ</td></tr>
-  <tr><td>Prises</td><td><input type="number" min="0" id="prise" value="0" onchange="calculer()"></td><td id="pu-prise">-</td><td id="total-prise">-</td></tr>
-  <tr><td>Interrupteurs</td><td><input type="number" min="0" id="inter" value="0" onchange="calculer()"></td><td id="pu-inter">-</td><td id="total-inter">-</td></tr>
-  <tr><td>Tableau électrique</td><td><input type="number" min="0" max="1" id="tableau" value="0" onchange="calculer()"></td><td id="pu-tableau">-</td><td id="total-tableau">-</td></tr>
-
-  <tr><td colspan="4" style="background:#fef3c7;font-weight:bold;">🔨 RÉNOVATION INTÉRIEURE</td></tr>
-  <tr><td>Peinture (m²)</td><td><input type="number" min="0" id="peinture" value="0" onchange="calculer()"></td><td id="pu-peinture">-</td><td id="total-peinture">-</td></tr>
-  <tr><td>Carrelage (m²)</td><td><input type="number" min="0" id="carrelage" value="0" onchange="calculer()"></td><td id="pu-carrelage">-</td><td id="total-carrelage">-</td></tr>
-  <tr><td>Placo (m²)</td><td><input type="number" min="0" id="placo" value="0" onchange="calculer()"></td><td id="pu-placo">-</td><td id="total-placo">-</td></tr>
-  <tr><td>Parquet (m²)</td><td><input type="number" min="0" id="parquet" value="0" onchange="calculer()"></td><td id="pu-parquet">-</td><td id="total-parquet">-</td></tr>
-
-  <tr><td colspan="4" style="background:#fed7aa;font-weight:bold;">🚿 PLOMBERIE</td></tr>
-  <tr><td>Évier</td><td><input type="number" min="0" max="5" id="evier" value="0" onchange="calculer()"></td><td id="pu-evier">-</td><td id="total-evier">-</td></tr>
-
-  <tr><td>Déplacement</td><td colspan="2">20€ (≤10km)</td><td id="total-deplacement">20 €</td></tr>
-</table>
-
-<div class="total" id="totalGeneral">Total estimé : 0 € HT</div>
-
-<div style="text-align:center; margin:30px 0;">
-  <button class="btn btn-pdf" onclick="genererPDF()">📄 Télécharger PDF</button>
-  <button class="btn btn-whatsapp" onclick="envoyerWhatsApp()">💬 WhatsApp + Devis</button>
-</div>
-
-</main>
-
-<footer>
-  © 2026 DS.BAT | <a href="mentions-legales.html">Mentions légales</a>
-</footer>
-
-<script>
-// MENU TOGGLE
-const menu=document.querySelector(".menu");
-document.querySelector(".menu-btn").addEventListener("click",()=>{menu.classList.toggle("open");});
-
-// PRIX PAR TYPE
-const prix = {
-  neuf: { prise:95, inter:80, tableau:925, peinture:33, carrelage:35, placo:35, parquet:60, evier:550 },
-  reno: { prise:110, inter:90, tableau:1100, peinture:45, carrelage:45, placo:42, parquet:70, evier:600 }
-};
-
-function calculer(){
-  const type = document.getElementById("typeTravaux").value;
-  let total = 20; // frais déplacement
-  ["prise","inter","tableau","peinture","carrelage","placo","parquet","evier"].forEach(item=>{
-    const qte = parseInt(document.getElementById(item).value)||0;
-    const pu = prix[type][item];
-    const ligne = qte*pu;
-    document.getElementById("pu-"+item).innerText = pu+" €";
-    document.getElementById("total-"+item).innerText = ligne+" €";
-    total += ligne;
-  });
-  document.getElementById("totalGeneral").innerText = `Total estimé : ${total.toLocaleString()} € HT`;
-  window.totalDevis = total;
-}
-
-// PDF Avancé
-function genererPDF(){
-  const element = document.getElementById("contenuDevis");
-  html2pdf().from(element).set({
-    margin:10,
-    filename: 'devis_DSBAT.pdf',
-    image: { type:'jpeg', quality:0.98 },
-    html2canvas: { scale:2 },
-    jsPDF: { unit:'mm', format:'a4', orientation:'portrait' }
-  }).save();
-}
-
-// WhatsApp avec détails
-function envoyerWhatsApp(){
-  const total = window.totalDevis;
-  const type = document.getElementById("typeTravaux").value.toUpperCase();
-  const message = `Bonjour DS.BAT !%0A%0AMon DEVIS INTERACTIF :%0A${type} - TOTAL : ${total}€ HT%0A%0ADétails :%0A${listerElements()}%0A%0AQuand peut-on visiter ?`;
-  window.open(`https://wa.me/33629556627?text=${message}`);
-}
-
-function listerElements(){
-  let txt="";
-  const elements=["prise","inter","tableau","peinture","carrelage","placo","parquet","evier"];
-  elements.forEach(item=>{
-    const qte = document.getElementById(item).value;
-    if(qte>0) txt+=`${item}: ${qte} × ${document.getElementById("pu-"+item).innerText}\n`;
-  });
-  return txt;
-}
-
-calculer();
-</script>
-
 </body>
 </html>

@@ -3,10 +3,68 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Avis clients – DS.BAT Électricien à Villevaudé (77)</title>
-<meta name="description" content="Consultez les avis de nos clients pour nos travaux d'électricité et de rénovation à Villevaudé, Meaux, Torcy. Note moyenne 4,9/5.">
+<title>FAQ – DS.BAT Électricien à Villevaudé (77)</title>
+<meta name="description" content="Réponses aux questions fréquentes sur nos travaux d'électricité, rénovation, devis et zones d'intervention à Villevaudé et Île-de-France.">
 
-<!-- JSON‑LD LocalBusiness + AggregateRating -->
+<!-- JSON‑LD FAQPage -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "Le devis est-il payant ?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Non, tous nos devis sont gratuits et sans engagement. Vous recevez une estimation détaillée sous 24h."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Intervenez-vous le samedi ?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Oui, nous intervenons du lundi au samedi de 8h à 19h. Le samedi, les créneaux sont plus limités, contactez-nous pour vérifier."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Quelles sont vos zones d'intervention ?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Nous intervenons principalement à Villevaudé, Chessy, Claye-Souilly, Meaux, Torcy, Paris et dans tout le Nord-Est de l'Île-de-France. Consultez notre page Zone pour le détail."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Proposez-vous une garantie décennale ?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Oui, DS.BAT est assuré en responsabilité civile décennale. Tous nos travaux sont couverts."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Faut-il vider les lieux avant une rénovation ?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Pour les gros chantiers, il est préférable de libérer les espaces. Nous pouvons aussi organiser une mise en garde-meuble avec nos partenaires. Nous vous conseillons lors du devis."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Comment se passe le paiement ?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Nous demandons un acompte de 30% à la signature du devis, le solde à la réception des travaux. Nous acceptons les chèques, virements et espèces (dans la limite légale)."
+      }
+    }
+  ]
+}
+</script>
+
+<!-- JSON‑LD LocalBusiness (identique) -->
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -23,33 +81,7 @@
     "postalCode": "77410",
     "addressCountry": "FR"
   },
-  "aggregateRating": {
-    "@type": "AggregateRating",
-    "ratingValue": "4.9",
-    "reviewCount": "12",
-    "bestRating": "5",
-    "worstRating": "1"
-  },
-  "review": [
-    {
-      "@type": "Review",
-      "author": { "@type": "Person", "name": "Jean M." },
-      "reviewBody": "Travail impeccable, sérieux et rapide. Je recommande vivement DS.BAT.",
-      "reviewRating": { "@type": "Rating", "ratingValue": "5" }
-    },
-    {
-      "@type": "Review",
-      "author": { "@type": "Person", "name": "Claire L." },
-      "reviewBody": "Intervention rapide et devis clair. Artisans très professionnels.",
-      "reviewRating": { "@type": "Rating", "ratingValue": "5" }
-    },
-    {
-      "@type": "Review",
-      "author": { "@type": "Person", "name": "Marc P." },
-      "reviewBody": "Super expérience ! Travaux faits proprement et dans les délais.",
-      "reviewRating": { "@type": "Rating", "ratingValue": "4" }
-    }
-  ],
+  "areaServed": ["Villevaudé","Chessy","Claye-Souilly","Montévrain","Paris","Nord-Est Île-de-France"],
   "priceRange": "€€",
   "openingHours": "Mo-Fr 08:00-19:00",
   "sameAs": [
@@ -60,7 +92,7 @@
 </script>
 
 <style>
-/* ---------- STYLE GLOBAL (IDENTIQUE AUX AUTRES PAGES) ---------- */
+/* ---------- STYLE GLOBAL (identique aux autres pages) ---------- */
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:Arial,sans-serif;color:#0f172a;background:#f1f5f9;min-height:100vh;display:flex;flex-direction:column;}
 main{flex:1;}
@@ -98,29 +130,20 @@ a:focus{outline:3px solid #c59d5f;outline-offset:2px;}
 .hero p{opacity:.9;}
 
 /* ---------- CONTAINER ---------- */
-.container{max-width:1100px;margin:auto;padding:60px 20px;}
+.container{max-width:900px;margin:auto;padding:60px 20px;background:white;border-radius:10px;box-shadow:0 4px 10px rgba(0,0,0,0.08);}
 
 /* ---------- SECTIONS ---------- */
 .section{
-  margin-bottom:60px; text-align:center;
+  margin-bottom:60px; text-align:left;
   opacity:0; transform:translateY(40px); transition:.8s;
 }
 .section.visible{opacity:1; transform:translateY(0);}
-
-/* ---------- AVIS ---------- */
-.avis{
-  display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:25px;
-  margin-top:30px;
+.faq-item{
+  margin-bottom:30px; padding-bottom:20px;
+  border-bottom:1px solid #e2e8f0;
 }
-.avis-item{
-  background:white; padding:25px; border-radius:14px;
-  box-shadow:0 6px 18px rgba(0,0,0,.08); transition:.3s;
-  text-align:left; border-left:4px solid #3b82f6;
-}
-.avis-item:hover{transform:translateY(-4px); box-shadow:0 16px 28px rgba(0,0,0,.18);}
-.avis-item h3{color:#1e3a8a; margin-bottom:8px;}
-.avis-item p{color:#334155; line-height:1.5;}
-.note{color:#fbbf24; font-size:1.2rem; margin-top:10px;}
+.faq-item h3{color:#1e3a8a; margin-bottom:10px; font-size:1.3rem;}
+.faq-item p{line-height:1.6; color:#334155;}
 
 /* ---------- BADGES ---------- */
 .badges{
@@ -142,6 +165,7 @@ a:focus{outline:3px solid #c59d5f;outline-offset:2px;}
   background:#1e3a8a; color:white; margin:5px;
 }
 .btn:hover{transform:translateY(-2px); box-shadow:0 6px 14px rgba(0,0,0,.2);}
+.btn-phone{background:#c59d5f; color:#0f172a;}
 
 /* ---------- WHATSAPP ---------- */
 .whatsapp-float{
@@ -186,38 +210,40 @@ footer a{color:#c59d5f; text-decoration:none;}
 
 <!-- ---------- HERO ---------- -->
 <section class="hero">
-  <h1>💬 Avis clients</h1>
-  <p>DS.BAT – Électricité & Rénovation Île-de-France</p>
+  <h1>❓ Foire aux questions</h1>
+  <p>Réponses à vos interrogations sur nos travaux</p>
 </section>
 
-<main>
-<div class="container">
+<main class="container">
 
 <section class="section">
-  <h2 style="color:#1e3a8a; margin-bottom:1rem;">Ce que disent nos clients</h2>
-  <div style="background:#f1f5f9; padding:20px; border-radius:40px; margin-bottom:30px; display:inline-block;">
-    <span style="font-size:2rem; color:#fbbf24;">★★★★★</span>
-    <span style="font-size:1.5rem; font-weight:bold; margin-left:10px;">4,9/5</span>
-    <span style="color:#475569;"> – 12 avis</span>
+  <h2 style="text-align:center; color:#1e3a8a;">Tout ce que vous devez savoir</h2>
+  <div style="margin-top:30px;">
+    <div class="faq-item">
+      <h3>📋 Le devis est-il payant ?</h3>
+      <p>Non, tous nos devis sont gratuits et sans engagement. Vous recevez une estimation détaillée sous 24h.</p>
+    </div>
+    <div class="faq-item">
+      <h3>📅 Intervenez-vous le samedi ?</h3>
+      <p>Oui, nous intervenons du lundi au samedi de 8h à 19h. Le samedi, les créneaux sont plus limités, contactez-nous pour vérifier.</p>
+    </div>
+    <div class="faq-item">
+      <h3>📍 Quelles sont vos zones d'intervention ?</h3>
+      <p>Nous intervenons principalement à Villevaudé, Chessy, Claye-Souilly, Meaux, Torcy, Paris et dans tout le Nord-Est de l'Île-de-France. Consultez notre page <a href="zone.html" style="color:#1e3a8a; text-decoration:underline;">Zone</a> pour le détail.</p>
+    </div>
+    <div class="faq-item">
+      <h3>🛡️ Proposez-vous une garantie décennale ?</h3>
+      <p>Oui, DS.BAT est assuré en responsabilité civile décennale. Tous nos travaux sont couverts.</p>
+    </div>
+    <div class="faq-item">
+      <h3>🚚 Faut-il vider les lieux avant une rénovation ?</h3>
+      <p>Pour les gros chantiers, il est préférable de libérer les espaces. Nous pouvons aussi organiser une mise en garde-meuble avec nos partenaires. Nous vous conseillons lors du devis.</p>
+    </div>
+    <div class="faq-item">
+      <h3>💳 Comment se passe le paiement ?</h3>
+      <p>Nous demandons un acompte de 30% à la signature du devis, le solde à la réception des travaux. Nous acceptons les chèques, virements et espèces (dans la limite légale).</p>
+    </div>
   </div>
-  <div class="avis">
-    <div class="avis-item">
-      <h3>Jean M. – Villevaudé</h3>
-      <p>"Travail impeccable, sérieux et rapide. Je recommande vivement DS.BAT pour tous vos travaux électriques et rénovation."</p>
-      <div class="note">★★★★★</div>
-    </div>
-    <div class="avis-item">
-      <h3>Claire L. – Meaux</h3>
-      <p>"Intervention rapide et devis clair. Les artisans sont très professionnels et le résultat est parfait."</p>
-      <div class="note">★★★★★</div>
-    </div>
-    <div class="avis-item">
-      <h3>Marc P. – Torcy</h3>
-      <p>"Super expérience ! Les travaux ont été faits proprement et dans les délais. Merci à l’équipe DS.BAT."</p>
-      <div class="note">★★★★☆</div>
-    </div>
-  </div>
-  <p style="margin-top:30px;">Vous aussi, laissez-nous votre avis sur <a href="https://www.google.com/search?q=DS.BAT+Villevaudé" target="_blank" style="color:#1e3a8a; text-decoration:underline;">Google</a> ou <a href="https://www.facebook.com/votrecompte/reviews" target="_blank" style="color:#1e3a8a; text-decoration:underline;">Facebook</a>.</p>
 </section>
 
 <!-- ---------- BADGES DE CONFIANCE ---------- -->
@@ -230,12 +256,12 @@ footer a{color:#c59d5f; text-decoration:none;}
 </div>
 
 <section class="cta section">
-  <h2>Prêt à nous faire confiance ?</h2>
-  <a class="btn" href="devis.html">Demander un devis gratuit</a>
+  <h2>Vous avez une autre question ?</h2>
+  <p>N’hésitez pas à nous contacter directement.</p>
+  <a class="btn" href="contact.html">Contactez-nous</a>
   <a class="btn btn-phone" href="#" data-phone-base64="MDYyOTU1NjYyNw==">📞 06<!-- -->29<!-- -->55<!-- -->66<!-- -->27</a>
 </section>
 
-</div>
 </main>
 
 <!-- ---------- BOUTON WHATSAPP FLOTTANT ---------- -->
