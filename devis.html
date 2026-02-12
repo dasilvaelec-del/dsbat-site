@@ -3,26 +3,336 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Page non trouvée – DS.BAT Électricien Villevaudé</title>
-<meta name="description" content="Erreur 404 - La page que vous cherchez n'existe pas. Retournez à l'accueil ou contactez DS.BAT.">
+<title>Devis interactif électricien Villevaudé – DS.BAT (77)</title>
+<meta name="description" content="Estimez instantanément vos travaux d'électricité et rénovation avec le devis interactif DS.BAT. PDF et WhatsApp inclus. Devis gratuit.">
+
+<!-- html2pdf.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+<!-- JSON‑LD LocalBusiness -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "LocalBusiness",
+  "name": "DS.BAT Électricité & Rénovation",
+  "image": "https://dasilvaelec-del.github.io/dsbat-site/image/chantier-verriere.jpg",
+  "telephone": "06 29 55 66 27",
+  "email": "contact@dsbat.fr",
+  "address": {
+    "@type": "PostalAddress",
+    "streetAddress": "58 Grande Rue",
+    "addressLocality": "Villevaudé",
+    "addressRegion": "Île-de-France",
+    "postalCode": "77410",
+    "addressCountry": "FR"
+  },
+  "areaServed": ["Villevaudé","Chessy","Claye-Souilly","Montévrain","Paris","Nord-Est Île-de-France"],
+  "priceRange": "€€",
+  "openingHours": "Mo-Fr 08:00-19:00",
+  "sameAs": [
+    "https://www.instagram.com/votrecompte",
+    "https://www.facebook.com/votrecompte"
+  ]
+}
+</script>
 
 <style>
-/* Style global minimal, cohérent */
-*{margin:0;padding:0;box-sizing:border-box;}
-body{font-family:Arial,sans-serif;background:#f1f5f9;color:#0f172a;min-height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:20px;}
-.container{max-width:600px;background:white;padding:50px;border-radius:20px;box-shadow:0 10px 25px rgba(0,0,0,0.05);}
-h1{font-size:3rem;color:#1e3a8a;margin-bottom:10px;}
-p{font-size:1.2rem;margin-bottom:30px;color:#334155;}
-.btn{display:inline-block;padding:14px 28px;background:#1e3a8a;color:white;text-decoration:none;border-radius:10px;font-weight:bold;transition:.3s;}
-.btn:hover{transform:translateY(-2px);box-shadow:0 6px 14px rgba(0,0,0,.2);}
+/* ---------- RESET & BASE ---------- */
+*{margin:0;padding:0;box-sizing:border-box; font-family:Arial,sans-serif;}
+body{background:#f1f5f9; color:#0f172a; min-height:100vh; display:flex; flex-direction:column;}
+main{flex:1;}
+a{transition:.3s; color:inherit; text-decoration:none;}
+a:focus{outline:3px solid #c59d5f; outline-offset:2px;}
+
+/* ---------- MENU ---------- */
+.menu-btn{
+  position:fixed; top:18px; right:18px; font-size:26px;
+  background:#1e3a8a; color:white; border:none;
+  padding:10px 14px; border-radius:8px; cursor:pointer; z-index:1001;
+}
+.menu-btn:focus{outline:3px solid #c59d5f;}
+.menu{
+  position:fixed; top:0; right:-260px; width:260px; height:100%;
+  background:#0f172a; padding-top:80px; transition:right .35s ease-in-out;
+  z-index:1000;
+}
+.menu.open{right:0;}
+.menu a{
+  display:block; padding:16px; border-bottom:1px solid rgba(255,255,255,.1);
+  color:white;
+}
+.menu a:hover{background:#1e3a8a;}
+
+/* ---------- HERO ---------- */
+.hero{
+  height:45vh; min-height:280px;
+  background: linear-gradient(rgba(10,20,40,.7), rgba(10,20,40,.7)),
+              url("image/chantier-verriere.jpg") center/cover no-repeat;
+  display:flex; flex-direction:column; justify-content:center; align-items:center;
+  text-align:center; color:white; padding:20px;
+}
+.hero h1{font-size:2.4rem; margin-bottom:8px;}
+.hero p{opacity:.9;}
+
+/* ---------- CONTAINER ---------- */
+.container{max-width:1000px; margin:40px auto; background:white; padding:30px; border-radius:12px; box-shadow:0 6px 18px rgba(0,0,0,.08);}
+
+/* ---------- TABLEAU DEVIS ---------- */
+table{width:100%; border-collapse:collapse; margin-top:20px;}
+th, td{border:1px solid #ddd; padding:10px; text-align:center;}
+th{background:#f1f5f9;}
+input[type=number]{width:80px; padding:6px; border-radius:6px; border:1px solid #ccc;}
+
+/* ---------- TOTAL & BOUTONS ---------- */
+.total{font-size:1.5rem; font-weight:bold; margin:20px 0; text-align:center; color:#16a34a;}
+.btn{
+  display:inline-block; padding:14px 28px; border-radius:10px;
+  font-weight:bold; cursor:pointer; margin:5px; border:none; transition:.3s;
+}
+.btn-pdf{background:#ef4444; color:white;}
+.btn-whatsapp{background:#25D366; color:white;}
+.btn-phone{background:#c59d5f; color:#0f172a;}
+.btn:hover{transform:translateY(-2px); box-shadow:0 6px 14px rgba(0,0,0,.2);}
+
+/* ---------- SELECT TYPE ---------- */
+.select-type{text-align:center; margin:20px 0;}
+select{padding:8px 12px; font-size:1rem; border-radius:6px; border:1px solid #ccc;}
+
+/* ---------- BADGES DE CONFIANCE ---------- */
+.badges{
+  background:#f8fafc; padding:20px; border-radius:40px;
+  margin:30px 0; display:flex; flex-wrap:wrap; gap:15px; justify-content:center;
+}
+.badge{
+  background:#1e3a8a; color:white; padding:10px 20px;
+  border-radius:40px; font-weight:500;
+}
+
+/* ---------- WHATSAPP FLOTTANT ---------- */
+.whatsapp-float{
+  position:fixed; width:60px; height:60px; bottom:20px; right:20px;
+  background:#25D366; border-radius:50%;
+  display:flex; justify-content:center; align-items:center;
+  z-index:1002; box-shadow:0 4px 12px rgba(0,0,0,0.3);
+  transition:transform 0.3s, box-shadow 0.3s;
+}
+.whatsapp-float:hover{
+  transform:scale(1.1); box-shadow:0 6px 20px rgba(0,0,0,0.4);
+}
+.whatsapp-float img{width:35px; height:35px;}
+
+/* ---------- FOOTER ---------- */
+footer{
+  background:#020617; color:#cbd5e1; text-align:center; padding:22px;
+  margin-top:40px;
+}
+footer a{color:#c59d5f; text-decoration:none;}
+
+/* ---------- RESPONSIVE ---------- */
+@media(max-width:768px){
+  .hero h1{font-size:1.9rem;}
+  table th, table td{font-size:.9rem; padding:6px;}
+}
 </style>
 </head>
 <body>
-<div class="container">
-  <h1>404</h1>
-  <p>Oups ! La page que vous recherchez n’existe pas ou a été déplacée.</p>
-  <a href="index.html" class="btn">← Retour à l’accueil</a>
-  <p style="margin-top:30px; font-size:0.9rem;">DS.BAT – Électricité & Rénovation à Villevaudé</p>
+
+<!-- ---------- MENU UNIFIÉ ---------- -->
+<button class="menu-btn" id="menuBtn" aria-label="Ouvrir le menu" aria-expanded="false" aria-controls="menu">☰</button>
+<nav class="menu" id="menu" aria-hidden="true">
+  <a href="index.html">Accueil</a>
+  <a href="services.html">Services</a>
+  <a href="realisations.html">Réalisations</a>
+  <a href="zone.html">Zone</a>
+  <a href="prix.html">Prix</a>
+  <a href="devis.html">Devis</a>
+  <a href="contact.html">Contact</a>
+  <a href="avis-client.html">Avis</a>
+  <a href="faq.html">FAQ</a>
+  <a href="https://www.instagram.com/votrecompte" target="_blank">Instagram</a>
+  <a href="https://www.facebook.com/votrecompte" target="_blank">Facebook</a>
+</nav>
+
+<!-- ---------- HERO ---------- -->
+<header class="hero">
+  <h1>📄 Devis interactif DS.BAT</h1>
+  <p>Électricité, rénovation intérieure, plomberie – Estimation rapide</p>
+</header>
+
+<main class="container" id="contenuDevis">
+
+<div class="select-type">
+  <label for="typeTravaux"><strong>Type de travaux : </strong></label>
+  <select id="typeTravaux" onchange="calculer()">
+    <option value="neuf">Électricité – Neuf</option>
+    <option value="reno">Électricité – Rénovation</option>
+  </select>
 </div>
+
+<table>
+  <tr><th>Élément</th><th>Quantité</th><th>Prix unitaire</th><th>Total</th></tr>
+
+  <tr><td colspan="4" style="background:#e0f2fe;font-weight:bold;">⚡ ÉLECTRICITÉ</td></tr>
+  <tr><td>Prises</td><td><input type="number" min="0" id="prise" value="0" onchange="calculer()"></td><td id="pu-prise">-</td><td id="total-prise">-</td></tr>
+  <tr><td>Interrupteurs</td><td><input type="number" min="0" id="inter" value="0" onchange="calculer()"></td><td id="pu-inter">-</td><td id="total-inter">-</td></tr>
+  <tr><td>Tableau électrique</td><td><input type="number" min="0" max="1" id="tableau" value="0" onchange="calculer()"></td><td id="pu-tableau">-</td><td id="total-tableau">-</td></tr>
+
+  <tr><td colspan="4" style="background:#fef3c7;font-weight:bold;">🔨 RÉNOVATION INTÉRIEURE</td></tr>
+  <tr><td>Peinture (m²)</td><td><input type="number" min="0" id="peinture" value="0" onchange="calculer()"></td><td id="pu-peinture">-</td><td id="total-peinture">-</td></tr>
+  <tr><td>Carrelage (m²)</td><td><input type="number" min="0" id="carrelage" value="0" onchange="calculer()"></td><td id="pu-carrelage">-</td><td id="total-carrelage">-</td></tr>
+  <tr><td>Placo (m²)</td><td><input type="number" min="0" id="placo" value="0" onchange="calculer()"></td><td id="pu-placo">-</td><td id="total-placo">-</td></tr>
+  <tr><td>Parquet (m²)</td><td><input type="number" min="0" id="parquet" value="0" onchange="calculer()"></td><td id="pu-parquet">-</td><td id="total-parquet">-</td></tr>
+
+  <tr><td colspan="4" style="background:#fed7aa;font-weight:bold;">🚿 PLOMBERIE</td></tr>
+  <tr><td>Évier</td><td><input type="number" min="0" max="5" id="evier" value="0" onchange="calculer()"></td><td id="pu-evier">-</td><td id="total-evier">-</td></tr>
+
+  <tr><td>Déplacement</td><td colspan="2">20€ (≤10km)</td><td id="total-deplacement">20 €</td></tr>
+</table>
+
+<div class="total" id="totalGeneral">Total estimé : 0 € HT</div>
+
+<div style="text-align:center; margin:30px 0;">
+  <button class="btn btn-pdf" onclick="genererPDF()">📄 Télécharger PDF</button>
+  <button class="btn btn-whatsapp" onclick="envoyerWhatsApp()">💬 WhatsApp + Devis</button>
+  <a class="btn btn-phone" href="#" data-phone-base64="MDYyOTU1NjYyNw==">📞 06<!-- -->29<!-- -->55<!-- -->66<!-- -->27</a>
+</div>
+
+<!-- ---------- BADGES DE CONFIANCE ---------- -->
+<div class="badges">
+  <span class="badge">✔️ Artisan certifié</span>
+  <span class="badge">✔️ Assurance décennale</span>
+  <span class="badge">✔️ Devis gratuit</span>
+  <span class="badge">✔️ Intervention 6j/7</span>
+  <span class="badge">⭐ 4,9/5 – 12 avis</span>
+</div>
+
+</main>
+
+<!-- ---------- BOUTON WHATSAPP FLOTTANT ---------- -->
+<a href="https://wa.me/33629556627" target="_blank" rel="noopener noreferrer" class="whatsapp-float" aria-label="Contact WhatsApp">
+  <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" alt="WhatsApp">
+</a>
+
+<footer>
+  <p>© 2026 DS.BAT – 58 Grande Rue, 77410 Villevaudé | <a href="mentions-legales.html">Mentions légales</a></p>
+</footer>
+
+<script>
+// ---------- PRIX PAR TYPE ----------
+const prix = {
+  neuf: { prise:95, inter:80, tableau:925, peinture:33, carrelage:35, placo:35, parquet:60, evier:550 },
+  reno: { prise:110, inter:90, tableau:1100, peinture:45, carrelage:45, placo:42, parquet:70, evier:600 }
+};
+
+function calculer(){
+  const type = document.getElementById("typeTravaux").value;
+  let total = 20; // frais déplacement
+  ["prise","inter","tableau","peinture","carrelage","placo","parquet","evier"].forEach(item=>{
+    const qte = parseInt(document.getElementById(item).value)||0;
+    const pu = prix[type][item];
+    const ligne = qte*pu;
+    document.getElementById("pu-"+item).innerText = pu+" €";
+    document.getElementById("total-"+item).innerText = ligne+" €";
+    total += ligne;
+  });
+  document.getElementById("totalGeneral").innerText = `Total estimé : ${total.toLocaleString()} € HT`;
+  window.totalDevis = total;
+}
+
+// ---------- GÉNÉRATION PDF ----------
+function genererPDF(){
+  const element = document.getElementById("contenuDevis");
+  html2pdf().from(element).set({
+    margin:10,
+    filename: 'devis_DSBAT.pdf',
+    image: { type:'jpeg', quality:0.98 },
+    html2canvas: { scale:2 },
+    jsPDF: { unit:'mm', format:'a4', orientation:'portrait' }
+  }).save();
+}
+
+// ---------- ENVOI WHATSAPP AVEC DÉTAILS ----------
+function envoyerWhatsApp(){
+  const total = window.totalDevis;
+  const type = document.getElementById("typeTravaux").value.toUpperCase();
+  const message = `Bonjour DS.BAT !%0A%0AMon DEVIS INTERACTIF :%0A${type} - TOTAL : ${total}€ HT%0A%0ADétails :%0A${listerElements()}%0A%0AQuand peut-on visiter ?`;
+  window.open(`https://wa.me/33629556627?text=${message}`);
+}
+
+function listerElements(){
+  let txt="";
+  const elements=["prise","inter","tableau","peinture","carrelage","placo","parquet","evier"];
+  elements.forEach(item=>{
+    const qte = document.getElementById(item).value;
+    if(qte>0) txt+=`${item}: ${qte} × ${document.getElementById("pu-"+item).innerText}\n`;
+  });
+  return txt;
+}
+
+// ---------- PROTECTION NUMÉRO TÉLÉPHONE ----------
+document.querySelectorAll('[data-phone-base64]').forEach(link => {
+  link.addEventListener('click', (e) => {
+    e.preventDefault();
+    const phone = atob(link.dataset.phoneBase64);
+    window.location.href = `tel:${phone}`;
+  });
+});
+
+// ---------- MENU TOGGLE (ARIA) ----------
+const menu = document.getElementById('menu');
+const btn = document.getElementById('menuBtn');
+
+btn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  const isOpen = menu.classList.toggle('open');
+  btn.setAttribute('aria-expanded', isOpen);
+  menu.setAttribute('aria-hidden', !isOpen);
+});
+
+document.addEventListener('click', (e) => {
+  if (!menu.contains(e.target) && !btn.contains(e.target)) {
+    menu.classList.remove('open');
+    btn.setAttribute('aria-expanded', 'false');
+    menu.setAttribute('aria-hidden', 'true');
+  }
+});
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    menu.classList.remove('open');
+    btn.setAttribute('aria-expanded', 'false');
+    menu.setAttribute('aria-hidden', 'true');
+    btn.focus();
+  }
+});
+
+// Fermeture du menu après clic sur un lien
+document.querySelectorAll('.menu a').forEach(link => {
+  link.addEventListener('click', () => {
+    menu.classList.remove('open');
+    btn.setAttribute('aria-expanded', 'false');
+    menu.setAttribute('aria-hidden', 'true');
+  });
+});
+
+// ---------- SCROLL REVEAL (si sections existent) ----------
+const sections = document.querySelectorAll('.section');
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) entry.target.classList.add('visible');
+  });
+}, { threshold: 0.2 });
+sections.forEach(sec => observer.observe(sec));
+window.addEventListener('load', () => {
+  sections.forEach(sec => {
+    const rect = sec.getBoundingClientRect();
+    if (rect.top < window.innerHeight * 0.8) sec.classList.add('visible');
+  });
+});
+
+// Initialisation
+calculer();
+</script>
+
 </body>
 </html>
