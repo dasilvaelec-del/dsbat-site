@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Devis plomberie sanitaire – DS.BAT</title>
+    <meta name="description" content="Simulateur de devis plomberie avec estimation selon les caractéristiques du chantier.">
+
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- html2pdf -->
+    <script>
+        window.loadPDF = function(callback) {
+            if (window.html2pdf) {
+                callback();
+            } else {
+                const script = document.createElement('script');
+                script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+                script.onload = callback;
+                document.head.appendChild(script);
+            }
+        };
+    </script>
+
+    <style>
+        /* (Copier les styles de devis-electricite.html ici) */
+        :root { color-scheme: light dark; 
+          --bg: #f1f5f9; --surface: white; --surface-2: #f8fafc;
+          --text: #0f172a; --text-light: #334155;
+          --primary: #1e3a8a; --primary-light: #3b82f6; --primary-dark: #0f2b5e;
+          --secondary: #c59d5f; --accent: #16a34a; --border: #e2e8f0;
+          --shadow: 0 6px 18px rgba(0,0,0,0.04); --shadow-hover: 0 16px 28px rgba(0,0,0,0.08);
+          --radius-md: 24px; --radius-lg: 32px; --transition: 0.2s ease;
+        }
+        @media (prefers-color-scheme: dark) { :root { 
+          --bg: #0b1120; --surface: #1e293b; --surface-2: #2d3a4f;
+          --text: #f1f5f9; --text-light: #cbd5e1; --border: #334155;
+          --shadow: 0 6px 18px rgba(0,0,0,0.5); --shadow-hover: 0 16px 28px rgba(0,0,0,0.7);
+        } }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; }
+        main { flex:1; }
+        a { color:inherit; text-decoration:none; }
+        a:focus-visible { outline: 4px solid var(--secondary); outline-offset: 4px; border-radius: 4px; }
+        .menu-btn { position:fixed; top:18px; right:18px; font-size:26px; background:var(--primary); color:white; border:none; padding:10px 14px; border-radius:12px; cursor:pointer; z-index:1001; box-shadow:var(--shadow); transition:var(--transition); }
+        .menu-btn:hover { background:var(--primary-light); transform:scale(0.98); }
+        .menu { position:fixed; top:0; right:-300px; width:280px; height:100%; background:#0f172a; padding-top:80px; transition:right .4s; z-index:1000; box-shadow:-8px 0 30px rgba(0,0,0,0.3); }
+        .menu.open { right:0; }
+        .menu a { display:block; padding:18px 24px; color:white; border-bottom:1px solid rgba(255,255,255,.08); font-weight:500; }
+        .menu a:hover { background:var(--primary); padding-left:32px; }
+        .hero { height:25vh; min-height:180px; background: linear-gradient(135deg, rgba(10,20,40,.9), rgba(10,20,40,.6)), url("image/chantier-verriere.jpg") center 30% / cover no-repeat; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; color:white; padding:20px; }
+        .hero h1 { font-size:2rem; font-weight:700; margin-bottom:8px; }
+        .hero p { font-size:0.95rem; opacity:0.9; background:rgba(0,0,0,0.2); padding:6px 20px; border-radius:60px; }
+        .container { max-width: 1400px; margin: 30px auto; background: var(--surface); padding: 30px; border-radius: var(--radius-lg); box-shadow: var(--shadow-hover); }
+        .devis-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 2px dashed var(--border); }
+        .devis-numero { background: var(--primary); color: white; padding: 8px 20px; border-radius: 60px; font-weight: 700; }
+        .devis-date { color: var(--text-light); font-weight: 500; }
+        .recap-chantier { background: var(--surface-2); padding: 20px; border-radius: var(--radius-md); margin-bottom: 30px; border: 1px solid var(--border); }
+        .recap-chantier h4 { display: flex; align-items: center; gap: 10px; color: var(--primary); margin-bottom: 15px; }
+        .grille-recap { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px,1fr)); gap: 10px; }
+        .btn-modifier { background: var(--primary); color: white; padding: 8px 16px; border-radius: 60px; font-size: 0.9rem; display: inline-block; margin-top: 15px; text-align: right; }
+        .options-globales { display: flex; gap: 30px; flex-wrap: wrap; align-items: center; margin-bottom: 30px; background: var(--surface-2); padding: 20px; border-radius: var(--radius-md); }
+        .radio-group { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+        .radio-group label { display: flex; align-items: center; gap: 8px; cursor: pointer; background: var(--surface); padding: 10px 20px; border-radius: 60px; border: 1px solid var(--border); font-weight: 500; }
+        .radio-group input[type=radio] { accent-color: var(--primary); width: 18px; height: 18px; }
+        .btn-norme { background: var(--primary); color: white; padding: 10px 25px; border-radius: 60px; font-weight: 600; border: none; cursor: pointer; transition: var(--transition); margin-left: auto; }
+        .btn-norme:hover { background: var(--primary-light); transform: translateY(-2px); }
+        .prestations-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 20px; margin-top: 20px; }
+        .prestation-item { background: var(--surface-2); padding: 20px; border-radius: var(--radius-md); border: 1px solid var(--border); transition: var(--transition); }
+        .prestation-item:hover { border-color: var(--primary-light); box-shadow: var(--shadow); }
+        .prestation-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; font-weight: 600; }
+        .prestation-prix { background: var(--primary); color: white; padding: 4px 12px; border-radius: 30px; font-size: 0.9rem; }
+        .quantite-input { display: flex; align-items: center; gap: 10px; }
+        .quantite-input input { width: 80px; padding: 10px; border-radius: 30px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font-size: 1rem; }
+        .recap { margin-top: 40px; background: var(--surface-2); padding: 30px; border-radius: var(--radius-lg); border: 2px solid var(--primary); }
+        .recap-ligne { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px dashed var(--border); }
+        .recap-ligne:last-of-type { border-bottom: none; }
+        .total-wrapper { display: flex; justify-content: center; align-items: baseline; gap: 15px; margin: 20px 0; }
+        .total { font-size: 3rem; font-weight: 800; color: var(--accent); }
+        .acomptes { display: flex; flex-wrap: wrap; justify-content: center; gap: 15px; margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--border); }
+        .acompte-badge { background: var(--surface); padding: 10px 20px; border-radius: 60px; border: 1px solid var(--border); font-weight: 600; }
+        .actions { display: flex; flex-wrap: wrap; gap: 15px; justify-content: center; margin-top: 30px; }
+        .btn { padding: 14px 28px; border-radius: 60px; font-weight: 600; border: none; cursor: pointer; transition: var(--transition); display: inline-flex; align-items: center; gap: 8px; font-size: 1rem; }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: var(--primary-light); transform: translateY(-2px); }
+        .btn-pdf { background: #ef4444; color: white; }
+        .btn-whatsapp { background: #25D366; color: white; }
+        .btn-phone { background: var(--secondary); color: #0f172a; }
+        .badges { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 40px; padding: 15px; background: var(--surface-2); border-radius: 60px; }
+        .badge { background: var(--primary-dark); color: white; padding: 8px 18px; border-radius: 40px; font-size: 0.85rem; font-weight: 500; }
+        footer { background: #020617; color: #cbd5e1; text-align: center; padding: 25px; margin-top: 20px; }
+        footer a { color: #c59d5f; border-bottom: 1px solid transparent; }
+        footer a:hover { border-bottom-color: #c59d5f; }
+        .whatsapp-float { position:fixed; width:64px; height:64px; bottom:24px; right:24px; background:#25D366; border-radius:50%; display:flex; justify-content:center; align-items:center; z-index:1002; box-shadow:0 8px 20px rgba(0,0,0,0.3); transition:transform 0.25s; }
+        .whatsapp-float:hover { transform:scale(1.12); }
+        .whatsapp-float img { width:36px; height:36px; }
+        @media (max-width:700px) { .hero h1 { font-size:1.6rem; } .total { font-size:2.2rem; } .options-globales { flex-direction: column; align-items: stretch; } .btn-norme { margin-left: 0; width: 100%; } }
+    </style>
+</head>
+<body>
+
+<!-- ---------- MENU ---------- -->
+<button class="menu-btn" id="menuBtn" aria-label="Ouvrir le menu" aria-expanded="false" aria-controls="menu">☰</button>
+<nav class="menu" id="menu" aria-hidden="true">
+    <a href="index.html">🏠 Accueil</a>
+    <a href="services.html">⚙️ Services</a>
+    <a href="realisations.html">📷 Réalisations</a>
+    <a href="zone.html">📍 Zone</a>
+    <a href="prix.html">💰 Prix</a>
+    <a href="devis.html">⚡ Devis interactif</a>
+    <a href="contact.html">📞 Contact</a>
+    <a href="avis-client.html">⭐ Avis</a>
+    <a href="faq.html">❓ FAQ</a>
+    <a href="https://www.instagram.com/votrecompte" target="_blank">📸 Instagram</a>
+    <a href="https://www.facebook.com/votrecompte" target="_blank">👍 Facebook</a>
+</nav>
+
+<!-- HERO -->
+<header class="hero">
+    <h1>🚿 Devis plomberie sanitaire</h1>
+    <p>Installation et rénovation de vos équipements sanitaires</p>
+</header>
+
+<main class="container" id="contenuDevis">
+
+    <!-- EN-TÊTE DU DEVIS -->
+    <div class="devis-header">
+        <span class="devis-numero" id="devisNumero">PLOM‑2026‑1001</span>
+        <span class="devis-date" id="devisDate"></span>
+    </div>
+
+    <!-- RÉCAPITULATIF DU CHANTIER -->
+    <div class="recap-chantier">
+        <h4>📋 Chantier enregistré</h4>
+        <div class="grille-recap">
+            <div><strong>Type de bien :</strong> <span id="recapTypeBien"></span></div>
+            <div><strong>Type logement :</strong> <span id="recapTypeLogement"></span></div>
+            <div><strong>Surface :</strong> <span id="recapSurface"></span> m²</div>
+            <div><strong>Pièces :</strong> <span id="recapPieces"></span></div>
+            <div><strong>Accessibilité :</strong> <span id="recapAccessibilite"></span></div>
+            <div><strong>Âge du bâtiment :</strong> <span id="recapAge"></span></div>
+            <div id="recapEtageCont" style="display:none;"><strong>Étage :</strong> <span id="recapEtage"></span></div>
+            <div id="recapAscenseurCont" style="display:none;"><strong>Ascenseur :</strong> <span id="recapAscenseur"></span></div>
+            <div><strong>Hauteur plafond :</strong> <span id="recapHauteur"></span></div>
+            <div><strong>Qualité matériaux :</strong> <span id="recapQualite"></span></div>
+            <div><strong>Délai :</strong> <span id="recapDelai"></span></div>
+        </div>
+        <div style="text-align:right; margin-top:15px;">
+            <a href="devis.html" class="btn-modifier">✏️ Modifier le chantier</a>
+        </div>
+    </div>
+
+    <!-- CHOIX DE LA GAMME (qualité des matériaux) -->
+    <div class="options-globales">
+        <div class="radio-group">
+            <label>
+                <input type="radio" name="gamme" value="entree" checked onchange="changerGamme()"> 🟢 Entrée de gamme
+            </label>
+            <label>
+                <input type="radio" name="gamme" value="milieu" onchange="changerGamme()"> 🟡 Milieu de gamme
+            </label>
+            <label>
+                <input type="radio" name="gamme" value="haut" onchange="changerGamme()"> 🔴 Haut de gamme
+            </label>
+        </div>
+        <button class="btn-norme" onclick="appliquerNorme()">📐 Appliquer les minimas</button>
+    </div>
+
+    <!-- LISTE DES PRESTATIONS -->
+    <div id="prestations-container" class="prestations-grid"></div>
+
+    <!-- RÉCAPITULATIF DÉTAILLÉ -->
+    <div class="recap">
+        <div class="recap-ligne">
+            <span>Total des prestations</span>
+            <span id="totalPrestations" style="font-weight:700;">0 €</span>
+        </div>
+        <div class="recap-ligne">
+            <span>🚐 Suppléments (accessibilité, étage...)</span>
+            <span id="supplementsMontant" style="font-weight:700;">0 €</span>
+        </div>
+        <div class="total-wrapper">
+            <span class="total" id="totalHT">0 €</span>
+            <span style="font-size:1.2rem;">HT</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; flex-wrap:wrap; margin-top:15px;">
+            <span><strong>TVA</strong> <span id="tvaMontant">0 €</span></span>
+            <span><strong>Total TTC</strong> <span id="totalTTC">0 €</span></span>
+        </div>
+        <div class="acomptes">
+            <span class="acompte-badge" id="acompte1">40% : 0 €</span>
+            <span class="acompte-badge" id="acompte2">30% : 0 €</span>
+            <span class="acompte-badge" id="acompte3">30% : 0 €</span>
+        </div>
+    </div>
+
+    <!-- BOUTONS D'ACTION -->
+    <div class="actions">
+        <button class="btn btn-pdf" onclick="genererPDF()">📄 Télécharger PDF</button>
+        <button class="btn btn-whatsapp" onclick="envoyerWhatsApp()">💬 Envoyer sur WhatsApp</button>
+        <a class="btn btn-phone" href="#" data-phone-base64="MDYyOTU1NjYyNw==">📞 06<!-- -->29<!-- -->55<!-- -->66<!-- -->27</a>
+    </div>
+
+    <!-- BADGES DE CONFIANCE -->
+    <div class="badges">
+        <span class="badge">✔️ Artisan certifié</span>
+        <span class="badge">✔️ Assurance décennale</span>
+        <span class="badge">✔️ Devis gratuit</span>
+        <span class="badge">✔️ Garantie 2 ans</span>
+        <span class="badge">⭐ 4,9/5 – 12 avis</span>
+    </div>
+</main>
+
+<!-- WHATSAPP FLOTTANT -->
+<a href="https://wa.me/33629556627" target="_blank" rel="noopener noreferrer" class="whatsapp-float" aria-label="Contact WhatsApp">
+    <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" alt="WhatsApp">
+</a>
+
+<footer>
+    <p>© 2026 DS.BAT – 58 Grande Rue, 77410 Villevaudé | <a href="mentions-legales.html">Mentions légales</a></p>
+    <p style="margin-top:12px;">Simulateur plomberie – Qualité de matériaux sélectionnable</p>
+</footer>
+
+<script>
+    // ---------- RÉCUPÉRATION DES DONNÉES DU CHANTIER ----------
+    let chantier = null;
+    try {
+        const stored = sessionStorage.getItem('chantier');
+        if (stored) {
+            chantier = JSON.parse(stored);
+        } else {
+            window.location.href = 'devis.html';
+        }
+    } catch (e) {
+        window.location.href = 'devis.html';
+    }
+
+    // Mise à jour du récapitulatif
+    function mettreAJourRecap() {
+        document.getElementById('recapTypeBien').innerText = chantier.typeBien === 'maison' ? 'Maison' : 'Appartement';
+        document.getElementById('recapTypeLogement').innerText = chantier.typeLogement;
+        document.getElementById('recapSurface').innerText = chantier.surface;
+        document.getElementById('recapPieces').innerText = chantier.pieces;
+        document.getElementById('recapAccessibilite').innerText = chantier.accessibilite === 'facile' ? 'Facile' : 'Compliquée';
+        document.getElementById('recapAge').innerText = chantier.ageBati === 'plus2' ? 'Plus de 2 ans' : 'Moins de 2 ans';
+        document.getElementById('recapHauteur').innerText = {
+            standard: 'Standard (<2,5m)',
+            haute: 'Haute (2,5-3m)',
+            tres_haute: 'Très haute (>3m)'
+        }[chantier.hauteurPlafond] || chantier.hauteurPlafond;
+        document.getElementById('recapQualite').innerText = {
+            entree: 'Entrée de gamme',
+            milieu: 'Milieu de gamme',
+            haut: 'Haut de gamme'
+        }[chantier.qualiteMateriaux] || chantier.qualiteMateriaux;
+        document.getElementById('recapDelai').innerText = {
+            normal: 'Normal',
+            rapide: 'Rapide',
+            urgent: 'Urgent'
+        }[chantier.delai] || chantier.delai;
+
+        if (chantier.typeBien === 'appartement') {
+            document.getElementById('recapEtageCont').style.display = 'block';
+            document.getElementById('recapEtage').innerText = chantier.etage;
+            document.getElementById('recapAscenseurCont').style.display = 'block';
+            document.getElementById('recapAscenseur').innerText = chantier.ascenseur === 'oui' ? 'Oui' : 'Non';
+        } else {
+            document.getElementById('recapEtageCont').style.display = 'none';
+            document.getElementById('recapAscenseurCont').style.display = 'none';
+        }
+    }
+    mettreAJourRecap();
+
+    // ---------- LISTE DES PRESTATIONS (plomberie) ----------
+    const prestations = [
+        { label: "Évier (pose)", unite: "u", entree: 300, milieu: 450, haut: 600 },
+        { label: "Lave-vaisselle (raccordement)", unite: "u", entree: 150, milieu: 200, haut: 250 },
+        { label: "Lave-linge (raccordement)", unite: "u", entree: 150, milieu: 200, haut: 250 },
+        { label: "WC suspendu (pose + mécanisme)", unite: "u", entree: 400, milieu: 550, haut: 700 },
+        { label: "WC classique (pose)", unite: "u", entree: 250, milieu: 350, haut: 450 },
+        { label: "Douche italienne (receveur + paroi)", unite: "u", entree: 800, milieu: 1100, haut: 1500 },
+        { label: "Baignoire (pose)", unite: "u", entree: 500, milieu: 700, haut: 900 },
+        { label: "Mitigeur (pose)", unite: "u", entree: 80, milieu: 120, haut: 180 },
+        { label: "Robinetterie (pose)", unite: "u", entree: 60, milieu: 90, haut: 130 },
+        { label: "Chauffe-eau électrique 100L", unite: "u", entree: 500, milieu: 650, haut: 800 },
+        { label: "Chauffe-eau électrique 200L", unite: "u", entree: 700, milieu: 900, haut: 1100 },
+        { label: "Ballon thermodynamique", unite: "u", entree: 1200, milieu: 1500, haut: 1800 },
+        { label: "Adoucisseur d'eau", unite: "u", entree: 600, milieu: 800, haut: 1000 },
+        { label: "Déplacement / forfait", unite: "forfait", entree: 50, milieu: 50, haut: 50 }
+    ];
+
+    // ---------- GÉNÉRATION DE L'INTERFACE ----------
+    function genererPrestations() {
+        const container = document.getElementById('prestations-container');
+        container.innerHTML = '';
+        prestations.forEach(p => {
+            const div = document.createElement('div');
+            div.className = 'prestation-item';
+            const id = p.label.replace(/\s/g,'').replace(/[^a-zA-Z0-9]/g,'');
+            div.innerHTML = `
+                <div class="prestation-header">
+                    <span>${p.label} (${p.unite})</span>
+                    <span class="prestation-prix" id="prix-${id}">${p.entree} €</span>
+                </div>
+                <div class="quantite-input">
+                    <label>Quantité :</label>
+                    <input type="number" id="qte-${id}" min="0" value="0" step="1" onchange="calculer()">
+                </div>
+            `;
+            container.appendChild(div);
+        });
+    }
+
+    // ---------- ESTIMATION DES MINIMAS (exemple) ----------
+    function estimerMinimas() {
+        const pieces = parseInt(chantier.pieces) || 4;
+        const sdb = chantier.sdbType; // classique, douche, sde, wc
+        const cuisine = chantier.cuisineType; // standard, americaine, surmesure, non
+        // Règles simples
+        return {
+            evier: (cuisine !== 'non') ? 1 : 0,
+            laveVaisselle: (cuisine !== 'non') ? 1 : 0,
+            laveLinge: (chantier.laveLinge !== 'non') ? 1 : 0,
+            wc: (sdb === 'wc' || sdb === 'classique' || sdb === 'douche' || sdb === 'sde') ? 1 : 0,
+            douche: (sdb === 'douche') ? 1 : 0,
+            baignoire: (sdb === 'classique') ? 1 : 0,
+            lavabo: (sdb !== 'wc') ? 1 : 0, // on suppose au moins un lavabo
+            mitigeur: 2, // estimation
+            chauffeEau: 1 // par défaut
+        };
+    }
+
+    function appliquerNorme() {
+        const minimas = estimerMinimas();
+        const correspondances = [
+            { pattern: /Évier/i, key: 'evier' },
+            { pattern: /Lave-vaisselle/i, key: 'laveVaisselle' },
+            { pattern: /Lave-linge/i, key: 'laveLinge' },
+            { pattern: /WC suspendu|WC classique/i, key: 'wc' },
+            { pattern: /Douche italienne/i, key: 'douche' },
+            { pattern: /Baignoire/i, key: 'baignoire' },
+            { pattern: /Mitigeur/i, key: 'mitigeur' },
+            { pattern: /Chauffe-eau/i, key: 'chauffeEau' }
+        ];
+        prestations.forEach(p => {
+            const id = p.label.replace(/\s/g,'').replace(/[^a-zA-Z0-9]/g,'');
+            const input = document.getElementById(`qte-${id}`);
+            if (!input) return;
+            for (let c of correspondances) {
+                if (c.pattern.test(p.label)) {
+                    const val = minimas[c.key] || 0;
+                    input.value = val;
+                    break;
+                }
+            }
+        });
+        calculer();
+    }
+
+    // ---------- CHANGEMENT DE GAMME ----------
+    function changerGamme() {
+        const gamme = document.querySelector('input[name="gamme"]:checked').value;
+        prestations.forEach(p => {
+            const id = p.label.replace(/\s/g,'').replace(/[^a-zA-Z0-9]/g,'');
+            const prix = p[gamme];
+            const span = document.getElementById(`prix-${id}`);
+            if (span) span.innerText = prix + ' €';
+        });
+        calculer();
+    }
+
+    // ---------- CALCUL DU TOTAL ----------
+    function calculer() {
+        const gamme = document.querySelector('input[name="gamme"]:checked').value;
+        let totalPrestations = 0;
+
+        prestations.forEach(p => {
+            const id = p.label.replace(/\s/g,'').replace(/[^a-zA-Z0-9]/g,'');
+            const qte = parseFloat(document.getElementById(`qte-${id}`)?.value) || 0;
+            totalPrestations += qte * p[gamme];
+        });
+
+        // Suppléments (accessibilité, étage, hauteur, délai)
+        let supplement = 0;
+        if (chantier.accessibilite === 'compliquee') supplement += totalPrestations * 0.6 * 0.15;
+        if (chantier.typeBien === 'appartement' && chantier.ascenseur === 'non') {
+            const etage = parseInt(chantier.etage) || 0;
+            if (etage > 0) supplement += etage * 50;
+        }
+        if (chantier.hauteurPlafond === 'haute') supplement += 200;
+        else if (chantier.hauteurPlafond === 'tres_haute') supplement += 400;
+        if (chantier.delai === 'rapide') supplement += totalPrestations * 0.20;
+        else if (chantier.delai === 'urgent') supplement += totalPrestations * 0.40;
+
+        document.getElementById('totalPrestations').innerText = totalPrestations.toFixed(2) + ' €';
+        document.getElementById('supplementsMontant').innerText = supplement.toFixed(2) + ' €';
+
+        let totalHT = totalPrestations + supplement;
+        totalHT = Math.round(totalHT * 100) / 100;
+        document.getElementById('totalHT').innerText = totalHT.toLocaleString('fr-FR', { minimumFractionDigits: 2 }) + ' €';
+
+        // TVA
+        let tauxTVA = (chantier.ageBati === 'plus2') ? 0.10 : 0.20;
+        const montantTVA = totalHT * tauxTVA;
+        const totalTTC = totalHT + montantTVA;
+        document.getElementById('tvaMontant').innerText = montantTVA.toLocaleString('fr-FR', { minimumFractionDigits: 2 }) + ' €';
+        document.getElementById('totalTTC').innerText = totalTTC.toLocaleString('fr-FR', { minimumFractionDigits: 2 }) + ' €';
+
+        const acompte1 = totalTTC * 0.4;
+        const acompte2 = totalTTC * 0.3;
+        const acompte3 = totalTTC * 0.3;
+        document.getElementById('acompte1').innerText = `40% : ${acompte1.toLocaleString('fr-FR', { minimumFractionDigits: 2 })} €`;
+        document.getElementById('acompte2').innerText = `30% : ${acompte2.toLocaleString('fr-FR', { minimumFractionDigits: 2 })} €`;
+        document.getElementById('acompte3').innerText = `30% : ${acompte3.toLocaleString('fr-FR', { minimumFractionDigits: 2 })} €`;
+
+        window.totalHT = totalHT;
+        window.totalTTC = totalTTC;
+    }
+
+    // ---------- NUMÉRO DE DEVIS & DATE ----------
+    function genererNumeroDevis() {
+        let compteur = localStorage.getItem('dsbat-devis-compteur') || 1000;
+        compteur = parseInt(compteur) + 1;
+        localStorage.setItem('dsbat-devis-compteur', compteur);
+        return `PLOM‑2026‑${compteur}`;
+    }
+
+    function afficherDate() {
+        const d = new Date();
+        document.getElementById('devisDate').innerText = d.toLocaleDateString('fr-FR', { day:'2-digit', month:'2-digit', year:'numeric' });
+    }
+
+    // ---------- PDF & WHATSAPP ----------
+    function genererPDF() {
+        window.loadPDF(() => {
+            const element = document.getElementById('contenuDevis');
+            const numero = document.getElementById('devisNumero').innerText.replace(/[^0-9]/g,'');
+            html2pdf().from(element).set({
+                margin: 15,
+                filename: `devis_plomberie_${numero}.pdf`,
+                image: { type: 'jpeg', quality: 0.95 },
+                html2canvas: { scale: 2, letterRendering: true },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            }).save();
+        });
+    }
+
+    function envoyerWhatsApp() {
+        const totalTTC = document.getElementById('totalTTC').innerText;
+        const message = `*Devis plomberie DS.BAT*%0A%0ATotal TTC : ${totalTTC}%0A%0APouvez-vous me rappeler ?`;
+        window.open(`https://wa.me/33629556627?text=${encodeURIComponent(message)}`);
+    }
+
+    // ---------- PROTECTION NUMÉRO ----------
+    document.querySelectorAll('[data-phone-base64]').forEach(link => {
+        link.addEventListener('click', (e) => {
+            e.preventDefault();
+            const phone = atob(link.dataset.phoneBase64);
+            window.location.href = `tel:${phone}`;
+        });
+    });
+
+    // ---------- MENU TOGGLE ----------
+    const menu = document.getElementById('menu');
+    const btn = document.getElementById('menuBtn');
+    btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isOpen = menu.classList.toggle('open');
+        btn.setAttribute('aria-expanded', isOpen);
+        menu.setAttribute('aria-hidden', !isOpen);
+    });
+    document.addEventListener('click', (e) => {
+        if (!menu.contains(e.target) && !btn.contains(e.target)) {
+            menu.classList.remove('open');
+            btn.setAttribute('aria-expanded', 'false');
+            menu.setAttribute('aria-hidden', 'true');
+        }
+    });
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            menu.classList.remove('open');
+            btn.setAttribute('aria-expanded', 'false');
+            menu.setAttribute('aria-hidden', 'true');
+            btn.focus();
+        }
+    });
+    document.querySelectorAll('.menu a').forEach(link => {
+        link.addEventListener('click', () => {
+            menu.classList.remove('open');
+            btn.setAttribute('aria-expanded', 'false');
+            menu.setAttribute('aria-hidden', 'true');
+        });
+    });
+
+    // ---------- INITIALISATION ----------
+    window.addEventListener('load', () => {
+        genererPrestations();
+        if (!localStorage.getItem('dsbat-devis-compteur')) {
+            localStorage.setItem('dsbat-devis-compteur', '1000');
+        }
+        document.getElementById('devisNumero').innerText = genererNumeroDevis();
+        afficherDate();
+        calculer();
+    });
+</script>
+</body>
+</html>
