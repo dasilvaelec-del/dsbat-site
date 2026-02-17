@@ -5,8 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Contact DS.BAT – Électricien à Villevaudé (77)</title>
 <meta name="description" content="Contactez DS.BAT pour vos travaux d’électricité et rénovation à Villevaudé, Seine-et-Marne, Paris et Nord-Est Île-de-France. Téléphone, email et formulaire de contact.">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
 
-<!-- JSON‑LD LocalBusiness -->
+<!-- JSON‑LD inchangé -->
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -32,123 +34,26 @@
   ]
 }
 </script>
-
-<style>
-/* ---------- STYLE GLOBAL (identique aux autres pages) ---------- */
-*{margin:0;padding:0;box-sizing:border-box;}
-body{font-family:Arial,sans-serif;color:#0f172a;background:#f1f5f9;min-height:100vh;display:flex;flex-direction:column;}
-main{flex:1;}
-a{transition:.3s;color:inherit;text-decoration:none;}
-a:focus{outline:3px solid #c59d5f;outline-offset:2px;}
-
-/* ---------- MENU ---------- */
-.menu-btn{
-  position:fixed; top:18px; right:18px; font-size:26px;
-  background:#1e3a8a; color:white; border:none;
-  padding:10px 14px; border-radius:8px; cursor:pointer; z-index:1001;
-}
-.menu-btn:focus{outline:3px solid #c59d5f;}
-.menu{
-  position:fixed; top:0; right:-260px; width:260px; height:100%;
-  background:#0f172a; padding-top:80px; transition:right .35s ease-in-out;
-  z-index:1000;
-}
-.menu.open{right:0;}
-.menu a{
-  display:block; padding:16px; border-bottom:1px solid rgba(255,255,255,.1);
-  color:white;
-}
-.menu a:hover{background:#1e3a8a;}
-
-/* ---------- HERO ---------- */
-.hero{
-  height:45vh; min-height:280px;
-  background: linear-gradient(rgba(10,20,40,.65), rgba(10,20,40,.65)),
-              url("image/chantier-verriere.jpg") center / cover no-repeat;
-  display:flex; flex-direction:column; justify-content:center; align-items:center;
-  text-align:center; color:white; padding:20px;
-}
-.hero h1{font-size:2.2rem;margin-bottom:8px;}
-.hero p{opacity:.9;}
-
-/* ---------- CONTAINER ---------- */
-.container{max-width:900px;margin:auto;padding:60px 20px;background:white;border-radius:10px;box-shadow:0 4px 10px rgba(0,0,0,0.08);}
-
-/* ---------- SECTIONS ---------- */
-.section{margin-bottom:60px;text-align:left;opacity:0;transform:translateY(40px);transition:.8s;}
-.section.visible{opacity:1;transform:translateY(0);}
-.section p{line-height:1.6;margin-bottom:15px;}
-
-/* ---------- COORDONNÉES ---------- */
-.coords p{margin:10px 0;font-size:1.1rem;}
-.coords a{color:#1e3a8a;font-weight:bold;}
-
-/* ---------- FORMULAIRE (FORMSPREE) ---------- */
-form{display:flex;flex-direction:column;gap:14px;margin-top:20px;}
-input, textarea{padding:12px;border-radius:10px;border:1px solid #ccc;font-size:1rem;width:100%;}
-button{
-  padding:14px; border:none; border-radius:10px;
-  background:#1e3a8a; color:white; font-size:1.05rem;
-  font-weight:bold; cursor:pointer; transition:.3s;
-}
-button:hover{transform:translateY(-2px);box-shadow:0 6px 14px rgba(0,0,0,.2);}
-
-/* ---------- MAP ---------- */
-.map{margin-top:30px;border-radius:14px;overflow:hidden;box-shadow:0 6px 18px rgba(0,0,0,.15);}
-.map iframe{width:100%;height:360px;border:0;}
-
-/* ---------- BADGES ---------- */
-.badges{
-  background:#f8fafc; padding:20px; border-radius:40px;
-  margin:30px 0; display:flex; flex-wrap:wrap; gap:15px; justify-content:center;
-}
-.badge{
-  background:#1e3a8a; color:white; padding:10px 20px;
-  border-radius:40px; font-weight:500;
-}
-
-/* ---------- WHATSAPP ---------- */
-.whatsapp-float{
-  position:fixed; width:60px; height:60px; bottom:20px; right:20px;
-  background:#25D366; border-radius:50%;
-  display:flex; justify-content:center; align-items:center;
-  z-index:1002; box-shadow:0 4px 12px rgba(0,0,0,0.3);
-  transition:transform 0.3s, box-shadow 0.3s;
-}
-.whatsapp-float:hover{
-  transform:scale(1.1); box-shadow:0 6px 20px rgba(0,0,0,0.4);
-}
-.whatsapp-float img{width:35px; height:35px;}
-
-/* ---------- FOOTER ---------- */
-footer{
-  background:#020617; color:#cbd5e1; text-align:center; padding:22px;
-}
-footer a{color:#c59d5f; text-decoration:none;}
-
-/* ---------- RESPONSIVE ---------- */
-@media(max-width:600px){.hero h1{font-size:1.8rem;}}
-</style>
 </head>
 <body>
 
-<!-- ---------- MENU UNIFIÉ ---------- -->
+<!-- MENU AVEC SYMBOLES -->
 <button class="menu-btn" id="menuBtn" aria-label="Ouvrir le menu" aria-expanded="false" aria-controls="menu">☰</button>
 <nav class="menu" id="menu" aria-hidden="true">
-  <a href="index.html">Accueil</a>
-  <a href="services.html">Services</a>
-  <a href="realisations.html">Réalisations</a>
-  <a href="zone.html">Zone</a>
-  <a href="prix.html">Prix</a>
-  <a href="devis.html">Devis</a>
-  <a href="contact.html">Contact</a>
-  <a href="avis-client.html">Avis</a>
-  <a href="faq.html">FAQ</a>
-  <a href="https://www.instagram.com/votrecompte" target="_blank">Instagram</a>
-  <a href="https://www.facebook.com/votrecompte" target="_blank">Facebook</a>
+  <a href="index.html">🏠 Accueil</a>
+  <a href="services.html">⚙️ Services</a>
+  <a href="realisations.html">📷 Réalisations</a>
+  <a href="zone.html">📍 Zone</a>
+  <a href="prix.html">💰 Prix</a>
+  <a href="devis.html">📋 Devis</a>
+  <a href="contact.html">📞 Contact</a>
+  <a href="avis-client.html">⭐ Avis</a>
+  <a href="faq.html">❓ FAQ</a>
+  <a href="https://www.instagram.com/votrecompte" target="_blank">📸 Instagram</a>
+  <a href="https://www.facebook.com/votrecompte" target="_blank">👍 Facebook</a>
 </nav>
 
-<!-- ---------- HERO ---------- -->
+<!-- HERO -->
 <section class="hero">
   <h1>Contactez DS.BAT</h1>
   <p>Électricité & rénovation à Villevaudé, Seine-et-Marne et Paris</p>
@@ -156,28 +61,27 @@ footer a{color:#c59d5f; text-decoration:none;}
 
 <main class="container">
 
-<!-- ---------- COORDONNÉES ---------- -->
-<section class="section coords">
+<!-- COORDONNÉES -->
+<section class="section" style="text-align:left;">
   <h2>Nos coordonnées</h2>
-  <p>📞 <a href="#" data-phone-base64="MDYyOTU1NjYyNw==">06<!-- -->29<!-- -->55<!-- -->66<!-- -->27</a></p>
-  <p>✉️ <a href="mailto:contact@dsbat.fr">contact@dsbat.fr</a></p>
-  <p>📍 58 Grande Rue, 77410 Villevaudé, France</p>
-  <p>SIREN : 978 281 970</p>
+  <p style="margin:15px 0;">📞 <a href="#" data-phone-base64="MDYyOTU1NjYyNw==" style="color:var(--primary); font-weight:bold;">06<!-- -->29<!-- -->55<!-- -->66<!-- -->27</a></p>
+  <p style="margin:15px 0;">✉️ <a href="mailto:contact@dsbat.fr" style="color:var(--primary); font-weight:bold;">contact@dsbat.fr</a></p>
+  <p style="margin:15px 0;">📍 58 Grande Rue, 77410 Villevaudé, France</p>
+  <p style="margin:15px 0;">SIREN : 978 281 970</p>
 </section>
 
-<!-- ---------- FORMULAIRE DE CONTACT (FONCTIONNEL) ---------- -->
+<!-- FORMULAIRE DE CONTACT -->
 <section class="section">
   <h2>Envoyez-nous un message</h2>
-  <!-- REMPLACEZ "votre-identifiant" par votre vrai endpoint Formspree -->
   <form action="https://formspree.io/f/votre-identifiant" method="POST">
     <input type="text" name="nom" placeholder="Votre nom" required>
     <input type="email" name="email" placeholder="Votre email" required>
     <textarea name="message" rows="5" placeholder="Votre message..." required></textarea>
-    <button type="submit">Envoyer le message</button>
+    <button type="submit" class="btn btn-primary">Envoyer le message</button>
   </form>
 </section>
 
-<!-- ---------- BADGES DE CONFIANCE ---------- -->
+<!-- BADGES -->
 <div class="badges">
   <span class="badge">✔️ Artisan certifié</span>
   <span class="badge">✔️ Assurance décennale</span>
@@ -186,7 +90,7 @@ footer a{color:#c59d5f; text-decoration:none;}
   <span class="badge">⭐ 4,9/5 – 12 avis</span>
 </div>
 
-<!-- ---------- CARTE ---------- -->
+<!-- CARTE -->
 <section class="section">
   <h2>Nous trouver</h2>
   <div class="map">
@@ -199,15 +103,15 @@ footer a{color:#c59d5f; text-decoration:none;}
 
 </main>
 
-<!-- ---------- BOUTON WHATSAPP FLOTTANT ---------- -->
+<!-- WHATSAPP FLOTTANT -->
 <a href="https://wa.me/33629556627" target="_blank" rel="noopener noreferrer" class="whatsapp-float" aria-label="Contact WhatsApp">
   <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" alt="WhatsApp">
 </a>
 
-<!-- QR code grand format sur la page contact -->
+<!-- QR CODE (grand format) -->
 <div style="text-align: center; margin: 50px 0 30px;">
-  <h3 style="color:#1e3a8a; margin-bottom: 20px;">📲 Scannez pour une expérience immersive</h3>
-  <img src="image/qrcode-site.png" alt="QR code DS.BAT" style="width: 220px; height: 220px; border-radius: 24px; box-shadow: 0 15px 30px rgba(0,0,0,0.15); border: 4px solid white;">
+  <h3 style="color:var(--primary); margin-bottom: 20px;">📲 Scannez pour une expérience immersive</h3>
+  <img src="image/qrcode-site.png" alt="QR code DS.BAT" style="width: 220px; height: 220px; border-radius: 24px; box-shadow: var(--shadow-md); border: 4px solid white;">
   <p style="margin-top: 20px; font-size: 1.1rem;">Découvrez notre showroom virtuel et nos services interactifs</p>
 </div>
 
@@ -215,8 +119,10 @@ footer a{color:#c59d5f; text-decoration:none;}
   <p>© 2026 DS.BAT – 58 Grande Rue, 77410 Villevaudé | <a href="mentions-legales.html">Mentions légales</a></p>
 </footer>
 
+<!-- SCRIPTS -->
+<script src="config.js"></script>
+<script src="menu.js"></script>
 <script>
-// ---------- PROTECTION NUMÉRO TÉLÉPHONE ----------
 document.querySelectorAll('[data-phone-base64]').forEach(link => {
   link.addEventListener('click', (e) => {
     e.preventDefault();
@@ -225,50 +131,12 @@ document.querySelectorAll('[data-phone-base64]').forEach(link => {
   });
 });
 
-// ---------- MENU TOGGLE ----------
-const menu = document.getElementById('menu');
-const btn = document.getElementById('menuBtn');
-
-btn.addEventListener('click', (e) => {
-  e.stopPropagation();
-  const isOpen = menu.classList.toggle('open');
-  btn.setAttribute('aria-expanded', isOpen);
-  menu.setAttribute('aria-hidden', !isOpen);
-});
-
-document.addEventListener('click', (e) => {
-  if (!menu.contains(e.target) && !btn.contains(e.target)) {
-    menu.classList.remove('open');
-    btn.setAttribute('aria-expanded', 'false');
-    menu.setAttribute('aria-hidden', 'true');
-  }
-});
-
-document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') {
-    menu.classList.remove('open');
-    btn.setAttribute('aria-expanded', 'false');
-    menu.setAttribute('aria-hidden', 'true');
-    btn.focus();
-  }
-});
-
-document.querySelectorAll('.menu a').forEach(link => {
-  link.addEventListener('click', () => {
-    menu.classList.remove('open');
-    btn.setAttribute('aria-expanded', 'false');
-    menu.setAttribute('aria-hidden', 'true');
-  });
-});
-
-// ---------- SCROLL REVEAL ----------
 const sections = document.querySelectorAll('.section');
 const observer = new IntersectionObserver((entries) => {
   entries.forEach(entry => {
     if (entry.isIntersecting) entry.target.classList.add('visible');
   });
 }, { threshold: 0.2 });
-
 sections.forEach(sec => observer.observe(sec));
 
 window.addEventListener('load', () => {
@@ -278,6 +146,5 @@ window.addEventListener('load', () => {
   });
 });
 </script>
-
 </body>
 </html>

@@ -5,626 +5,497 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Devis interactif – DS.BAT</title>
     <meta name="description" content="Renseignez les caractéristiques de votre chantier pour obtenir des devis personnalisés par corps de métier.">
-
-    <!-- Google Fonts Inter -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-
-    <style>
-        /* ---------- VARIABLES CLAIR/SOMBRE ---------- */
-        :root { color-scheme: light dark; 
-          --bg: #f1f5f9; --surface: white; --surface-2: #f8fafc;
-          --text: #0f172a; --text-light: #334155;
-          --primary: #1e3a8a; --primary-light: #3b82f6; --primary-dark: #0f2b5e;
-          --secondary: #c59d5f; --accent: #16a34a; --border: #e2e8f0;
-          --shadow: 0 6px 18px rgba(0,0,0,0.04); --shadow-hover: 0 16px 28px rgba(0,0,0,0.08);
-          --radius-md: 24px; --radius-lg: 32px; --transition: 0.2s ease;
-        }
-        @media (prefers-color-scheme: dark) { :root { 
-          --bg: #0b1120; --surface: #1e293b; --surface-2: #2d3a4f;
-          --text: #f1f5f9; --text-light: #cbd5e1; --border: #334155;
-          --shadow: 0 6px 18px rgba(0,0,0,0.5); --shadow-hover: 0 16px 28px rgba(0,0,0,0.7);
-        } }
-
-        * { margin:0; padding:0; box-sizing:border-box; }
-        body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; }
-        main { flex:1; }
-        a { color:inherit; text-decoration:none; }
-        a:focus-visible { outline: 4px solid var(--secondary); outline-offset: 4px; border-radius: 4px; }
-
-        /* ---------- MENU ---------- */
-        .menu-btn {
-            position:fixed; top:18px; right:18px; font-size:26px;
-            background:var(--primary); color:white; border:none;
-            padding:10px 14px; border-radius:12px; cursor:pointer; z-index:1001;
-            box-shadow:var(--shadow); transition:var(--transition);
-        }
-        .menu-btn:hover { background:var(--primary-light); transform:scale(0.98); }
-        .menu {
-            position:fixed; top:0; right:-300px; width:280px; height:100%;
-            background:#0f172a; padding-top:80px; transition:right .4s;
-            z-index:1000; box-shadow:-8px 0 30px rgba(0,0,0,0.3);
-        }
-        .menu.open { right:0; }
-        .menu a {
-            display:block; padding:18px 24px; color:white;
-            border-bottom:1px solid rgba(255,255,255,.08); font-weight:500;
-        }
-        .menu a:hover { background:var(--primary); padding-left:32px; }
-
-        /* ---------- HERO ---------- */
-        .hero {
-            height:25vh; min-height:180px;
-            background: linear-gradient(135deg, rgba(10,20,40,.9), rgba(10,20,40,.6)),
-                        url("image/chantier-verriere.jpg") center 30% / cover no-repeat;
-            display:flex; flex-direction:column; justify-content:center; align-items:center;
-            text-align:center; color:white; padding:20px;
-        }
-        .hero h1 { font-size:2rem; font-weight:700; margin-bottom:8px; }
-        .hero p { font-size:0.95rem; opacity:0.9; background:rgba(0,0,0,0.2); padding:6px 20px; border-radius:60px; }
-
-        /* ---------- CONTENEUR ---------- */
-        .container {
-            max-width: 1200px; margin: 30px auto; background: var(--surface);
-            padding: 30px; border-radius: var(--radius-lg); box-shadow: var(--shadow-hover);
-        }
-
-        /* ---------- QUESTIONNAIRE ---------- */
-        .questionnaire {
-            background: var(--surface-2); padding: 25px; border-radius: var(--radius-md);
-            margin-bottom: 30px; border: 1px solid var(--border);
-        }
-        .questionnaire h3 {
-            display: flex; align-items: center; gap: 10px;
-            color: var(--primary); margin-bottom: 20px;
-            margin-top: 20px;
-        }
-        .questionnaire h3:first-of-type { margin-top: 0; }
-        .grille-questions {
-            display: grid; grid-template-columns: repeat(auto-fit, minmax(280px,1fr));
-            gap: 20px;
-        }
-        .champ {
-            display: flex; flex-direction: column; gap: 6px;
-        }
-        .champ label { font-weight: 600; }
-        .champ input, .champ select {
-            padding: 12px; border-radius: 60px; border: 1px solid var(--border);
-            background: var(--surface); color: var(--text); font-size: 1rem;
-        }
-        .champ input[type=number] { width: 100%; }
-        .conditionnel { display: none; }
-
-        /* ---------- BOUTONS MÉTIERS ---------- */
-        .boutons-metiers {
-            display: flex; flex-wrap: wrap; gap: 15px; justify-content: center;
-            margin-top: 40px;
-        }
-        .btn-metier {
-            background: var(--primary); color: white; padding: 16px 24px;
-            border-radius: 60px; font-weight: 600; font-size: 1rem;
-            display: flex; align-items: center; gap: 8px; transition: var(--transition);
-            border: 2px solid transparent;
-        }
-        .btn-metier:hover {
-            background: var(--primary-light); transform: translateY(-3px);
-            box-shadow: var(--shadow-hover);
-        }
-
-        /* ---------- FOOTER ---------- */
-        footer {
-            background: #020617; color: #cbd5e1; text-align: center;
-            padding: 25px; margin-top: 20px;
-        }
-        footer a { color: #c59d5f; border-bottom: 1px solid transparent; }
-        footer a:hover { border-bottom-color: #c59d5f; }
-
-        @media (max-width:700px) {
-            .hero h1 { font-size:1.6rem; }
-            .btn-metier { width: 100%; text-align: center; }
-        }
-    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 
-    <!-- ---------- MENU ---------- -->
-    <button class="menu-btn" id="menuBtn" aria-label="Ouvrir le menu" aria-expanded="false" aria-controls="menu">☰</button>
-    <nav class="menu" id="menu" aria-hidden="true">
-        <a href="index.html">🏠 Accueil</a>
-        <a href="services.html">⚙️ Services</a>
-        <a href="realisations.html">📷 Réalisations</a>
-        <a href="zone.html">📍 Zone</a>
-        <a href="prix.html">💰 Prix</a>
-        <a href="devis.html">⚡ Devis interactif</a>
-        <a href="contact.html">📞 Contact</a>
-        <a href="avis-client.html">⭐ Avis</a>
-        <a href="faq.html">❓ FAQ</a>
-        <a href="https://www.instagram.com/votrecompte" target="_blank">📸 Instagram</a>
-        <a href="https://www.facebook.com/votrecompte" target="_blank">👍 Facebook</a>
-    </nav>
+<!-- MENU AVEC SYMBOLES -->
+<button class="menu-btn" id="menuBtn" aria-label="Ouvrir le menu" aria-expanded="false" aria-controls="menu">☰</button>
+<nav class="menu" id="menu" aria-hidden="true">
+    <a href="index.html">🏠 Accueil</a>
+    <a href="services.html">⚙️ Services</a>
+    <a href="realisations.html">📷 Réalisations</a>
+    <a href="zone.html">📍 Zone</a>
+    <a href="prix.html">💰 Prix</a>
+    <a href="devis.html">📋 Devis</a>
+    <a href="contact.html">📞 Contact</a>
+    <a href="avis-client.html">⭐ Avis</a>
+    <a href="faq.html">❓ FAQ</a>
+    <a href="https://www.instagram.com/votrecompte" target="_blank">📸 Instagram</a>
+    <a href="https://www.facebook.com/votrecompte" target="_blank">👍 Facebook</a>
+</nav>
 
-    <!-- ---------- HERO ---------- -->
-    <header class="hero">
-        <h1>📋 Devis interactif</h1>
-        <p>Renseignez les informations de votre chantier, puis choisissez un corps de métier</p>
-    </header>
+<!-- HERO -->
+<header class="hero">
+    <h1>📋 Devis interactif</h1>
+    <p>Renseignez les informations de votre chantier, puis choisissez un corps de métier</p>
+</header>
 
-    <main class="container">
+<main class="container">
 
-        <!-- ---------- QUESTIONNAIRE ---------- -->
-        <div class="questionnaire">
-            <h3>🏗️ Caractéristiques générales</h3>
-            <div class="grille-questions">
-                <div class="champ">
-                    <label for="typeBien">Type de bien</label>
-                    <select id="typeBien">
-                        <option value="maison">Maison</option>
-                        <option value="appartement">Appartement</option>
-                    </select>
-                </div>
-                <div class="champ">
-                    <label for="typeLogement">Type de logement</label>
-                    <select id="typeLogement">
-                        <option value="T1">T1</option>
-                        <option value="T2">T2</option>
-                        <option value="T3">T3</option>
-                        <option value="T4" selected>T4</option>
-                        <option value="T5">T5</option>
-                        <option value="T6">T6</option>
-                    </select>
-                </div>
-                <div class="champ">
-                    <label for="surface">Surface totale (m²)</label>
-                    <input type="number" id="surface" min="0" value="70" step="1">
-                </div>
-                <div class="champ">
-                    <label for="pieces">Nombre de pièces</label>
-                    <input type="number" id="pieces" min="1" value="4" step="1">
-                </div>
-                <div class="champ">
-                    <label for="accessibilite">Accessibilité</label>
-                    <select id="accessibilite">
-                        <option value="facile">Facile</option>
-                        <option value="compliquee">Compliquée</option>
-                    </select>
-                </div>
-                <!-- Champs conditionnels pour appartement -->
-                <div class="champ conditionnel" id="champEtage">
-                    <label for="etage">Étage</label>
-                    <input type="number" id="etage" min="0" value="0" step="1">
-                </div>
-                <div class="champ conditionnel" id="champAscenseur">
-                    <label for="ascenseur">Ascenseur</label>
-                    <select id="ascenseur">
-                        <option value="oui">Oui</option>
-                        <option value="non">Non</option>
-                    </select>
-                </div>
-                <div class="champ">
-                    <label for="ageBati">Âge du bâtiment</label>
-                    <select id="ageBati">
-                        <option value="plus2">Plus de 2 ans</option>
-                        <option value="moins2">Moins de 2 ans</option>
-                    </select>
-                </div>
-                <div class="champ">
-                    <label for="typeProjet">Type de projet</label>
-                    <select id="typeProjet">
-                        <option value="partielle">Rénovation partielle</option>
-                        <option value="complete">Rénovation complète</option>
-                        <option value="neuf">Construction neuve</option>
-                    </select>
-                </div>
-                <div class="champ">
-                    <label for="etatLieux">État des lieux</label>
-                    <select id="etatLieux">
-                        <option value="vide">Vide</option>
-                        <option value="partiellement_meuble">Partiellement meublé</option>
-                        <option value="occupe">Occupé</option>
-                    </select>
-                </div>
-                <div class="champ">
-                    <label for="accessSup">Accessibilité supplémentaire</label>
-                    <select id="accessSup">
-                        <option value="direct">Accès direct</option>
-                        <option value="monte_charge">Monte-charge disponible</option>
-                        <option value="protection">Nécessite protection parties communes</option>
-                    </select>
-                </div>
-                <div class="champ">
-                    <label for="hauteurPlafond">Hauteur sous plafond</label>
-                    <select id="hauteurPlafond">
-                        <option value="standard">Standard (<2,5m)</option>
-                        <option value="haute">Haute (2,5-3m)</option>
-                        <option value="tres_haute">Très haute (>3m)</option>
-                    </select>
-                </div>
-                <div class="champ">
-                    <label for="qualiteMateriaux">Qualité des matériaux</label>
-                    <select id="qualiteMateriaux">
-                        <option value="entree">Entrée de gamme</option>
-                        <option value="milieu" selected>Milieu de gamme</option>
-                        <option value="haut">Haut de gamme</option>
-                    </select>
-                </div>
-                <div class="champ">
-                    <label for="delai">Délai souhaité</label>
-                    <select id="delai">
-                        <option value="normal">Normal</option>
-                        <option value="rapide">Rapide (+20%)</option>
-                        <option value="urgent">Urgent (+40%)</option>
-                    </select>
-                </div>
+    <!-- QUESTIONNAIRE -->
+    <div class="questionnaire" style="background:var(--surface-2); padding:25px; border-radius:var(--radius-md); margin-bottom:30px; border:1px solid var(--border);">
+        <h3 style="color:var(--primary); margin-bottom:20px; margin-top:20px;">🏗️ Caractéristiques générales</h3>
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px,1fr)); gap:20px;">
+            <!-- Type de bien -->
+            <div style="display:flex; flex-direction:column; gap:6px;">
+                <label style="font-weight:600;">Type de bien</label>
+                <select id="typeBien" style="padding:12px; border-radius:60px; border:1px solid var(--border); background:var(--surface); color:var(--text);">
+                    <option value="maison">Maison</option>
+                    <option value="appartement">Appartement</option>
+                </select>
             </div>
-
-            <h3>🔥 Chauffage & ventilation</h3>
-            <div class="grille-questions">
-                <div class="champ">
-                    <label for="chauffage">Type de chauffage existant</label>
-                    <select id="chauffage">
-                        <option value="electrique">Électrique</option>
-                        <option value="gaz">Gaz</option>
-                        <option value="fioul">Fioul</option>
-                        <option value="pac">Pompe à chaleur</option>
-                        <option value="poele">Poêle / insert</option>
-                        <option value="autre">Autre</option>
-                    </select>
-                </div>
-                <div class="champ">
-                    <label for="typeChaudiere">Type de chaudière</label>
-                    <select id="typeChaudiere">
-                        <option value="gaz">Gaz</option>
-                        <option value="fioul">Fioul</option>
-                        <option value="bois">Bois / granulés</option>
-                        <option value="pac">Pompe à chaleur</option>
-                        <option value="sans">Pas de chaudière</option>
-                    </select>
-                </div>
-                <div class="champ">
-                    <label for="vmc">VMC</label>
-                    <select id="vmc">
-                        <option value="simple">Simple flux</option>
-                        <option value="double">Double flux</option>
-                        <option value="non">Non</option>
-                    </select>
-                </div>
-                <div class="champ">
-                    <label for="eauChaude">Production eau chaude</label>
-                    <select id="eauChaude">
-                        <option value="cumulus">Chauffe-eau électrique</option>
-                        <option value="thermodynamique">Thermodynamique</option>
-                        <option value="gaz">Gaz</option>
-                        <option value="chaudiere_mixte">Chaudière mixte</option>
-                        <option value="collectif">Collectif</option>
-                    </select>
-                </div>
-                <div class="champ">
-                    <label for="adoucisseur">Adoucisseur d'eau</label>
-                    <select id="adoucisseur">
-                        <option value="non">Non</option>
-                        <option value="oui">Oui</option>
-                    </select>
-                </div>
-                <div class="champ">
-                    <label for="plinthesChauffantes">Plinthes chauffantes</label>
-                    <select id="plinthesChauffantes">
-                        <option value="non">Non</option>
-                        <option value="oui">Oui</option>
-                    </select>
-                </div>
+            <!-- Type de logement -->
+            <div style="display:flex; flex-direction:column; gap:6px;">
+                <label style="font-weight:600;">Type de logement</label>
+                <select id="typeLogement" style="padding:12px; border-radius:60px; border:1px solid var(--border); background:var(--surface); color:var(--text);">
+                    <option value="T1">T1</option>
+                    <option value="T2">T2</option>
+                    <option value="T3">T3</option>
+                    <option value="T4" selected>T4</option>
+                    <option value="T5">T5</option>
+                    <option value="T6">T6</option>
+                </select>
             </div>
-
-            <h3>⚡ Électricité spécifique</h3>
-            <div class="grille-questions">
-                <div class="champ">
-                    <label for="tableauExistant">Tableau existant</label>
-                    <select id="tableauExistant">
-                        <option value="normes">Aux normes</option>
-                        <option value="amettre">À mettre aux normes</option>
-                        <option value="creer">À créer</option>
-                    </select>
-                </div>
-                <div class="champ">
-                    <label for="liaisonTerre">Liaison terre</label>
-                    <select id="liaisonTerre">
-                        <option value="oui">Oui</option>
-                        <option value="non">Non</option>
-                        <option value="verifier">À vérifier</option>
-                    </select>
-                </div>
-                <div class="champ">
-                    <label for="pv">Panneaux photovoltaïques</label>
-                    <select id="pv">
-                        <option value="non">Non</option>
-                        <option value="oui">Oui</option>
-                    </select>
-                </div>
-                <div class="champ">
-                    <label for="borneVE">Borne de recharge VE</label>
-                    <select id="borneVE">
-                        <option value="non">Non</option>
-                        <option value="prevoir">À prévoir</option>
-                        <option value="existant">Existante</option>
-                    </select>
-                </div>
-                <div class="champ">
-                    <label for="domotique">Domotique / maison connectée</label>
-                    <select id="domotique">
-                        <option value="non">Non</option>
-                        <option value="basique">Basique</option>
-                        <option value="avancee">Avancée</option>
-                    </select>
-                </div>
-                <div class="champ">
-                    <label for="alarme">Alarme / vidéosurveillance</label>
-                    <select id="alarme">
-                        <option value="non">Non</option>
-                        <option value="oui">Oui</option>
-                    </select>
-                </div>
+            <!-- Surface -->
+            <div style="display:flex; flex-direction:column; gap:6px;">
+                <label style="font-weight:600;">Surface totale (m²)</label>
+                <input type="number" id="surface" min="0" value="70" step="1" style="padding:12px; border-radius:60px; border:1px solid var(--border); background:var(--surface); color:var(--text);">
             </div>
-
-            <h3>🧱 Isolation & plâtrerie</h3>
-            <div class="grille-questions">
-                <div class="champ">
-                    <label for="mursIsoles">Murs actuellement isolés ?</label>
-                    <select id="mursIsoles">
-                        <option value="non">Non</option>
-                        <option value="partiel">Partiellement</option>
-                        <option value="oui">Oui</option>
-                    </select>
-                </div>
-                <div class="champ">
-                    <label for="murIsolationType">Si oui, isolation</label>
-                    <select id="murIsolationType">
-                        <option value="interieur">Intérieure</option>
-                        <option value="exterieur">Extérieure</option>
-                        <option value="inconnu">Je ne sais pas</option>
-                    </select>
-                </div>
-                <div class="champ">
-                    <label for="comblesIsolation">Isolation des combles ?</label>
-                    <select id="comblesIsolation">
-                        <option value="non">Non</option>
-                        <option value="oui">Oui</option>
-                    </select>
-                </div>
-                <div class="champ">
-                    <label for="pontsThermiques">Ponts thermiques identifiés ?</label>
-                    <select id="pontsThermiques">
-                        <option value="non">Non</option>
-                        <option value="oui">Oui</option>
-                        <option value="inconnu">Je ne sais pas</option>
-                    </select>
-                </div>
+            <!-- Nombre de pièces -->
+            <div style="display:flex; flex-direction:column; gap:6px;">
+                <label style="font-weight:600;">Nombre de pièces</label>
+                <input type="number" id="pieces" min="1" value="4" step="1" style="padding:12px; border-radius:60px; border:1px solid var(--border); background:var(--surface); color:var(--text);">
             </div>
-
-            <h3>🍳 Cuisine & plomberie sanitaire</h3>
-            <div class="grille-questions">
-                <div class="champ">
-                    <label for="cuisineType">Type de cuisine</label>
-                    <select id="cuisineType">
-                        <option value="standard">Standard</option>
-                        <option value="americaine">Américaine</option>
-                        <option value="surmesure">Sur mesure</option>
-                        <option value="non">Non concerné</option>
-                    </select>
-                </div>
-                <div class="champ">
-                    <label for="pointsEauCuisine">Points d'eau cuisine</label>
-                    <select id="pointsEauCuisine">
-                        <option value="1">1 (évier)</option>
-                        <option value="2">2 (évier + lave-vaisselle)</option>
-                        <option value="3">3 ou plus</option>
-                    </select>
-                </div>
-                <div class="champ">
-                    <label for="sdbType">Type de salle de bain</label>
-                    <select id="sdbType">
-                        <option value="classique">Classique (baignoire)</option>
-                        <option value="douche">Douche italienne</option>
-                        <option value="sde">Simple salle d'eau</option>
-                        <option value="wc">WC séparés</option>
-                    </select>
-                </div>
-                <div class="champ">
-                    <label for="laveLinge">Lave-linge / sèche-linge</label>
-                    <select id="laveLinge">
-                        <option value="sdb">Oui dans salle de bain</option>
-                        <option value="cuisine">Oui dans cuisine</option>
-                        <option value="ailleurs">Oui ailleurs</option>
-                        <option value="non">Non</option>
-                    </select>
-                </div>
+            <!-- Accessibilité -->
+            <div style="display:flex; flex-direction:column; gap:6px;">
+                <label style="font-weight:600;">Accessibilité</label>
+                <select id="accessibilite" style="padding:12px; border-radius:60px; border:1px solid var(--border); background:var(--surface); color:var(--text);">
+                    <option value="facile">Facile</option>
+                    <option value="compliquee">Compliquée</option>
+                </select>
             </div>
-
-            <h3>🪵 Revêtements & menuiseries intérieures</h3>
-            <div class="grille-questions">
-                <div class="champ">
-                    <label for="solType">Type de sol principal</label>
-                    <select id="solType">
-                        <option value="parquet">Parquet</option>
-                        <option value="carrelage">Carrelage</option>
-                        <option value="souple">Sol souple (PVC)</option>
-                        <option value="moquette">Moquette</option>
-                        <option value="adefinir">À définir</option>
-                    </select>
-                </div>
-                <div class="champ">
-                    <label for="menuiseries">Menuiseries intérieures (portes, placards)</label>
-                    <select id="menuiseries">
-                        <option value="non">Non concerné</option>
-                        <option value="quelques">Quelques portes</option>
-                        <option value="nombreuses">Plusieurs portes et placards</option>
-                    </select>
-                </div>
+            <!-- Étage (conditionnel) -->
+            <div id="champEtage" style="display:none; flex-direction:column; gap:6px;">
+                <label style="font-weight:600;">Étage</label>
+                <input type="number" id="etage" min="0" value="0" step="1" style="padding:12px; border-radius:60px; border:1px solid var(--border); background:var(--surface); color:var(--text);">
             </div>
-
-            <h3>📄 Organisation du devis</h3>
-            <div class="grille-questions">
-                <div class="champ">
-                    <label for="devisType">Devis global ou séparé</label>
-                    <select id="devisType">
-                        <option value="global">Devis global</option>
-                        <option value="separe">Devis séparés</option>
-                    </select>
-                </div>
+            <!-- Ascenseur (conditionnel) -->
+            <div id="champAscenseur" style="display:none; flex-direction:column; gap:6px;">
+                <label style="font-weight:600;">Ascenseur</label>
+                <select id="ascenseur" style="padding:12px; border-radius:60px; border:1px solid var(--border); background:var(--surface); color:var(--text);">
+                    <option value="oui">Oui</option>
+                    <option value="non">Non</option>
+                </select>
+            </div>
+            <!-- Âge du bâtiment -->
+            <div style="display:flex; flex-direction:column; gap:6px;">
+                <label style="font-weight:600;">Âge du bâtiment</label>
+                <select id="ageBati" style="padding:12px; border-radius:60px; border:1px solid var(--border); background:var(--surface); color:var(--text);">
+                    <option value="plus2">Plus de 2 ans</option>
+                    <option value="moins2">Moins de 2 ans</option>
+                </select>
+            </div>
+            <!-- Type de projet -->
+            <div style="display:flex; flex-direction:column; gap:6px;">
+                <label style="font-weight:600;">Type de projet</label>
+                <select id="typeProjet" style="padding:12px; border-radius:60px; border:1px solid var(--border); background:var(--surface); color:var(--text);">
+                    <option value="partielle">Rénovation partielle</option>
+                    <option value="complete">Rénovation complète</option>
+                    <option value="neuf">Construction neuve</option>
+                </select>
+            </div>
+            <!-- État des lieux -->
+            <div style="display:flex; flex-direction:column; gap:6px;">
+                <label style="font-weight:600;">État des lieux</label>
+                <select id="etatLieux" style="padding:12px; border-radius:60px; border:1px solid var(--border); background:var(--surface); color:var(--text);">
+                    <option value="vide">Vide</option>
+                    <option value="partiellement_meuble">Partiellement meublé</option>
+                    <option value="occupe">Occupé</option>
+                </select>
+            </div>
+            <!-- Accès supplémentaire -->
+            <div style="display:flex; flex-direction:column; gap:6px;">
+                <label style="font-weight:600;">Accès supplémentaire</label>
+                <select id="accessSup" style="padding:12px; border-radius:60px; border:1px solid var(--border); background:var(--surface); color:var(--text);">
+                    <option value="direct">Accès direct</option>
+                    <option value="monte_charge">Monte-charge disponible</option>
+                    <option value="protection">Nécessite protection parties communes</option>
+                </select>
+            </div>
+            <!-- Hauteur sous plafond -->
+            <div style="display:flex; flex-direction:column; gap:6px;">
+                <label style="font-weight:600;">Hauteur sous plafond</label>
+                <select id="hauteurPlafond" style="padding:12px; border-radius:60px; border:1px solid var(--border); background:var(--surface); color:var(--text);">
+                    <option value="standard">Standard (<2,5m)</option>
+                    <option value="haute">Haute (2,5-3m)</option>
+                    <option value="tres_haute">Très haute (>3m)</option>
+                </select>
+            </div>
+            <!-- Qualité matériaux -->
+            <div style="display:flex; flex-direction:column; gap:6px;">
+                <label style="font-weight:600;">Qualité des matériaux</label>
+                <select id="qualiteMateriaux" style="padding:12px; border-radius:60px; border:1px solid var(--border); background:var(--surface); color:var(--text);">
+                    <option value="entree">Entrée de gamme</option>
+                    <option value="milieu" selected>Milieu de gamme</option>
+                    <option value="haut">Haut de gamme</option>
+                </select>
+            </div>
+            <!-- Délai souhaité -->
+            <div style="display:flex; flex-direction:column; gap:6px;">
+                <label style="font-weight:600;">Délai souhaité</label>
+                <select id="delai" style="padding:12px; border-radius:60px; border:1px solid var(--border); background:var(--surface); color:var(--text);">
+                    <option value="normal">Normal</option>
+                    <option value="rapide">Rapide (+20%)</option>
+                    <option value="urgent">Urgent (+40%)</option>
+                </select>
+            </div>
+            <!-- Type de compteur (électricité) -->
+            <div style="display:flex; flex-direction:column; gap:6px;">
+                <label style="font-weight:600;">Type de compteur</label>
+                <select id="compteurType" style="padding:12px; border-radius:60px; border:1px solid var(--border); background:var(--surface); color:var(--text);">
+                    <option value="mono">Monophasé</option>
+                    <option value="tri">Triphasé</option>
+                </select>
+            </div>
+            <!-- Puissance compteur -->
+            <div style="display:flex; flex-direction:column; gap:6px;">
+                <label style="font-weight:600;">Puissance (kVA)</label>
+                <select id="compteurPuissance" style="padding:12px; border-radius:60px; border:1px solid var(--border); background:var(--surface); color:var(--text);">
+                    <option value="6">6 kVA</option>
+                    <option value="9">9 kVA</option>
+                    <option value="12">12 kVA</option>
+                    <option value="15">15 kVA</option>
+                    <option value="18">18 kVA</option>
+                    <option value="24">24 kVA</option>
+                    <option value="36">36 kVA</option>
+                </select>
+            </div>
+            <!-- Type de chauffage -->
+            <div style="display:flex; flex-direction:column; gap:6px;">
+                <label style="font-weight:600;">Chauffage existant</label>
+                <select id="chauffage" style="padding:12px; border-radius:60px; border:1px solid var(--border); background:var(--surface); color:var(--text);">
+                    <option value="electrique">Électrique</option>
+                    <option value="gaz">Gaz</option>
+                    <option value="fioul">Fioul</option>
+                    <option value="pac">Pompe à chaleur</option>
+                    <option value="poele">Poêle / insert</option>
+                    <option value="autre">Autre</option>
+                </select>
+            </div>
+            <!-- Type de chaudière -->
+            <div style="display:flex; flex-direction:column; gap:6px;">
+                <label style="font-weight:600;">Type de chaudière</label>
+                <select id="typeChaudiere" style="padding:12px; border-radius:60px; border:1px solid var(--border); background:var(--surface); color:var(--text);">
+                    <option value="gaz">Gaz</option>
+                    <option value="fioul">Fioul</option>
+                    <option value="bois">Bois / granulés</option>
+                    <option value="pac">Pompe à chaleur</option>
+                    <option value="sans">Pas de chaudière</option>
+                </select>
+            </div>
+            <!-- VMC -->
+            <div style="display:flex; flex-direction:column; gap:6px;">
+                <label style="font-weight:600;">VMC</label>
+                <select id="vmc" style="padding:12px; border-radius:60px; border:1px solid var(--border); background:var(--surface); color:var(--text);">
+                    <option value="simple">Simple flux</option>
+                    <option value="double">Double flux</option>
+                    <option value="non">Non</option>
+                </select>
+            </div>
+            <!-- Production eau chaude -->
+            <div style="display:flex; flex-direction:column; gap:6px;">
+                <label style="font-weight:600;">Production eau chaude</label>
+                <select id="eauChaude" style="padding:12px; border-radius:60px; border:1px solid var(--border); background:var(--surface); color:var(--text);">
+                    <option value="cumulus">Chauffe-eau électrique</option>
+                    <option value="thermodynamique">Thermodynamique</option>
+                    <option value="gaz">Gaz</option>
+                    <option value="chaudiere_mixte">Chaudière mixte</option>
+                    <option value="collectif">Collectif</option>
+                </select>
+            </div>
+            <!-- Adoucisseur -->
+            <div style="display:flex; flex-direction:column; gap:6px;">
+                <label style="font-weight:600;">Adoucisseur d'eau</label>
+                <select id="adoucisseur" style="padding:12px; border-radius:60px; border:1px solid var(--border); background:var(--surface); color:var(--text);">
+                    <option value="non">Non</option>
+                    <option value="oui">Oui</option>
+                </select>
+            </div>
+            <!-- Tableau existant -->
+            <div style="display:flex; flex-direction:column; gap:6px;">
+                <label style="font-weight:600;">Tableau existant</label>
+                <select id="tableauExistant" style="padding:12px; border-radius:60px; border:1px solid var(--border); background:var(--surface); color:var(--text);">
+                    <option value="normes">Aux normes</option>
+                    <option value="amettre">À mettre aux normes</option>
+                    <option value="creer">À créer</option>
+                </select>
+            </div>
+            <!-- Liaison terre -->
+            <div style="display:flex; flex-direction:column; gap:6px;">
+                <label style="font-weight:600;">Liaison terre</label>
+                <select id="liaisonTerre" style="padding:12px; border-radius:60px; border:1px solid var(--border); background:var(--surface); color:var(--text);">
+                    <option value="oui">Oui</option>
+                    <option value="non">Non</option>
+                    <option value="verifier">À vérifier</option>
+                </select>
+            </div>
+            <!-- Panneaux photovoltaïques -->
+            <div style="display:flex; flex-direction:column; gap:6px;">
+                <label style="font-weight:600;">Panneaux photovoltaïques</label>
+                <select id="pv" style="padding:12px; border-radius:60px; border:1px solid var(--border); background:var(--surface); color:var(--text);">
+                    <option value="non">Non</option>
+                    <option value="oui">Oui</option>
+                </select>
+            </div>
+            <!-- Borne VE -->
+            <div style="display:flex; flex-direction:column; gap:6px;">
+                <label style="font-weight:600;">Borne de recharge VE</label>
+                <select id="borneVE" style="padding:12px; border-radius:60px; border:1px solid var(--border); background:var(--surface); color:var(--text);">
+                    <option value="non">Non</option>
+                    <option value="prevoir">À prévoir</option>
+                    <option value="existant">Existante</option>
+                </select>
+            </div>
+            <!-- Domotique -->
+            <div style="display:flex; flex-direction:column; gap:6px;">
+                <label style="font-weight:600;">Domotique / maison connectée</label>
+                <select id="domotique" style="padding:12px; border-radius:60px; border:1px solid var(--border); background:var(--surface); color:var(--text);">
+                    <option value="non">Non</option>
+                    <option value="basique">Basique</option>
+                    <option value="avancee">Avancée</option>
+                </select>
+            </div>
+            <!-- Alarme -->
+            <div style="display:flex; flex-direction:column; gap:6px;">
+                <label style="font-weight:600;">Alarme / vidéosurveillance</label>
+                <select id="alarme" style="padding:12px; border-radius:60px; border:1px solid var(--border); background:var(--surface); color:var(--text);">
+                    <option value="non">Non</option>
+                    <option value="oui">Oui</option>
+                </select>
+            </div>
+            <!-- Murs isolés -->
+            <div style="display:flex; flex-direction:column; gap:6px;">
+                <label style="font-weight:600;">Murs actuellement isolés ?</label>
+                <select id="mursIsoles" style="padding:12px; border-radius:60px; border:1px solid var(--border); background:var(--surface); color:var(--text);">
+                    <option value="non">Non</option>
+                    <option value="partiel">Partiellement</option>
+                    <option value="oui">Oui</option>
+                </select>
+            </div>
+            <!-- Type d'isolation mur -->
+            <div style="display:flex; flex-direction:column; gap:6px;">
+                <label style="font-weight:600;">Si oui, isolation</label>
+                <select id="murIsolationType" style="padding:12px; border-radius:60px; border:1px solid var(--border); background:var(--surface); color:var(--text);">
+                    <option value="interieur">Intérieure</option>
+                    <option value="exterieur">Extérieure</option>
+                    <option value="inconnu">Je ne sais pas</option>
+                </select>
+            </div>
+            <!-- Isolation combles -->
+            <div style="display:flex; flex-direction:column; gap:6px;">
+                <label style="font-weight:600;">Isolation des combles ?</label>
+                <select id="comblesIsolation" style="padding:12px; border-radius:60px; border:1px solid var(--border); background:var(--surface); color:var(--text);">
+                    <option value="non">Non</option>
+                    <option value="oui">Oui</option>
+                </select>
+            </div>
+            <!-- Type de cuisine -->
+            <div style="display:flex; flex-direction:column; gap:6px;">
+                <label style="font-weight:600;">Type de cuisine</label>
+                <select id="cuisineType" style="padding:12px; border-radius:60px; border:1px solid var(--border); background:var(--surface); color:var(--text);">
+                    <option value="standard">Standard</option>
+                    <option value="americaine">Américaine</option>
+                    <option value="surmesure">Sur mesure</option>
+                    <option value="non">Non concerné</option>
+                </select>
+            </div>
+            <!-- Points d'eau cuisine -->
+            <div style="display:flex; flex-direction:column; gap:6px;">
+                <label style="font-weight:600;">Points d'eau cuisine</label>
+                <select id="pointsEauCuisine" style="padding:12px; border-radius:60px; border:1px solid var(--border); background:var(--surface); color:var(--text);">
+                    <option value="1">1 (évier)</option>
+                    <option value="2">2 (évier + lave-vaisselle)</option>
+                    <option value="3">3 ou plus</option>
+                </select>
+            </div>
+            <!-- Type de salle de bain -->
+            <div style="display:flex; flex-direction:column; gap:6px;">
+                <label style="font-weight:600;">Type de salle de bain</label>
+                <select id="sdbType" style="padding:12px; border-radius:60px; border:1px solid var(--border); background:var(--surface); color:var(--text);">
+                    <option value="classique">Classique (baignoire)</option>
+                    <option value="douche">Douche italienne</option>
+                    <option value="sde">Simple salle d'eau</option>
+                    <option value="wc">WC séparés</option>
+                </select>
+            </div>
+            <!-- Lave-linge -->
+            <div style="display:flex; flex-direction:column; gap:6px;">
+                <label style="font-weight:600;">Lave-linge / sèche-linge</label>
+                <select id="laveLinge" style="padding:12px; border-radius:60px; border:1px solid var(--border); background:var(--surface); color:var(--text);">
+                    <option value="sdb">Oui dans salle de bain</option>
+                    <option value="cuisine">Oui dans cuisine</option>
+                    <option value="ailleurs">Oui ailleurs</option>
+                    <option value="non">Non</option>
+                </select>
+            </div>
+            <!-- Type de sol -->
+            <div style="display:flex; flex-direction:column; gap:6px;">
+                <label style="font-weight:600;">Type de sol principal</label>
+                <select id="solType" style="padding:12px; border-radius:60px; border:1px solid var(--border); background:var(--surface); color:var(--text);">
+                    <option value="parquet">Parquet</option>
+                    <option value="carrelage">Carrelage</option>
+                    <option value="souple">Sol souple (PVC)</option>
+                    <option value="moquette">Moquette</option>
+                    <option value="adefinir">À définir</option>
+                </select>
+            </div>
+            <!-- Menuiseries intérieures -->
+            <div style="display:flex; flex-direction:column; gap:6px;">
+                <label style="font-weight:600;">Menuiseries intérieures</label>
+                <select id="menuiseries" style="padding:12px; border-radius:60px; border:1px solid var(--border); background:var(--surface); color:var(--text);">
+                    <option value="non">Non concerné</option>
+                    <option value="quelques">Quelques portes</option>
+                    <option value="nombreuses">Plusieurs portes et placards</option>
+                </select>
+            </div>
+            <!-- Type de devis -->
+            <div style="display:flex; flex-direction:column; gap:6px;">
+                <label style="font-weight:600;">Devis global ou séparé</label>
+                <select id="devisType" style="padding:12px; border-radius:60px; border:1px solid var(--border); background:var(--surface); color:var(--text);">
+                    <option value="global">Devis global</option>
+                    <option value="separe">Devis séparés</option>
+                </select>
             </div>
         </div>
+    </div>
 
-        <!-- ---------- BOUTONS MÉTIERS ---------- -->
-        <div class="boutons-metiers">
-            <a href="#" class="btn-metier" id="btnElectricite">⚡ Électricité</a>
-            <a href="#" class="btn-metier" id="btnPlomberie">🚿 Plomberie sanitaire</a>
-            <a href="#" class="btn-metier" id="btnVMC">💨 VMC</a>
-            <a href="#" class="btn-metier" id="btnIsolation">🧱 Isolation / Plâtrerie</a>
-            <a href="#" class="btn-metier" id="btnPeinture">🎨 Peinture revêtement int</a>
-            <a href="#" class="btn-metier" id="btnMenuiserie">🚪 Menuiserie int</a>
-            <a href="#" class="btn-metier" id="btnSols">🪵 Revêtement sols</a>
-            <a href="#" class="btn-metier" id="btnCarrelage">🧱 Carrelage faïence</a>
-        </div>
-    </main>
-    
-  <!-- QR code DS.BAT -->
-  <div style="display: flex; justify-content: center; align-items: center; gap: 20px; margin: 30px 0 20px; flex-wrap: wrap;">
-    <img src="image/qrcode-site.png" alt="QR code DS.BAT - Expérience immersive" style="width: 100px; height: 100px; border-radius: 12px; box-shadow: 0 6px 14px rgba(0,0,0,0.15); transition: transform 0.3s ease;">
-    <p style="color: #cbd5e1; font-size: 0.95rem; max-width: 250px; line-height: 1.5;">Scannez pour vivre l'expérience interactive DS.BAT et découvrir tous nos services.</p>
-  </div>
+    <!-- BOUTONS MÉTIERS -->
+    <div style="display:flex; flex-wrap:wrap; gap:15px; justify-content:center; margin-top:40px;">
+        <a href="#" class="btn btn-primary" id="btnElectricite" style="padding:16px 24px;">⚡ Électricité</a>
+        <a href="#" class="btn btn-primary" id="btnPlomberie" style="padding:16px 24px;">🚿 Plomberie sanitaire</a>
+        <a href="#" class="btn btn-primary" id="btnVMC" style="padding:16px 24px;">💨 VMC</a>
+        <a href="#" class="btn btn-primary" id="btnIsolation" style="padding:16px 24px;">🧱 Isolation / Plâtrerie</a>
+        <a href="#" class="btn btn-primary" id="btnPeinture" style="padding:16px 24px;">🎨 Peinture revêtement int</a>
+        <a href="#" class="btn btn-primary" id="btnMenuiserie" style="padding:16px 24px;">🚪 Menuiserie int</a>
+        <a href="#" class="btn btn-primary" id="btnSols" style="padding:16px 24px;">🪵 Revêtement sols</a>
+        <a href="#" class="btn btn-primary" id="btnCarrelage" style="padding:16px 24px;">🧱 Carrelage faïence</a>
+    </div>
+</main>
 
-    <!-- ---------- FOOTER ---------- -->
-    <footer>
-        <p>© 2026 DS.BAT – 58 Grande Rue, 77410 Villevaudé | <a href="mentions-legales.html">Mentions légales</a></p>
-    </footer>
+<!-- QR CODE -->
+<div class="qrcode-container">
+    <img src="image/qrcode-site.png" alt="QR code DS.BAT - Expérience immersive" class="qrcode-img" loading="lazy">
+    <p class="qrcode-text">Scannez pour vivre l'expérience interactive DS.BAT et découvrir tous nos services.</p>
+</div>
 
-    <script>
-        // ---------- MENU TOGGLE ----------
-        const menu = document.getElementById('menu');
-        const btn = document.getElementById('menuBtn');
-        btn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const isOpen = menu.classList.toggle('open');
-            btn.setAttribute('aria-expanded', isOpen);
-            menu.setAttribute('aria-hidden', !isOpen);
-        });
-        document.addEventListener('click', (e) => {
-            if (!menu.contains(e.target) && !btn.contains(e.target)) {
-                menu.classList.remove('open');
-                btn.setAttribute('aria-expanded', 'false');
-                menu.setAttribute('aria-hidden', 'true');
-            }
-        });
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') {
-                menu.classList.remove('open');
-                btn.setAttribute('aria-expanded', 'false');
-                menu.setAttribute('aria-hidden', 'true');
-                btn.focus();
-            }
-        });
-        document.querySelectorAll('.menu a').forEach(link => {
-            link.addEventListener('click', () => {
-                menu.classList.remove('open');
-                btn.setAttribute('aria-expanded', 'false');
-                menu.setAttribute('aria-hidden', 'true');
-            });
-        });
+<!-- FOOTER -->
+<footer>
+    <p>© 2026 DS.BAT – 58 Grande Rue, 77410 Villevaudé | <a href="mentions-legales.html">Mentions légales</a></p>
+</footer>
 
-        // ---------- GESTION DES CHAMPS CONDITIONNELS (étage/ascenseur) ----------
-        const typeBien = document.getElementById('typeBien');
-        const champEtage = document.getElementById('champEtage');
-        const champAscenseur = document.getElementById('champAscenseur');
+<!-- SCRIPTS -->
+<script src="config.js"></script>
+<script src="menu.js"></script>
+<script>
+// Gestion des champs conditionnels (étage/ascenseur)
+const typeBien = document.getElementById('typeBien');
+const champEtage = document.getElementById('champEtage');
+const champAscenseur = document.getElementById('champAscenseur');
 
-        function updateConditionnel() {
-            if (typeBien.value === 'appartement') {
-                champEtage.style.display = 'block';
-                champAscenseur.style.display = 'block';
-            } else {
-                champEtage.style.display = 'none';
-                champAscenseur.style.display = 'none';
-                document.getElementById('etage').value = 0;
-                document.getElementById('ascenseur').value = 'oui';
-            }
-        }
-        typeBien.addEventListener('change', updateConditionnel);
-        updateConditionnel();
+function updateConditionnel() {
+    if (typeBien.value === 'appartement') {
+        champEtage.style.display = 'flex';
+        champAscenseur.style.display = 'flex';
+    } else {
+        champEtage.style.display = 'none';
+        champAscenseur.style.display = 'none';
+        document.getElementById('etage').value = 0;
+        document.getElementById('ascenseur').value = 'oui';
+    }
+}
+typeBien.addEventListener('change', updateConditionnel);
+updateConditionnel();
 
-        // ---------- SAUVEGARDE ET REDIRECTION ----------
-        function sauvegarderEtRediriger(url) {
-            const data = {
-                typeBien: document.getElementById('typeBien').value,
-                typeLogement: document.getElementById('typeLogement').value,
-                surface: document.getElementById('surface').value,
-                pieces: document.getElementById('pieces').value,
-                accessibilite: document.getElementById('accessibilite').value,
-                etage: document.getElementById('etage').value,
-                ascenseur: document.getElementById('ascenseur').value,
-                ageBati: document.getElementById('ageBati').value,
-                typeProjet: document.getElementById('typeProjet').value,
-                etatLieux: document.getElementById('etatLieux').value,
-                accessSup: document.getElementById('accessSup').value,
-                hauteurPlafond: document.getElementById('hauteurPlafond').value,
-                qualiteMateriaux: document.getElementById('qualiteMateriaux').value,
-                delai: document.getElementById('delai').value,
-                chauffage: document.getElementById('chauffage').value,
-                typeChaudiere: document.getElementById('typeChaudiere').value,
-                vmc: document.getElementById('vmc').value,
-                eauChaude: document.getElementById('eauChaude').value,
-                adoucisseur: document.getElementById('adoucisseur').value,
-                plinthesChauffantes: document.getElementById('plinthesChauffantes').value,
-                tableauExistant: document.getElementById('tableauExistant').value,
-                liaisonTerre: document.getElementById('liaisonTerre').value,
-                pv: document.getElementById('pv').value,
-                borneVE: document.getElementById('borneVE').value,
-                domotique: document.getElementById('domotique').value,
-                alarme: document.getElementById('alarme').value,
-                mursIsoles: document.getElementById('mursIsoles').value,
-                murIsolationType: document.getElementById('murIsolationType').value,
-                comblesIsolation: document.getElementById('comblesIsolation').value,
-                pontsThermiques: document.getElementById('pontsThermiques').value,
-                cuisineType: document.getElementById('cuisineType').value,
-                pointsEauCuisine: document.getElementById('pointsEauCuisine').value,
-                sdbType: document.getElementById('sdbType').value,
-                laveLinge: document.getElementById('laveLinge').value,
-                solType: document.getElementById('solType').value,
-                menuiseries: document.getElementById('menuiseries').value,
-                devisType: document.getElementById('devisType').value
-            };
-            sessionStorage.setItem('chantier', JSON.stringify(data));
-            window.location.href = url;
-        }
+// Sauvegarde et redirection
+function sauvegarderEtRediriger(url) {
+    const data = {
+        typeBien: document.getElementById('typeBien').value,
+        typeLogement: document.getElementById('typeLogement').value,
+        surface: document.getElementById('surface').value,
+        pieces: document.getElementById('pieces').value,
+        accessibilite: document.getElementById('accessibilite').value,
+        etage: document.getElementById('etage').value,
+        ascenseur: document.getElementById('ascenseur').value,
+        ageBati: document.getElementById('ageBati').value,
+        typeProjet: document.getElementById('typeProjet').value,
+        etatLieux: document.getElementById('etatLieux').value,
+        accessSup: document.getElementById('accessSup').value,
+        hauteurPlafond: document.getElementById('hauteurPlafond').value,
+        qualiteMateriaux: document.getElementById('qualiteMateriaux').value,
+        delai: document.getElementById('delai').value,
+        compteurType: document.getElementById('compteurType').value,
+        compteurPuissance: document.getElementById('compteurPuissance').value,
+        chauffage: document.getElementById('chauffage').value,
+        typeChaudiere: document.getElementById('typeChaudiere').value,
+        vmc: document.getElementById('vmc').value,
+        eauChaude: document.getElementById('eauChaude').value,
+        adoucisseur: document.getElementById('adoucisseur').value,
+        tableauExistant: document.getElementById('tableauExistant').value,
+        liaisonTerre: document.getElementById('liaisonTerre').value,
+        pv: document.getElementById('pv').value,
+        borneVE: document.getElementById('borneVE').value,
+        domotique: document.getElementById('domotique').value,
+        alarme: document.getElementById('alarme').value,
+        mursIsoles: document.getElementById('mursIsoles').value,
+        murIsolationType: document.getElementById('murIsolationType').value,
+        comblesIsolation: document.getElementById('comblesIsolation').value,
+        cuisineType: document.getElementById('cuisineType').value,
+        pointsEauCuisine: document.getElementById('pointsEauCuisine').value,
+        sdbType: document.getElementById('sdbType').value,
+        laveLinge: document.getElementById('laveLinge').value,
+        solType: document.getElementById('solType').value,
+        menuiseries: document.getElementById('menuiseries').value,
+        devisType: document.getElementById('devisType').value
+    };
+    sessionStorage.setItem('chantier', JSON.stringify(data));
+    window.location.href = url;
+}
 
-        // Liaison des boutons métiers
-        document.getElementById('btnElectricite').addEventListener('click', (e) => {
-            e.preventDefault();
-            sauvegarderEtRediriger('devis-electricite.html');
-        });
-        document.getElementById('btnPlomberie').addEventListener('click', (e) => {
-            e.preventDefault();
-            sauvegarderEtRediriger('devis-plomberie.html');
-        });
-        document.getElementById('btnVMC').addEventListener('click', (e) => {
-            e.preventDefault();
-            sauvegarderEtRediriger('devis-vmc.html');
-        });
-        document.getElementById('btnIsolation').addEventListener('click', (e) => {
-            e.preventDefault();
-            sauvegarderEtRediriger('devis-isolation.html');
-        });
-        document.getElementById('btnPeinture').addEventListener('click', (e) => {
-            e.preventDefault();
-            sauvegarderEtRediriger('devis-peinture.html');
-        });
-        document.getElementById('btnMenuiserie').addEventListener('click', (e) => {
-            e.preventDefault();
-            sauvegarderEtRediriger('devis-menuiserie.html');
-        });
-        document.getElementById('btnSols').addEventListener('click', (e) => {
-            e.preventDefault();
-            sauvegarderEtRediriger('devis-sols.html');
-        });
-        document.getElementById('btnCarrelage').addEventListener('click', (e) => {
-            e.preventDefault();
-            sauvegarderEtRediriger('devis-carrelage.html');
-        });
-    </script>
+// Liaison des boutons métiers
+document.getElementById('btnElectricite').addEventListener('click', (e) => {
+    e.preventDefault();
+    sauvegarderEtRediriger('devis-electricite.html');
+});
+document.getElementById('btnPlomberie').addEventListener('click', (e) => {
+    e.preventDefault();
+    sauvegarderEtRediriger('devis-plomberie.html');
+});
+document.getElementById('btnVMC').addEventListener('click', (e) => {
+    e.preventDefault();
+    sauvegarderEtRediriger('devis-vmc.html');
+});
+document.getElementById('btnIsolation').addEventListener('click', (e) => {
+    e.preventDefault();
+    sauvegarderEtRediriger('devis-isolation.html');
+});
+document.getElementById('btnPeinture').addEventListener('click', (e) => {
+    e.preventDefault();
+    sauvegarderEtRediriger('devis-peinture.html');
+});
+document.getElementById('btnMenuiserie').addEventListener('click', (e) => {
+    e.preventDefault();
+    sauvegarderEtRediriger('devis-menuiserie.html');
+});
+document.getElementById('btnSols').addEventListener('click', (e) => {
+    e.preventDefault();
+    sauvegarderEtRediriger('devis-sols.html');
+});
+document.getElementById('btnCarrelage').addEventListener('click', (e) => {
+    e.preventDefault();
+    sauvegarderEtRediriger('devis-carrelage.html');
+});
+</script>
 </body>
 </html>
