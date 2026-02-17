@@ -391,7 +391,6 @@
             <div class="card">
                 <h3><i class="fas fa-vr-cardboard"></i> Visite virtuelle</h3>
                 <div class="virtual-tour">
-                    <!-- Ici, vous pouvez mettre un lien Matterport ou une vidéo 360° -->
                     <iframe src="https://www.youtube.com/embed/dQw4w9WgXcQ?autoplay=0&mute=1" allowfullscreen></iframe>
                     <p style="margin-top:10px;">Explorez un chantier réalisé par DS.BAT en immersion 360°.</p>
                 </div>
@@ -518,7 +517,6 @@
             currentPersonality = perso;
             avatarIcon.innerText = messages[perso].icon;
             avatarMessage.innerText = messages[perso].texts[0];
-            // Mise à jour visuelle des boutons
             personalityBtns.forEach(btn => btn.classList.remove('active'));
             document.querySelector(`[data-perso="${perso}"]`).classList.add('active');
         }
@@ -529,7 +527,6 @@
             });
         });
 
-        // Changement aléatoire de message toutes les 10 secondes (simule une IA)
         setInterval(() => {
             const perso = currentPersonality;
             const texts = messages[perso].texts;
@@ -629,13 +626,11 @@
             badgesList.innerHTML = badges.map(b => `<span class="badge">${b}</span>`).join('');
         }
 
-        // Incrémenter les points à chaque scan (une fois par session)
         if (!sessionStorage.getItem('scanCounted')) {
             points += 10;
             sessionStorage.setItem('scanCounted', 'true');
             localStorage.setItem('dsbat-points', points);
 
-            // Débloquer des badges
             if (points >= 50 && !badges.includes('🏅 Régulier')) {
                 badges.push('🏅 Régulier');
                 localStorage.setItem('dsbat-badges', JSON.stringify(badges));
@@ -646,9 +641,6 @@
             }
         }
         updatePoints();
-
-        // ==================== 6. QR CODE DYNAMIQUE (paramètres) ====================
-        // Déjà fait plus haut (source)
 
         // ==================== 7. vCard ====================
         const vcardLink = document.getElementById('vcardLink');
