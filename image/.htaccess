@@ -1,0 +1,24 @@
+# Activation de la réécriture d'URL
+RewriteEngine On
+
+# Servir WebP si le navigateur le supporte
+RewriteCond %{HTTP_ACCEPT} image/webp
+RewriteCond %{REQUEST_FILENAME} (.*)\.(jpe?g|png)$
+RewriteCond %1\.webp -f
+RewriteRule (.+)\.(jpe?g|png)$ $1.webp [T=image/webp]
+
+# Type MIME pour WebP
+AddType image/webp .webp
+
+# Cache long pour les images
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType image/webp "access plus 1 year"
+    ExpiresByType image/jpeg "access plus 1 year"
+    ExpiresByType image/png "access plus 1 year"
+</IfModule>
+
+# Compression
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/css text/javascript application/javascript image/webp
+</IfModule>

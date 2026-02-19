@@ -12,13 +12,13 @@
 <!-- STYLES COMMUNS -->
 <link rel="stylesheet" href="styles.css">
 
-<!-- STYLES SPÉCIFIQUES À L'ACCUEIL (hero dézoomé) -->
+<!-- STYLES SPÉCIFIQUES À L'ACCUEIL (hero original) -->
 <style>
 .hero {
   height: 100vh;
   min-height: 520px;
   background: linear-gradient(rgba(10,20,40,.65), rgba(10,20,40,.65)),
-              url("image/chantier-verriere.jpg") center / 90% auto no-repeat;
+              url("image/chantier-verriere.jpg") center / cover no-repeat;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -56,13 +56,14 @@
 }
 
 @media(max-width:600px){
-  .hero h1 { font-size:1.9rem; }
-  .hero p { font-size:0.95rem; }
-  .hero { background-size: 100% auto; } /* Sur mobile, encore plus large */
+  .hero h1 { font-size: 1.9rem; }
+  .hero p { font-size: 0.95rem; }
+  .btn { width: 100%; max-width: 260px; }
 }
+
 @media(min-width:601px) and (max-width:900px){
-  .hero h1 { font-size:2.4rem; }
-  .hero p { font-size:1rem; }
+  .hero h1 { font-size: 2.4rem; }
+  .hero p { font-size: 1rem; }
 }
 </style>
 
@@ -111,7 +112,7 @@
   <a href="https://www.facebook.com/votrecompte" target="_blank">👍 Facebook</a>
 </nav>
 
-<!-- HERO AVEC PHOTO DÉZOOMÉE -->
+<!-- HERO ORIGINAL -->
 <section class="hero">
   <div class="hero-content">
     <h1>Électricien à Villevaudé – DS.BAT Électricité & Rénovation</h1>

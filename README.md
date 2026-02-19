@@ -1,59 +1,58 @@
-# DS.BAT – Électricité & Rénovation
+# ⚡ DS.BAT – Site Web Professionnel (Électricité & Rénovation)
 
-![GitHub stars](https://img.shields.io/github/stars/ton-compte/dsbat-site?style=social)
-![GitHub forks](https://img.shields.io/github/forks/ton-compte/dsbat-site?style=social)
-![GitHub last commit](https://img.shields.io/github/last-commit/ton-compte/dsbat-site)
+![Version](https://img.shields.io/badge/version-2.0-blue)
+![Status](https://img.shields.io/badge/status-mutualisé-success)
+![License](https://img.shields.io/badge/licence-Professionnelle-orange)
 
-Version **ultime** du site DS.BAT avec micro-parallax, animations et optimisation SEO.
-
----
-
-## 🔹 Aperçu
-
-![Hero section](https://images.unsplash.com/photo-1503387762-592deb58ef4e?q=80&w=600)
-![Services cards](https://images.unsplash.com/photo-1522202225952-3e569b46f5b7?q=80&w=600)
-![CTA section](https://images.unsplash.com/photo-1503387762-592deb58ef4e?q=80&w=600)
+Site web complet pour DS.BAT, entreprise d'électricité et rénovation à Villevaudé (77).  
+**24 pages** optimisées, simulateurs de devis, interface admin, et système de gestion d'images.
 
 ---
 
-## 🔹 Description
-
-DS.BAT réalise vos travaux d’électricité et de rénovation tous corps d’état à Villevaudé, Seine-et-Marne, Nord-Est IDF et Paris.  
-
-Ce site inclut :  
-
-- Hero multi-layer avec texte animé lettre par lettre  
-- Micro-parallax sur toutes les sections  
-- Scroll reveal progressif et stagger  
-- Cartes services interactives 3D avec hover subtil  
-- Menu mobile fluide avec overlay  
-- CTA et zone courte animés au scroll  
-- Optimisation SEO et responsive design
+## 📋 SOMMAIRE
+- [✨ Nouveautés version 2.0](#-nouveautés-version-20)
+- [📁 Structure du projet](#-structure-du-projet)
+- [🚀 Installation](#-installation)
+- [⚙️ Configuration](#️-configuration)
+- [📸 Gestion des images](#-gestion-des-images)
+- [📊 Simulateurs de devis](#-simulateurs-de-devis)
+- [🛠️ Maintenance](#️-maintenance)
+- [📞 Support](#-support)
+- [💰 Licence & Vente](#-licence--vente)
 
 ---
 
-## 🔹 Features
+## ✨ NOUVEAUTÉS VERSION 2.0
 
-- ✅ Multi-layer parallax hero  
-- ✅ Animations CSS et JS pour scroll reveal  
-- ✅ Cartes interactives avec rotation subtile  
-- ✅ Hover dynamique sur images et textes  
-- ✅ Mobile-first design et responsive  
-- ✅ Accessibilité renforcée (aria-labels, focus visible)  
-- ✅ SEO optimisé (meta description, titres, balises alt)
+### 🔧 Mutualisation complète
+- ✅ Fichier `styles.css` unifié avec variables CSS (clair/sombre)
+- ✅ Script `menu.js` pour le menu burger (toutes pages)
+- ✅ `devis-common.js` avec fonctions partagées (calculs, PDF, WhatsApp)
+- ✅ `config.js` pour centraliser toutes les données modifiables
+
+### 🖼️ Système d'images professionnel
+- ✅ Conversion automatique JPG/PNG → WebP
+- ✅ Dossier `image/uploads/` pour les photos optimisées
+- ✅ Dossier `image/a-convertir/` pour déposer les nouvelles photos
+- ✅ Script `convert.php` pour la conversion
+- ✅ Redirection automatique vers WebP (`.htaccess`)
+- ✅ Lazy loading sur toutes les images
+
+### 👨‍💼 Interface d'administration
+- ✅ Page admin : `admin/index.html`
+- ✅ Documentation utilisateur : `admin/documentation.html`
+- ✅ Gestionnaire d'images : `image/convert.php`
+
+### 📱 Améliorations responsive
+- ✅ Tests sur mobile, tablette, desktop validés
+- ✅ Menu burger adaptatif
+- ✅ Grilles flexibles
+
+### 🔒 Sécurité & maintenance
+- ✅ Numéros de téléphone protégés (Base64)
+- ✅ Structure de fichiers claire
+- ✅ Documentation complète pour l'acheteur/locataire
 
 ---
 
-## 🔹 Liens importants
-
-- **Live demo** : [https://dsbat.example.com](https://dsbat.example.com)  
-- **GitHub repo** : [https://github.com/ton-compte/dsbat-site](https://github.com/ton-compte/dsbat-site)  
-- **Maquette / Documentation Figma** : [https://www.figma.com/file/xxxx/DSBAT-Website](https://www.figma.com/file/xxxx/DSBAT-Website)  
-
----
-
-## 🔹 Installation / Déploiement
-
-1. Cloner le dépôt :  
-```bash
-git clone https://github.com/ton-compte/dsbat-site.git
+## 📁 STRUCTURE DU PROJET

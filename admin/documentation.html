@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Documentation - DS.BAT</title>
+    <link rel="stylesheet" href="../styles.css">
+    <style>
+        .doc-container {
+            max-width: 900px;
+            margin: 50px auto;
+            padding: 40px;
+            background: white;
+            border-radius: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+        .doc-section {
+            margin: 40px 0;
+            padding: 20px;
+            background: #f8fafc;
+            border-radius: 20px;
+        }
+        h1 { color: #1e3a8a; }
+        h2 { color: #1e3a8a; margin-bottom: 20px; }
+        code {
+            background: #e2e8f0;
+            padding: 2px 8px;
+            border-radius: 5px;
+            font-size: 0.9rem;
+        }
+        pre {
+            background: #0f172a;
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            overflow-x: auto;
+        }
+        .btn {
+            display: inline-block;
+            padding: 12px 25px;
+            background: #1e3a8a;
+            color: white;
+            text-decoration: none;
+            border-radius: 60px;
+            margin: 5px;
+        }
+        .btn:hover { background: #3b82f6; }
+    </style>
+</head>
+<body>
+    <div class="doc-container">
+        <h1>📚 Documentation DS.BAT</h1>
+        <p>Guide complet d'utilisation du site</p>
+        
+        <div class="doc-section">
+            <h2>📸 Ajouter des photos</h2>
+            <ol style="line-height:2;">
+                <li>Allez dans <strong>Administration → Gestion des images</strong></li>
+                <li>Uploadez vos photos JPG ou PNG</li>
+                <li>Elles sont automatiquement converties en WebP</li>
+                <li>Copiez le chemin généré (ex: <code>image/uploads/ma-photo.webp</code>)</li>
+                <li>Utilisez ce chemin dans vos pages HTML</li>
+            </ol>
+            <p><strong>Exemple :</strong></p>
+            <pre>&lt;img src="image/uploads/ma-photo.webp" alt="Description" loading="lazy"&gt;</pre>
+        </div>
+        
+        <div class="doc-section">
+            <h2>⚡ Modifier les prix</h2>
+            <p>Tous les prix sont dans le fichier <code>config.js</code> à la racine :</p>
+            <pre>
+prix: {
+    electricite: {
+        priseSimple: 83.97,    // ← Modifiez ici
+        interrupteur: 89.20     // ← Modifiez ici
+    }
+}</pre>
+        </div>
+        
+        <div class="doc-section">
+            <h2>📞 Changer le téléphone</h2>
+            <p>Dans <code>config.js</code>, modifiez :</p>
+            <pre>
+entreprise: {
+    telephone: "06 29 55 66 27",    // ← Nouveau numéro
+    email: "contact@dsbat.fr"        // ← Nouvel email
+}</pre>
+        </div>
+        
+        <div class="doc-section">
+            <h2>🖼️ Structure des dossiers</h2>
+            <pre>
+image/
+├── uploads/          ← Photos WebP (utilisées par le site)
+├── a-convertir/      ← Déposez vos photos JPG/PNG ici
+├── chantier-verriere.jpg
+├── qrcode-site.png
+└── convert.php       ← Script de conversion</pre>
+        </div>
+        
+        <div style="text-align:center; margin-top:40px;">
+            <a href="index.html" class="btn">← Retour à l'admin</a>
+            <a href="../index.html" class="btn" style="background:#c59d5f;">Voir le site</a>
+        </div>
+    </div>
+</body>
+</html>
