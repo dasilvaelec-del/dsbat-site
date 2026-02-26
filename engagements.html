@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nos engagements – DS.BAT</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <script src="config.js"></script>
+    <script src="menu.js"></script>
+    <script src="normes.js"></script>
+    <style>
+        .normes-table { width:100%; border-collapse: collapse; margin:30px 0; }
+        .normes-table th { background:#1e3a8a; color:white; padding:12px; text-align:left; }
+        .normes-table td { padding:12px; border-bottom:1px solid #e2e8f0; vertical-align:top; }
+        .normes-table tr:hover { background:#f8fafc; }
+        .ref { font-weight:600; color:#1e3a8a; }
+        .description { color:#334155; }
+        .legal-note { background:#f1f5f9; padding:20px; border-radius:10px; margin:30px 0; font-size:0.9rem; }
+    </style>
+</head>
+<body>
+
+    <!-- MENU (version statique, mais tu peux le laisser généré par menu.js) -->
+    <button class="menu-btn" id="menuBtn" aria-label="Ouvrir le menu">☰</button>
+    <nav class="menu" id="menu">
+        <a href="index.html">🏠 Accueil</a>
+        <a href="services.html">⚙️ Services</a>
+        <a href="realisations.html">📷 Réalisations</a>
+        <a href="zone.html">📍 Zone</a>
+        <a href="prix.html">💰 Prix</a>
+        <a href="devis.html">📋 Devis</a>
+        <a href="contact.html">📞 Contact</a>
+        <a href="avis-client.html">⭐ Avis</a>
+        <a href="faq.html">❓ FAQ</a>
+<a href="engagements.html">📜 Engagements</a>
+        <a href="engagements.html">📜 Engagements</a>
+        <a href="https://www.instagram.com/votrecompte" target="_blank">📸 Instagram</a>
+        <a href="https://www.facebook.com/votrecompte" target="_blank">👍 Facebook</a>
+    </nav>
+
+    <header class="hero">
+        <h1>📜 Nos engagements – Conformité normative</h1>
+        <p>DS.BAT réalise tous ses travaux dans le respect des règles de l'art et des normes en vigueur.</p>
+    </header>
+
+    <main class="container">
+        <p style="font-size:1.2rem; margin-bottom:30px;">
+            Nous appliquons les référentiels techniques suivants, sans reproduction des textes protégés, conformément à la législation sur la propriété intellectuelle.
+        </p>
+
+        <table class="normes-table">
+            <thead>
+                <tr><th>Corps de métier</th><th>Normes / DTU appliqués</th></tr>
+            </thead>
+            <tbody>
+                <!-- Électricité -->
+                <tr><td colspan="2" style="background:#f1f5f9; font-weight:bold;">⚡ Électricité</td></tr>
+                <tr><td class="ref">NF C 15-100</td><td class="description">Installations électriques basse tension – sécurité des personnes et des biens.</td></tr>
+                <tr><td class="ref">RE2020 / RT Existant</td><td class="description">Performance énergétique des systèmes d'éclairage et auxiliaires.</td></tr>
+
+                <!-- Plomberie -->
+                <tr><td colspan="2" style="background:#f1f5f9; font-weight:bold;">🔩 Plomberie / Sanitaire</td></tr>
+                <tr><td class="ref">NF DTU 60.1</td><td class="description">Plomberie sanitaire – mise en œuvre des réseaux d'eau.</td></tr>
+                <tr><td class="ref">NF DTU 60.11</td><td class="description">Règles de calcul pour les installations sanitaires.</td></tr>
+                <tr><td class="ref">RE2020 / RT Existant</td><td class="description">Exigences sur la production d'eau chaude sanitaire et isolation des réseaux.</td></tr>
+
+                <!-- Maçonnerie -->
+                <tr><td colspan="2" style="background:#f1f5f9; font-weight:bold;">🧱 Maçonnerie / Gros œuvre</td></tr>
+                <tr><td class="ref">NF DTU 20.1</td><td class="description">Ouvrages en maçonnerie de petits éléments – conception et exécution.</td></tr>
+                <tr><td class="ref">RE2020 / RT Existant</td><td class="description">Prise en compte de l'inertie thermique et du besoin bioclimatique.</td></tr>
+
+                <!-- Peinture -->
+                <tr><td colspan="2" style="background:#f1f5f9; font-weight:bold;">🎨 Peinture / Finitions</td></tr>
+                <tr><td class="ref">NF DTU 59.1</td><td class="description">Peinture des bâtiments – préparation des supports et application.</td></tr>
+                <tr><td class="ref">RE2020 / RT Existant</td><td class="description">Confort d'été (albédo des peintures).</td></tr>
+
+                <!-- Carrelage -->
+                <tr><td colspan="2" style="background:#f1f5f9; font-weight:bold;">🧱 Carrelage / Faïence</td></tr>
+                <tr><td class="ref">NF DTU 52.2</td><td class="description">Pose collée des revêtements céramiques – étanchéité des pièces humides.</td></tr>
+
+                <!-- Isolation -->
+                <tr><td colspan="2" style="background:#f1f5f9; font-weight:bold;">🧱 Isolation & BA13 (Plâtrerie)</td></tr>
+                <tr><td class="ref">NF DTU 25.41</td><td class="description">Ouvrages en plaques de plâtre – cloisons, doublages, plafonds.</td></tr>
+                <tr><td class="ref">NF DTU 45.10</td><td class="description">Isolation des combles par soufflage.</td></tr>
+                <tr><td class="ref">RE2020 / RT Existant</td><td class="description">Résistance thermique, traitement des ponts thermiques, étanchéité à l'air.</td></tr>
+
+                <!-- Menuiseries -->
+                <tr><td colspan="2" style="background:#f1f5f9; font-weight:bold;">🪟 Menuiseries</td></tr>
+                <tr><td class="ref">NF DTU 36.5</td><td class="description">Fenêtres et portes extérieures – pose.</td></tr>
+                <tr><td class="ref">NF DTU 36.2</td><td class="description">Menuiserie intérieure – portes et habillages.</td></tr>
+                <tr><td class="ref">NF DTU 36.3</td><td class="description">Escaliers en bois – conception et pose.</td></tr>
+                <tr><td class="ref">RE2020 / RT Existant</td><td class="description">Performance thermique des fenêtres, surface vitrée minimale.</td></tr>
+
+                <!-- Couverture -->
+                <tr><td colspan="2" style="background:#f1f5f9; font-weight:bold;">🏠 Couverture / Zinguerie / Étanchéité</td></tr>
+                <tr><td class="ref">NF DTU 40.24</td><td class="description">Couverture en tuiles béton.</td></tr>
+                <tr><td class="ref">NF DTU 40.36</td><td class="description">Plaques nervurées.</td></tr>
+                <tr><td class="ref">NF DTU 43.1</td><td class="description">Étanchéité des toitures-terrasses.</td></tr>
+                <tr><td class="ref">RE2020 / RT Existant</td><td class="description">Isolation de la toiture, étanchéité à l'air.</td></tr>
+
+                <!-- VMC -->
+                <tr><td colspan="2" style="background:#f1f5f9; font-weight:bold;">🌬️ VMC</td></tr>
+                <tr><td class="ref">NF DTU 68.3</td><td class="description">Installations de ventilation mécanique – conception et installation.</td></tr>
+                <tr><td class="ref">RE2020 / RT Existant</td><td class="description">Performance de la ventilation, récupération de chaleur.</td></tr>
+
+                <!-- Extérieur -->
+                <tr><td colspan="2" style="background:#f1f5f9; font-weight:bold;">🌳 Aménagement extérieur / Terrasse bois</td></tr>
+                <tr><td class="ref">Règles de l'art</td><td class="description">Structures bois, fixation, drainage – sans DTU spécifique.</td></tr>
+            </tbody>
+        </table>
+
+        <div class="legal-note">
+            <p><strong>🔒 Mention légale :</strong> Les références aux normes et DTU ci-dessus sont fournies à titre informatif pour attester de la conformité de nos travaux. Elles ne constituent pas une reproduction des textes protégés, lesquels restent la propriété exclusive de leurs éditeurs (AFNOR, CSTB, etc.). Pour toute consultation des textes intégraux, veuillez vous reporter aux éditions officielles.</p>
+        </div>
+    </main>
+
+    <!-- WHATSAPP FLOTTANT -->
+    <a href="https://wa.me/33629556627" target="_blank" class="whatsapp-float">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" alt="WhatsApp">
+    </a>
+
+    <!-- QR CODE -->
+    <div class="qrcode-container">
+        <img src="image/qrcode-site.png" alt="QR code DS.BAT" class="qrcode-img" loading="lazy">
+        <p class="qrcode-text">Scannez pour l'expérience interactive</p>
+    </div>
+
+    <footer>
+        <p>© 2026 DS.BAT – 58 Grande Rue, 77410 Villevaudé | <a href="mentions-legales.html">Mentions légales</a> | <a href="engagements.html">Nos engagements</a></p>
+    </footer>
+
+    <script>
+        // Activation du menu (si besoin, car menu.js est inclus)
+        // La gestion du menu est déjà assurée par menu.js
+    </script>
+</body>
+</html>
