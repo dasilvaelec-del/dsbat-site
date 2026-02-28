@@ -8,11 +8,14 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
 
+    <!-- Scripts communs -->
     <script src="config.js"></script>
     <script src="prix.js"></script>
     <script src="normes.js"></script>
     <script src="menu.js"></script>
     <script src="devis-common.js"></script>
+
+    <!-- html2pdf -->
     <script>
         window.loadPDF = function(callback) {
             if (window.html2pdf) {
@@ -28,8 +31,9 @@
 </head>
 <body>
 
-<button class="menu-btn" id="menuBtn">☰</button>
-<nav class="menu" id="menu">
+<!-- MENU BURGER -->
+<button class="menu-btn" id="menuBtn" aria-label="Ouvrir le menu" aria-expanded="false" aria-controls="menu">☰</button>
+<nav class="menu" id="menu" aria-hidden="true">
     <a href="index.html">🏠 Accueil</a>
     <a href="services.html">⚙️ Services</a>
     <a href="realisations.html">📷 Réalisations</a>
@@ -39,11 +43,12 @@
     <a href="contact.html">📞 Contact</a>
     <a href="avis-client.html">⭐ Avis</a>
     <a href="faq.html">❓ FAQ</a>
-<a href="engagements.html">📜 Engagements</a>
+    <a href="engagements.html">📜 Engagements</a>
     <a href="https://www.instagram.com/votrecompte" target="_blank">📸 Instagram</a>
     <a href="https://www.facebook.com/votrecompte" target="_blank">👍 Facebook</a>
 </nav>
 
+<!-- HERO -->
 <header class="hero">
     <h1>🚿 Devis plomberie</h1>
     <p>Installation et rénovation sanitaire – Gammes rénovation / neuf</p>
@@ -62,6 +67,7 @@
         <div style="text-align:right;"><a href="devis.html" class="btn-modifier">✏️ Modifier</a></div>
     </div>
 
+    <!-- Choix de la gamme -->
     <div class="options-globales">
         <div class="radio-group">
             <label><input type="radio" name="gamme" value="renov" checked onchange="changerGamme()"> 🔨 Rénovation</label>
@@ -93,15 +99,22 @@
         <a class="btn btn-phone" href="#" data-phone-base64="MDYyOTU1NjYyNw==">📞 Appeler</a>
     </div>
 
-    <div class="badges"><!-- badges --></div>
+    <div class="badges">
+        <span class="badge">✔️ Artisan certifié</span>
+        <span class="badge">✔️ Assurance décennale</span>
+        <span class="badge">✔️ Devis gratuit</span>
+        <span class="badge">✔️ Garantie 2 ans</span>
+        <span class="badge">⭐ 4,9/5</span>
+    </div>
 </main>
 
+<!-- QR CODE -->
 <div class="qrcode-container">
-    <img src="image/qrcode-site.png" alt="QR code" class="qrcode-img" loading="lazy">
+    <img src="image/qrcode-site.png" alt="QR code DS.BAT" class="qrcode-img" loading="lazy">
     <p class="qrcode-text">Scannez pour l'expérience interactive</p>
 </div>
 
-<a href="https://wa.me/33629556627" class="whatsapp-float" target="_blank">
+<a href="https://wa.me/33629556627" target="_blank" class="whatsapp-float">
     <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" alt="WhatsApp">
 </a>
 
@@ -111,34 +124,44 @@
 </footer>
 
 <script>
-    // Récupération chantier
+    // ---------- Récupération chantier ----------
     let chantier = null;
     try {
         const stored = sessionStorage.getItem('chantier');
         if (stored) chantier = JSON.parse(stored);
         else window.location.href = 'devis.html';
-    } catch (e) {
-        window.location.href = 'devis.html';
-    }
+    } catch (e) { window.location.href = 'devis.html'; }
 
     function mettreAJourRecap() {
         const recap = document.getElementById('recapConteneur');
-        recap.innerHTML = `...`; // identique à la page électricité (adapter si besoin)
+        recap.innerHTML = `
+            <div><strong>Type de bien :</strong> ${chantier.typeBien === 'maison' ? 'Maison' : 'Appartement'}</div>
+            <div><strong>Type logement :</strong> ${chantier.typeLogement}</div>
+            <div><strong>Surface :</strong> ${chantier.surface} m²</div>
+            <div><strong>Pièces :</strong> ${chantier.pieces}</div>
+            <div><strong>Accessibilité :</strong> ${chantier.accessibilite === 'facile' ? 'Facile' : 'Compliquée'}</div>
+            <div><strong>Âge du bâtiment :</strong> ${chantier.ageBati === 'plus2' ? 'Plus de 2 ans' : 'Moins de 2 ans'}</div>
+            <div><strong>Hauteur plafond :</strong> ${{standard: 'Standard (<2,5m)', haute: 'Haute (2,5-3m)', tres_haute: 'Très haute (>3m)'}[chantier.hauteurPlafond]}</div>
+            <div><strong>Délai :</strong> ${{normal: 'Normal', rapide: 'Rapide', urgent: 'Urgent'}[chantier.delai]}</div>
+        `;
         if (chantier.typeBien === 'appartement') {
-            recap.innerHTML += `<div><strong>Étage :</strong> ${chantier.etage}</div>...`;
+            recap.innerHTML += `
+                <div><strong>Étage :</strong> ${chantier.etage}</div>
+                <div><strong>Ascenseur :</strong> ${chantier.ascenseur === 'oui' ? 'Oui' : 'Non'}</div>
+            `;
         }
     }
     mettreAJourRecap();
 
-    // Construction des prestations depuis PRIX.plomberie
+    // ---------- Construction des prestations depuis PRIX.plomberie ----------
     const prestations = [];
     PRIX.plomberie.forEach(item => {
         if (item.renov || item.neuf) {
             prestations.push({
                 label: item.label,
                 unite: item.unite,
-                renov: item.renov ? (item.renov.min + item.renov.max)/2 : 0,
-                neuf: item.neuf ? (item.neuf.min + item.neuf.max)/2 : 0
+                renov: item.renov ? (item.renov.min + item.renov.max) / 2 : 0,
+                neuf: item.neuf ? (item.neuf.min + item.neuf.max) / 2 : 0
             });
         }
     });
@@ -170,19 +193,25 @@
 
     function estimerMinimas() {
         // À personnaliser selon les règles métier
-        return { /* ex: wc: 1, lavabo: 1 */ };
+        const pieces = parseInt(chantier.pieces) || 4;
+        return {
+            wc: 1,
+            lavabo: 1,
+            douche: (chantier.sdbType === 'douche' || chantier.sdbType === 'classique') ? 1 : 0,
+            baignoire: (chantier.sdbType === 'classique') ? 1 : 0
+        };
     }
 
     function appliquerNorme() {
         const minimas = estimerMinimas();
-        // Mapping manuel des libellés
         prestations.forEach(p => {
             const id = p.label.replace(/\s/g,'').replace(/[^a-zA-Z0-9]/g,'');
             const input = document.getElementById(`qte-${id}`);
             if (!input) return;
-            if (p.label.includes("WC simple")) input.value = minimas.wc || 0;
-            else if (p.label.includes("Lavabo")) input.value = minimas.lavabo || 0;
-            // etc.
+            if (p.label.includes("WC simple")) input.value = minimas.wc;
+            else if (p.label.includes("Lavabo")) input.value = minimas.lavabo;
+            else if (p.label.includes("Douche")) input.value = minimas.douche;
+            else if (p.label.includes("Baignoire")) input.value = minimas.baignoire;
         });
         calculer();
     }
@@ -197,7 +226,6 @@
         });
 
         let supplement = 0;
-        // mêmes règles de supplément que pour l'électricité
         if (chantier.accessibilite === 'compliquee') supplement += totalPrestations * 0.6 * 0.15;
         if (chantier.typeBien === 'appartement' && chantier.ascenseur === 'non') {
             const etage = parseInt(chantier.etage) || 0;
@@ -271,5 +299,30 @@
         calculer();
     });
 </script>
+
+<!-- Bloc normes -->
+<script>
+    window.addEventListener('load', function() {
+        const container = document.querySelector('main.container');
+        if (!container) return;
+        const normes = NORMES.plomberie;
+        let html = `
+            <div class="recap" style="margin-top:40px; background:#f8fafc; border:2px solid #1e3a8a; padding:20px; border-radius:20px;">
+                <h3 style="color:#1e3a8a;">📜 Conformité aux normes – ${normes.titre}</h3>
+                <p>Les prestations de ce lot sont réalisées conformément aux normes et DTU en vigueur :</p>
+                <ul style="columns:2; margin-top:15px;">
+        `;
+        normes.normes.forEach(n => {
+            html += `<li><strong>${n.ref}</strong> – ${n.description}</li>`;
+        });
+        html += `
+                </ul>
+                <p style="font-size:0.85rem; margin-top:15px; color:#475569;">🔒 Pour plus de détails, consultez notre page <a href="engagements.html" style="color:#1e3a8a;">Nos engagements</a>.</p>
+            </div>
+        `;
+        container.insertAdjacentHTML('beforeend', html);
+    });
+</script>
+
 </body>
 </html>

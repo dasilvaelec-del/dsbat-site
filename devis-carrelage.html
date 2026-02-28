@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Devis carrelage – DS.BAT</title>
+    <title>Devis carrelage / faïence – DS.BAT</title>
     <meta name="description" content="Simulateur de devis carrelage et faïence.">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
@@ -13,12 +13,37 @@
     <script src="normes.js"></script>
     <script src="menu.js"></script>
     <script src="devis-common.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+    <script>
+        window.loadPDF = function(callback) {
+            if (window.html2pdf) {
+                callback();
+            } else {
+                const script = document.createElement('script');
+                script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+                script.onload = callback;
+                document.head.appendChild(script);
+            }
+        };
+    </script>
 </head>
 <body>
 
 <button class="menu-btn" id="menuBtn">☰</button>
-<nav class="menu" id="menu">...</nav>
+<nav class="menu" id="menu">
+    <a href="index.html">🏠 Accueil</a>
+    <a href="services.html">⚙️ Services</a>
+    <a href="realisations.html">📷 Réalisations</a>
+    <a href="zone.html">📍 Zone</a>
+    <a href="prix.html">💰 Prix</a>
+    <a href="devis.html">📋 Devis</a>
+    <a href="contact.html">📞 Contact</a>
+    <a href="avis-client.html">⭐ Avis</a>
+    <a href="faq.html">❓ FAQ</a>
+    <a href="engagements.html">📜 Engagements</a>
+    <a href="https://www.instagram.com/votrecompte" target="_blank">📸 Instagram</a>
+    <a href="https://www.facebook.com/votrecompte" target="_blank">👍 Facebook</a>
+</nav>
 
 <header class="hero">
     <h1>🧱 Devis carrelage / faïence</h1>
@@ -26,6 +51,7 @@
 </header>
 
 <main class="container" id="contenuDevis">
+
     <div class="devis-header">
         <span class="devis-numero" id="devisNumero">CAR‑2026‑1001</span>
         <span class="devis-date" id="devisDate"></span>
@@ -37,6 +63,7 @@
         <div style="text-align:right;"><a href="devis.html" class="btn-modifier">✏️ Modifier</a></div>
     </div>
 
+    <!-- Choix de la gamme (une seule) -->
     <div class="options-globales">
         <div class="radio-group">
             <label><input type="radio" name="gamme" value="standard" checked onchange="changerGamme()"> 🟢 Standard</label>
@@ -48,14 +75,18 @@
     <div id="prestations-container" class="prestations-grid"></div>
 
     <div class="recap">
-        <div class="recap-ligne"><span>Total des prestations</span><span id="totalPrestations">0 €</span></div>
-        <div class="recap-ligne"><span>🚐 Suppléments</span><span id="supplementsMontant">0 €</span></div>
+        <div class="recap-ligne"><span>Total des prestations</span><span id="totalPrestations" style="font-weight:700;">0 €</span></div>
+        <div class="recap-ligne"><span>🚐 Suppléments</span><span id="supplementsMontant" style="font-weight:700;">0 €</span></div>
         <div class="total-wrapper"><span class="total" id="totalHT">0 €</span><span>HT</span></div>
         <div style="display:flex; justify-content:space-between;">
             <span><strong>TVA</strong> <span id="tvaMontant">0 €</span></span>
             <span><strong>Total TTC</strong> <span id="totalTTC">0 €</span></span>
         </div>
-        <div class="acomptes">...</div>
+        <div class="acomptes">
+            <span class="acompte-badge" id="acompte1">40% : 0 €</span>
+            <span class="acompte-badge" id="acompte2">30% : 0 €</span>
+            <span class="acompte-badge" id="acompte3">30% : 0 €</span>
+        </div>
     </div>
 
     <div class="actions">
@@ -64,12 +95,28 @@
         <a class="btn btn-phone" href="#" data-phone-base64="MDYyOTU1NjYyNw==">📞 Appeler</a>
     </div>
 
-    <div class="badges">...</div>
+    <div class="badges">
+        <span class="badge">✔️ Artisan certifié</span>
+        <span class="badge">✔️ Assurance décennale</span>
+        <span class="badge">✔️ Devis gratuit</span>
+        <span class="badge">✔️ Garantie 2 ans</span>
+        <span class="badge">⭐ 4,9/5</span>
+    </div>
 </main>
 
-<div class="qrcode-container">...</div>
-<a href="https://wa.me/33629556627" class="whatsapp-float">...</a>
-<footer>...</footer>
+<div class="qrcode-container">
+    <img src="image/qrcode-site.png" alt="QR code DS.BAT" class="qrcode-img" loading="lazy">
+    <p class="qrcode-text">Scannez pour l'expérience interactive</p>
+</div>
+
+<a href="https://wa.me/33629556627" target="_blank" class="whatsapp-float">
+    <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" alt="WhatsApp">
+</a>
+
+<footer>
+    <p>© 2026 DS.BAT – 58 Grande Rue, 77410 Villevaudé | <a href="mentions-legales.html">Mentions légales</a></p>
+    <p>Simulateur carrelage / faïence – Prix unique</p>
+</footer>
 
 <script>
     let chantier = null;
@@ -79,17 +126,35 @@
         else window.location.href = 'devis.html';
     } catch (e) { window.location.href = 'devis.html'; }
 
-    function mettreAJourRecap() { /* identique aux autres pages */ }
+    function mettreAJourRecap() {
+        const recap = document.getElementById('recapConteneur');
+        recap.innerHTML = `
+            <div><strong>Type de bien :</strong> ${chantier.typeBien === 'maison' ? 'Maison' : 'Appartement'}</div>
+            <div><strong>Type logement :</strong> ${chantier.typeLogement}</div>
+            <div><strong>Surface :</strong> ${chantier.surface} m²</div>
+            <div><strong>Pièces :</strong> ${chantier.pieces}</div>
+            <div><strong>Accessibilité :</strong> ${chantier.accessibilite === 'facile' ? 'Facile' : 'Compliquée'}</div>
+            <div><strong>Âge du bâtiment :</strong> ${chantier.ageBati === 'plus2' ? 'Plus de 2 ans' : 'Moins de 2 ans'}</div>
+            <div><strong>Hauteur plafond :</strong> ${{standard: 'Standard (<2,5m)', haute: 'Haute (2,5-3m)', tres_haute: 'Très haute (>3m)'}[chantier.hauteurPlafond]}</div>
+            <div><strong>Délai :</strong> ${{normal: 'Normal', rapide: 'Rapide', urgent: 'Urgent'}[chantier.delai]}</div>
+        `;
+        if (chantier.typeBien === 'appartement') {
+            recap.innerHTML += `
+                <div><strong>Étage :</strong> ${chantier.etage}</div>
+                <div><strong>Ascenseur :</strong> ${chantier.ascenseur === 'oui' ? 'Oui' : 'Non'}</div>
+            `;
+        }
+    }
     mettreAJourRecap();
 
-    // Construction depuis PRIX.carrelage
+    // Construction des prestations depuis PRIX.carrelage
     const prestations = [];
     PRIX.carrelage.forEach(item => {
         if (item.prix) {
             prestations.push({
                 label: item.label,
                 unite: item.unite,
-                prix: (item.prix.min + item.prix.max)/2
+                prix: (item.prix.min + item.prix.max) / 2
             });
         }
     });
@@ -99,12 +164,13 @@
         container.innerHTML = '';
         prestations.forEach(p => {
             const id = p.label.replace(/\s/g,'').replace(/[^a-zA-Z0-9]/g,'');
-            container.innerHTML += `
-                <div class="prestation-item">
-                    <div class="prestation-header"><span>${p.label} (${p.unite})</span><span class="prestation-prix" id="prix-${id}">${p.prix.toFixed(2)} €</span></div>
-                    <div class="quantite-input"><label>Quantité :</label><input type="number" id="qte-${id}" min="0" value="0" step="1" onchange="calculer()"></div>
-                </div>
+            const div = document.createElement('div');
+            div.className = 'prestation-item';
+            div.innerHTML = `
+                <div class="prestation-header"><span>${p.label} (${p.unite})</span><span class="prestation-prix" id="prix-${id}">${p.prix.toFixed(2)} €</span></div>
+                <div class="quantite-input"><label>Quantité :</label><input type="number" id="qte-${id}" min="0" value="0" step="1" onchange="calculer()"></div>
             `;
+            container.appendChild(div);
         });
     }
 
@@ -116,7 +182,12 @@
         let surfaceFaïence = 0;
         if (chantier.sdbType !== 'wc') surfaceFaïence += 15;
         if (chantier.cuisineType !== 'non') surfaceFaïence += 10;
-        return { sol: Math.ceil(surface), faience: Math.ceil(surfaceFaïence), joint: Math.ceil(surface + surfaceFaïence), plinthe: pieces * 15 };
+        return {
+            sol: Math.ceil(surface),
+            faience: Math.ceil(surfaceFaïence),
+            joint: Math.ceil(surface + surfaceFaïence),
+            plinthe: pieces * 15
+        };
     }
 
     function appliquerNorme() {
@@ -134,28 +205,28 @@
     }
 
     function calculer() {
-        let total = 0;
+        let totalPrestations = 0;
         prestations.forEach(p => {
             const id = p.label.replace(/\s/g,'').replace(/[^a-zA-Z0-9]/g,'');
             const qte = parseFloat(document.getElementById(`qte-${id}`)?.value) || 0;
-            total += qte * p.prix;
+            totalPrestations += qte * p.prix;
         });
-        // suppléments identiques
+
         let supplement = 0;
-        if (chantier.accessibilite === 'compliquee') supplement += total * 0.6 * 0.15;
+        if (chantier.accessibilite === 'compliquee') supplement += totalPrestations * 0.6 * 0.15;
         if (chantier.typeBien === 'appartement' && chantier.ascenseur === 'non') {
             const etage = parseInt(chantier.etage) || 0;
             if (etage > 0) supplement += etage * 50;
         }
         if (chantier.hauteurPlafond === 'haute') supplement += 200;
         else if (chantier.hauteurPlafond === 'tres_haute') supplement += 400;
-        if (chantier.delai === 'rapide') supplement += total * 0.20;
-        else if (chantier.delai === 'urgent') supplement += total * 0.40;
+        if (chantier.delai === 'rapide') supplement += totalPrestations * 0.20;
+        else if (chantier.delai === 'urgent') supplement += totalPrestations * 0.40;
 
-        document.getElementById('totalPrestations').innerText = total.toFixed(2) + ' €';
+        document.getElementById('totalPrestations').innerText = totalPrestations.toFixed(2) + ' €';
         document.getElementById('supplementsMontant').innerText = supplement.toFixed(2) + ' €';
 
-        let totalHT = total + supplement;
+        let totalHT = totalPrestations + supplement;
         totalHT = Math.round(totalHT * 100) / 100;
         document.getElementById('totalHT').innerText = totalHT.toLocaleString('fr-FR', { minFractionDigits:2 }) + ' €';
 
@@ -180,9 +251,24 @@
         return `CAR‑2026‑${compteur}`;
     }
 
-    function afficherDate() { /* ... */ }
-    function genererPDF() { /* ... */ }
-    function envoyerWhatsApp() { /* ... */ }
+    function afficherDate() {
+        const d = new Date();
+        document.getElementById('devisDate').innerText = d.toLocaleDateString('fr-FR');
+    }
+
+    function genererPDF() {
+        loadPDF(() => {
+            const element = document.getElementById('contenuDevis');
+            const numero = document.getElementById('devisNumero').innerText.replace(/[^0-9]/g,'');
+            html2pdf().from(element).set({ margin:15, filename:`devis_carrelage_${numero}.pdf` }).save();
+        });
+    }
+
+    function envoyerWhatsApp() {
+        const totalTTC = document.getElementById('totalTTC').innerText;
+        const message = `*Devis carrelage DS.BAT*%0A%0ATotal TTC : ${totalTTC}%0A%0APouvez-vous me rappeler ?`;
+        window.open(`https://wa.me/${CONFIG.entreprise.telephone.replace(/\s/g,'')}?text=${encodeURIComponent(message)}`);
+    }
 
     document.querySelectorAll('[data-phone-base64]').forEach(link => {
         link.addEventListener('click', (e) => {
@@ -200,5 +286,30 @@
         calculer();
     });
 </script>
+
+<!-- Bloc normes -->
+<script>
+    window.addEventListener('load', function() {
+        const container = document.querySelector('main.container');
+        if (!container) return;
+        const normes = NORMES.carrelage;
+        let html = `
+            <div class="recap" style="margin-top:40px; background:#f8fafc; border:2px solid #1e3a8a; padding:20px; border-radius:20px;">
+                <h3 style="color:#1e3a8a;">📜 Conformité aux normes – ${normes.titre}</h3>
+                <p>Les prestations de ce lot sont réalisées conformément aux normes et DTU en vigueur :</p>
+                <ul style="columns:2; margin-top:15px;">
+        `;
+        normes.normes.forEach(n => {
+            html += `<li><strong>${n.ref}</strong> – ${n.description}</li>`;
+        });
+        html += `
+                </ul>
+                <p style="font-size:0.85rem; margin-top:15px; color:#475569;">🔒 Pour plus de détails, consultez notre page <a href="engagements.html" style="color:#1e3a8a;">Nos engagements</a>.</p>
+            </div>
+        `;
+        container.insertAdjacentHTML('beforeend', html);
+    });
+</script>
+
 </body>
 </html>

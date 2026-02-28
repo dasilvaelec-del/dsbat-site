@@ -8,7 +8,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
 
-    <!-- Scripts -->
+    <!-- Scripts communs -->
     <script src="config.js"></script>
     <script src="prix.js"></script>
     <script src="normes.js"></script>
@@ -43,7 +43,7 @@
     <a href="contact.html">📞 Contact</a>
     <a href="avis-client.html">⭐ Avis</a>
     <a href="faq.html">❓ FAQ</a>
-<a href="engagements.html">📜 Engagements</a>
+    <a href="engagements.html">📜 Engagements</a>
     <a href="https://www.instagram.com/votrecompte" target="_blank">📸 Instagram</a>
     <a href="https://www.facebook.com/votrecompte" target="_blank">👍 Facebook</a>
 </nav>
@@ -65,9 +65,7 @@
     <!-- RÉCAPITULATIF DU CHANTIER -->
     <div class="recap-chantier">
         <h4>📋 Chantier enregistré</h4>
-        <div class="grille-recap" id="recapConteneur">
-            <!-- Rempli par JavaScript -->
-        </div>
+        <div class="grille-recap" id="recapConteneur"></div>
         <div style="text-align:right; margin-top:15px;">
             <a href="devis.html" class="btn-modifier">✏️ Modifier le chantier</a>
         </div>
@@ -142,6 +140,9 @@
         <span class="badge">⭐ 4,9/5 – 12 avis</span>
     </div>
 </main>
+
+<!-- BLOC NORMES (ajouté dynamiquement) -->
+<!-- Il sera inséré par le script ci-dessous -->
 
 <!-- QR CODE -->
 <div class="qrcode-container">
@@ -244,11 +245,8 @@
         calculer();
     }
 
-    // ---------- 5. ESTIMATION DES MINIMAS (EXEMPLE, À ADAPTER) ----------
+    // ---------- 5. ESTIMATION DES MINIMAS ----------
     function estimerMinimas() {
-        // Cette fonction doit retourner un objet avec les quantités minimales
-        // pour certaines prestations, en fonction des caractéristiques du chantier.
-        // Exemple simplifié :
         const surface = parseFloat(chantier.surface) || 70;
         const pieces = parseInt(chantier.pieces) || 4;
         return {
@@ -259,7 +257,6 @@
 
     function appliquerNorme() {
         const minimas = estimerMinimas();
-        // On applique les quantités minimales aux prestations correspondantes
         prestations.forEach(p => {
             const id = p.label.replace(/\s/g,'').replace(/[^a-zA-Z0-9]/g,'');
             const input = document.getElementById(`qte-${id}`);
@@ -269,7 +266,6 @@
             } else if (p.label.includes("Point lumineux simple allumage")) {
                 input.value = minimas.pointLumineux || 0;
             }
-            // Ajouter d'autres correspondances selon ton besoin
         });
         calculer();
     }
@@ -285,8 +281,6 @@
             totalPrestations += qte * p[gamme];
         });
 
-        // Tableau électrique (prix forfaitaires ou à extraire du catalogue)
-        // Pour l'exemple, on garde des valeurs fixes
         const prixTableau = 1210.10;
         const prixCoffret = 402.72;
         const prixTerre = 281.10;
@@ -295,7 +289,6 @@
         document.getElementById('prixCoffret').innerText = prixCoffret.toFixed(2) + ' €';
         document.getElementById('prixTerre').innerText = prixTerre.toFixed(2) + ' €';
 
-        // Suppléments (identiques à avant)
         let supplement = 0;
         if (chantier.accessibilite === 'compliquee') supplement += totalPrestations * 0.6 * 0.15;
         if (chantier.typeBien === 'appartement' && chantier.ascenseur === 'non') {
@@ -314,14 +307,12 @@
         totalHT = Math.round(totalHT * 100) / 100;
         document.getElementById('totalHT').innerText = totalHT.toLocaleString('fr-FR', { minimumFractionDigits: 2 }) + ' €';
 
-        // TVA
         let tauxTVA = (chantier.ageBati === 'plus2') ? 0.10 : 0.20;
         const montantTVA = totalHT * tauxTVA;
         const totalTTC = totalHT + montantTVA;
         document.getElementById('tvaMontant').innerText = montantTVA.toLocaleString('fr-FR', { minimumFractionDigits: 2 }) + ' €';
         document.getElementById('totalTTC').innerText = totalTTC.toLocaleString('fr-FR', { minimumFractionDigits: 2 }) + ' €';
 
-        // Acomptes
         const acompte1 = totalTTC * 0.4;
         const acompte2 = totalTTC * 0.3;
         const acompte3 = totalTTC * 0.3;
@@ -387,5 +378,30 @@
         calculer();
     });
 </script>
+
+<!-- Script pour afficher le bloc normes -->
+<script>
+    window.addEventListener('load', function() {
+        const container = document.querySelector('main.container');
+        if (!container) return;
+        const normes = NORMES.electricite;
+        let html = `
+            <div class="recap" style="margin-top:40px; background:#f8fafc; border:2px solid #1e3a8a; padding:20px; border-radius:20px;">
+                <h3 style="color:#1e3a8a;">📜 Conformité aux normes – ${normes.titre}</h3>
+                <p>Les prestations de ce lot sont réalisées conformément aux normes et DTU en vigueur :</p>
+                <ul style="columns:2; margin-top:15px;">
+        `;
+        normes.normes.forEach(n => {
+            html += `<li><strong>${n.ref}</strong> – ${n.description}</li>`;
+        });
+        html += `
+                </ul>
+                <p style="font-size:0.85rem; margin-top:15px; color:#475569;">🔒 Pour plus de détails, consultez notre page <a href="engagements.html" style="color:#1e3a8a;">Nos engagements</a>.</p>
+            </div>
+        `;
+        container.insertAdjacentHTML('beforeend', html);
+    });
+</script>
+
 </body>
 </html>

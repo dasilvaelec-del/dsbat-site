@@ -13,7 +13,19 @@
     <script src="normes.js"></script>
     <script src="menu.js"></script>
     <script src="devis-common.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+    <script>
+        window.loadPDF = function(callback) {
+            if (window.html2pdf) {
+                callback();
+            } else {
+                const script = document.createElement('script');
+                script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+                script.onload = callback;
+                document.head.appendChild(script);
+            }
+        };
+    </script>
 </head>
 <body>
 
@@ -28,7 +40,7 @@
     <a href="contact.html">📞 Contact</a>
     <a href="avis-client.html">⭐ Avis</a>
     <a href="faq.html">❓ FAQ</a>
-<a href="engagements.html">📜 Engagements</a>
+    <a href="engagements.html">📜 Engagements</a>
     <a href="https://www.instagram.com/votrecompte" target="_blank">📸 Instagram</a>
     <a href="https://www.facebook.com/votrecompte" target="_blank">👍 Facebook</a>
 </nav>
@@ -51,7 +63,7 @@
         <div style="text-align:right;"><a href="devis.html" class="btn-modifier">✏️ Modifier</a></div>
     </div>
 
-    <!-- Deux gammes mais une seule valeur -->
+    <!-- Choix de la gamme (une seule) -->
     <div class="options-globales">
         <div class="radio-group">
             <label><input type="radio" name="gamme" value="standard" checked onchange="changerGamme()"> 🟢 Standard</label>
@@ -64,7 +76,7 @@
 
     <div class="recap">
         <div class="recap-ligne"><span>Total des prestations</span><span id="totalPrestations" style="font-weight:700;">0 €</span></div>
-        <div class="recap-ligne"><span>🚐 Suppléments (accessibilité, étage...)</span><span id="supplementsMontant" style="font-weight:700;">0 €</span></div>
+        <div class="recap-ligne"><span>🚐 Suppléments</span><span id="supplementsMontant" style="font-weight:700;">0 €</span></div>
         <div class="total-wrapper"><span class="total" id="totalHT">0 €</span><span>HT</span></div>
         <div style="display:flex; justify-content:space-between;">
             <span><strong>TVA</strong> <span id="tvaMontant">0 €</span></span>
@@ -78,9 +90,9 @@
     </div>
 
     <div class="actions">
-        <button class="btn btn-pdf" onclick="genererPDF()">📄 Télécharger PDF</button>
-        <button class="btn btn-whatsapp" onclick="envoyerWhatsApp()">💬 Envoyer sur WhatsApp</button>
-        <a class="btn btn-phone" href="#" data-phone-base64="MDYyOTU1NjYyNw==">📞 06<!-- -->29<!-- -->55<!-- -->66<!-- -->27</a>
+        <button class="btn btn-pdf" onclick="genererPDF()">📄 PDF</button>
+        <button class="btn btn-whatsapp" onclick="envoyerWhatsApp()">💬 WhatsApp</button>
+        <a class="btn btn-phone" href="#" data-phone-base64="MDYyOTU1NjYyNw==">📞 Appeler</a>
     </div>
 
     <div class="badges">
@@ -107,15 +119,12 @@
 </footer>
 
 <script>
-    // ---------- Récupération chantier ----------
     let chantier = null;
     try {
         const stored = sessionStorage.getItem('chantier');
         if (stored) chantier = JSON.parse(stored);
         else window.location.href = 'devis.html';
-    } catch (e) {
-        window.location.href = 'devis.html';
-    }
+    } catch (e) { window.location.href = 'devis.html'; }
 
     function mettreAJourRecap() {
         const recap = document.getElementById('recapConteneur');
@@ -127,7 +136,6 @@
             <div><strong>Accessibilité :</strong> ${chantier.accessibilite === 'facile' ? 'Facile' : 'Compliquée'}</div>
             <div><strong>Âge du bâtiment :</strong> ${chantier.ageBati === 'plus2' ? 'Plus de 2 ans' : 'Moins de 2 ans'}</div>
             <div><strong>Hauteur plafond :</strong> ${{standard: 'Standard (<2,5m)', haute: 'Haute (2,5-3m)', tres_haute: 'Très haute (>3m)'}[chantier.hauteurPlafond]}</div>
-            <div><strong>Qualité matériaux :</strong> ${{entree: 'Entrée de gamme', milieu: 'Milieu de gamme', haut: 'Haut de gamme'}[chantier.qualiteMateriaux]}</div>
             <div><strong>Délai :</strong> ${{normal: 'Normal', rapide: 'Rapide', urgent: 'Urgent'}[chantier.delai]}</div>
         `;
         if (chantier.typeBien === 'appartement') {
@@ -139,7 +147,7 @@
     }
     mettreAJourRecap();
 
-    // ---------- Construction des prestations depuis PRIX.menuiserie ----------
+    // Construction des prestations depuis PRIX.menuiserie
     const prestations = [];
     PRIX.menuiserie.forEach(item => {
         if (item.prix) {
@@ -159,14 +167,8 @@
             const div = document.createElement('div');
             div.className = 'prestation-item';
             div.innerHTML = `
-                <div class="prestation-header">
-                    <span>${p.label} (${p.unite})</span>
-                    <span class="prestation-prix" id="prix-${id}">${p.prix.toFixed(2)} €</span>
-                </div>
-                <div class="quantite-input">
-                    <label>Quantité :</label>
-                    <input type="number" id="qte-${id}" min="0" value="0" step="1" onchange="calculer()">
-                </div>
+                <div class="prestation-header"><span>${p.label} (${p.unite})</span><span class="prestation-prix" id="prix-${id}">${p.prix.toFixed(2)} €</span></div>
+                <div class="quantite-input"><label>Quantité :</label><input type="number" id="qte-${id}" min="0" value="0" step="1" onchange="calculer()"></div>
             `;
             container.appendChild(div);
         });
@@ -237,30 +239,26 @@
         document.getElementById('acompte1').innerText = `40% : ${acompte1.toFixed(2)} €`;
         document.getElementById('acompte2').innerText = `30% : ${acompte2.toFixed(2)} €`;
         document.getElementById('acompte3').innerText = `30% : ${acompte3.toFixed(2)} €`;
-
-        window.totalHT = totalHT;
-        window.totalTTC = totalTTC;
     }
 
     function genererNumeroDevis() {
         let compteur = localStorage.getItem('dsbat-devis-compteur') || 1000;
-        compteur = parseInt(compteur) + 1;
+        compteur = parseInt(compteur)+1;
         localStorage.setItem('dsbat-devis-compteur', compteur);
         return `MEN‑2026‑${compteur}`;
     }
 
     function afficherDate() {
         const d = new Date();
-        document.getElementById('devisDate').innerText = d.toLocaleDateString('fr-FR', { day:'2-digit', month:'2-digit', year:'numeric' });
+        document.getElementById('devisDate').innerText = d.toLocaleDateString('fr-FR');
     }
 
     function genererPDF() {
-        const element = document.getElementById('contenuDevis');
-        const numero = document.getElementById('devisNumero').innerText.replace(/[^0-9]/g,'');
-        html2pdf().from(element).set({
-            margin: 15,
-            filename: `devis_menuiserie_${numero}.pdf`
-        }).save();
+        loadPDF(() => {
+            const element = document.getElementById('contenuDevis');
+            const numero = document.getElementById('devisNumero').innerText.replace(/[^0-9]/g,'');
+            html2pdf().from(element).set({ margin:15, filename:`devis_menuiserie_${numero}.pdf` }).save();
+        });
     }
 
     function envoyerWhatsApp() {
@@ -285,5 +283,30 @@
         calculer();
     });
 </script>
+
+<!-- Bloc normes -->
+<script>
+    window.addEventListener('load', function() {
+        const container = document.querySelector('main.container');
+        if (!container) return;
+        const normes = NORMES.menuiserie;
+        let html = `
+            <div class="recap" style="margin-top:40px; background:#f8fafc; border:2px solid #1e3a8a; padding:20px; border-radius:20px;">
+                <h3 style="color:#1e3a8a;">📜 Conformité aux normes – ${normes.titre}</h3>
+                <p>Les prestations de ce lot sont réalisées conformément aux normes et DTU en vigueur :</p>
+                <ul style="columns:2; margin-top:15px;">
+        `;
+        normes.normes.forEach(n => {
+            html += `<li><strong>${n.ref}</strong> – ${n.description}</li>`;
+        });
+        html += `
+                </ul>
+                <p style="font-size:0.85rem; margin-top:15px; color:#475569;">🔒 Pour plus de détails, consultez notre page <a href="engagements.html" style="color:#1e3a8a;">Nos engagements</a>.</p>
+            </div>
+        `;
+        container.insertAdjacentHTML('beforeend', html);
+    });
+</script>
+
 </body>
 </html>
