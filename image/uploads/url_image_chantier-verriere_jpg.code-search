@@ -1,9 +1,0 @@
-# Query: url("image/chantier-verriere.jpg
-# ContextLines: 1
-
-1 résultat - 1 fichier
-
-index.html:
-  21    background: linear-gradient(rgba(10,20,40,.65), rgba(10,20,40,.65)),
-  22:               url("image/uploads/chantier-verriere.webp") center / cover no-repeat;
-  23    display: flex;
