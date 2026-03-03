@@ -175,7 +175,7 @@ a:focus-visible {
   height: 45vh;
   min-height: 280px;
   background: linear-gradient(135deg, rgba(10,20,40,0.9), rgba(10,20,40,0.6)),
-              var(--hero-image, url('image/chantier-verriere.jpg')) center 30% / cover no-repeat;
+              var(--hero-image, url('image/uploads/chantier-verriere.webp')) center 30% / cover no-repeat;
   display: flex;
   flex-direction: column;
   justify-content: center;

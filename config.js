@@ -21,7 +21,7 @@ const CONFIG = {
 
   // ----- IMAGES (chemins relatifs) -----
   images: {
-    hero: "image/chantier-verriere.jpg",
+    hero: "image/uploads/chantier-verriere.webp",
     qrCode: "image/qrcode-site.png",
   },
 
