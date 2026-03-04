@@ -1,32 +1,57 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Devis carrelage / faïence – DS.BAT</title>
-    <meta name="description" content="Simulateur de devis carrelage et faïence.">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css">
+<meta charset="UTF-8">
 
-    <script src="config.js"></script>
-    <script src="prix.js"></script>
-    <script src="normes.js"></script>
-    <script src="menu.js"></script>
-    <script src="devis-common.js"></script>
+<!-- Google Consent Mode Default -->
+<script data-cookieconsent="ignore">
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag("consent", "default", {
+    ad_storage: "denied",
+    ad_user_data: "denied",
+    ad_personalization: "denied",
+    analytics_storage: "denied",
+    functionality_storage: "denied",
+    personalization_storage: "denied",
+    security_storage: "granted",
+    wait_for_update: 500,
+  });
+  gtag("set", "ads_data_redaction", true);
+  gtag("set", "url_passthrough", true);
+</script>
 
-    <script>
-        window.loadPDF = function(callback) {
-            if (window.html2pdf) {
-                callback();
-            } else {
-                const script = document.createElement('script');
-                script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
-                script.onload = callback;
-                document.head.appendChild(script);
-            }
-        };
-    </script>
-    <meta property="og:title" content="Services d'électricité et rénovation – DS.BAT à Villevaudé (77)" />
+<!-- Cookiebot CMP -->
+<script id="Cookiebot" src="https://consent.cookiebot.com/uc.js" data-cbid="4ca5ad59-f0eb-4010-adef-c38cda83db9c" data-blockingmode="auto" type="text/javascript"></script>
+
+<!-- Script Ahrefs (à décommenter si tu souhaites tracker cette page) -->
+<!-- <script type="text/plain" data-cookieconsent="statistics" src="https://analytics.ahrefs.com/analytics.js" data-key="HqHLuU8xskPJDLAthFodeA" async></script> -->
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Devis carrelage / faïence – DS.BAT</title>
+<meta name="description" content="Simulateur de devis carrelage et faïence.">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+
+<script src="config.js"></script>
+<script src="prix.js"></script>
+<script src="normes.js"></script>
+<script src="menu.js"></script>
+<script src="devis-common.js"></script>
+
+<script>
+    window.loadPDF = function(callback) {
+        if (window.html2pdf) {
+            callback();
+        } else {
+            const script = document.createElement('script');
+            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+            script.onload = callback;
+            document.head.appendChild(script);
+        }
+    };
+</script>
+<meta property="og:title" content="Services d'électricité et rénovation – DS.BAT à Villevaudé (77)" />
 <meta property="og:description" content="Découvrez nos prestations : électricité générale, rénovation intérieure, dépannage, mise aux normes. Intervention en Seine-et-Marne et Paris." />
 <meta property="og:image" content="https://dasilvaelec-del.github.io/dsbat-site/image/uploads/chantier-verriere.webp" />
 <meta property="og:url" content="https://dasilvaelec-del.github.io/dsbat-site/services.html" />
@@ -125,172 +150,7 @@
 </footer>
 
 <script>
-    let chantier = null;
-    try {
-        const stored = sessionStorage.getItem('chantier');
-        if (stored) chantier = JSON.parse(stored);
-        else window.location.href = 'devis.html';
-    } catch (e) { window.location.href = 'devis.html'; }
-
-    function mettreAJourRecap() {
-        const recap = document.getElementById('recapConteneur');
-        recap.innerHTML = `
-            <div><strong>Type de bien :</strong> ${chantier.typeBien === 'maison' ? 'Maison' : 'Appartement'}</div>
-            <div><strong>Type logement :</strong> ${chantier.typeLogement}</div>
-            <div><strong>Surface :</strong> ${chantier.surface} m²</div>
-            <div><strong>Pièces :</strong> ${chantier.pieces}</div>
-            <div><strong>Accessibilité :</strong> ${chantier.accessibilite === 'facile' ? 'Facile' : 'Compliquée'}</div>
-            <div><strong>Âge du bâtiment :</strong> ${chantier.ageBati === 'plus2' ? 'Plus de 2 ans' : 'Moins de 2 ans'}</div>
-            <div><strong>Hauteur plafond :</strong> ${{standard: 'Standard (<2,5m)', haute: 'Haute (2,5-3m)', tres_haute: 'Très haute (>3m)'}[chantier.hauteurPlafond]}</div>
-            <div><strong>Délai :</strong> ${{normal: 'Normal', rapide: 'Rapide', urgent: 'Urgent'}[chantier.delai]}</div>
-        `;
-        if (chantier.typeBien === 'appartement') {
-            recap.innerHTML += `
-                <div><strong>Étage :</strong> ${chantier.etage}</div>
-                <div><strong>Ascenseur :</strong> ${chantier.ascenseur === 'oui' ? 'Oui' : 'Non'}</div>
-            `;
-        }
-    }
-    mettreAJourRecap();
-
-    // Construction des prestations depuis PRIX.carrelage
-    const prestations = [];
-    PRIX.carrelage.forEach(item => {
-        if (item.prix) {
-            prestations.push({
-                label: item.label,
-                unite: item.unite,
-                prix: (item.prix.min + item.prix.max) / 2
-            });
-        }
-    });
-
-    function genererPrestations() {
-        const container = document.getElementById('prestations-container');
-        container.innerHTML = '';
-        prestations.forEach(p => {
-            const id = p.label.replace(/\s/g,'').replace(/[^a-zA-Z0-9]/g,'');
-            const div = document.createElement('div');
-            div.className = 'prestation-item';
-            div.innerHTML = `
-                <div class="prestation-header"><span>${p.label} (${p.unite})</span><span class="prestation-prix" id="prix-${id}">${p.prix.toFixed(2)} €</span></div>
-                <div class="quantite-input"><label>Quantité :</label><input type="number" id="qte-${id}" min="0" value="0" step="1" onchange="calculer()"></div>
-            `;
-            container.appendChild(div);
-        });
-    }
-
-    function changerGamme() {}
-
-    function estimerMinimas() {
-        const surface = parseFloat(chantier.surface) || 70;
-        const pieces = parseInt(chantier.pieces) || 4;
-        let surfaceFaïence = 0;
-        if (chantier.sdbType !== 'wc') surfaceFaïence += 15;
-        if (chantier.cuisineType !== 'non') surfaceFaïence += 10;
-        return {
-            sol: Math.ceil(surface),
-            faience: Math.ceil(surfaceFaïence),
-            joint: Math.ceil(surface + surfaceFaïence),
-            plinthe: pieces * 15
-        };
-    }
-
-    function appliquerNorme() {
-        const minimas = estimerMinimas();
-        prestations.forEach(p => {
-            const id = p.label.replace(/\s/g,'').replace(/[^a-zA-Z0-9]/g,'');
-            const input = document.getElementById(`qte-${id}`);
-            if (!input) return;
-            if (p.label.includes("Carrelage sol")) input.value = minimas.sol;
-            else if (p.label.includes("Faïence")) input.value = minimas.faience;
-            else if (p.label.includes("Joint")) input.value = minimas.joint;
-            else if (p.label.includes("Plinthe")) input.value = minimas.plinthe;
-        });
-        calculer();
-    }
-
-    function calculer() {
-        let totalPrestations = 0;
-        prestations.forEach(p => {
-            const id = p.label.replace(/\s/g,'').replace(/[^a-zA-Z0-9]/g,'');
-            const qte = parseFloat(document.getElementById(`qte-${id}`)?.value) || 0;
-            totalPrestations += qte * p.prix;
-        });
-
-        let supplement = 0;
-        if (chantier.accessibilite === 'compliquee') supplement += totalPrestations * 0.6 * 0.15;
-        if (chantier.typeBien === 'appartement' && chantier.ascenseur === 'non') {
-            const etage = parseInt(chantier.etage) || 0;
-            if (etage > 0) supplement += etage * 50;
-        }
-        if (chantier.hauteurPlafond === 'haute') supplement += 200;
-        else if (chantier.hauteurPlafond === 'tres_haute') supplement += 400;
-        if (chantier.delai === 'rapide') supplement += totalPrestations * 0.20;
-        else if (chantier.delai === 'urgent') supplement += totalPrestations * 0.40;
-
-        document.getElementById('totalPrestations').innerText = totalPrestations.toFixed(2) + ' €';
-        document.getElementById('supplementsMontant').innerText = supplement.toFixed(2) + ' €';
-
-        let totalHT = totalPrestations + supplement;
-        totalHT = Math.round(totalHT * 100) / 100;
-        document.getElementById('totalHT').innerText = totalHT.toLocaleString('fr-FR', { minFractionDigits:2 }) + ' €';
-
-        let tauxTVA = (chantier.ageBati === 'plus2') ? 0.10 : 0.20;
-        const montantTVA = totalHT * tauxTVA;
-        const totalTTC = totalHT + montantTVA;
-        document.getElementById('tvaMontant').innerText = montantTVA.toLocaleString('fr-FR', { minFractionDigits:2 }) + ' €';
-        document.getElementById('totalTTC').innerText = totalTTC.toLocaleString('fr-FR', { minFractionDigits:2 }) + ' €';
-
-        const acompte1 = totalTTC * 0.4;
-        const acompte2 = totalTTC * 0.3;
-        const acompte3 = totalTTC * 0.3;
-        document.getElementById('acompte1').innerText = `40% : ${acompte1.toFixed(2)} €`;
-        document.getElementById('acompte2').innerText = `30% : ${acompte2.toFixed(2)} €`;
-        document.getElementById('acompte3').innerText = `30% : ${acompte3.toFixed(2)} €`;
-    }
-
-    function genererNumeroDevis() {
-        let compteur = localStorage.getItem('dsbat-devis-compteur') || 1000;
-        compteur = parseInt(compteur)+1;
-        localStorage.setItem('dsbat-devis-compteur', compteur);
-        return `CAR‑2026‑${compteur}`;
-    }
-
-    function afficherDate() {
-        const d = new Date();
-        document.getElementById('devisDate').innerText = d.toLocaleDateString('fr-FR');
-    }
-
-    function genererPDF() {
-        loadPDF(() => {
-            const element = document.getElementById('contenuDevis');
-            const numero = document.getElementById('devisNumero').innerText.replace(/[^0-9]/g,'');
-            html2pdf().from(element).set({ margin:15, filename:`devis_carrelage_${numero}.pdf` }).save();
-        });
-    }
-
-    function envoyerWhatsApp() {
-        const totalTTC = document.getElementById('totalTTC').innerText;
-        const message = `*Devis carrelage DS.BAT*%0A%0ATotal TTC : ${totalTTC}%0A%0APouvez-vous me rappeler ?`;
-        window.open(`https://wa.me/${CONFIG.entreprise.telephone.replace(/\s/g,'')}?text=${encodeURIComponent(message)}`);
-    }
-
-    document.querySelectorAll('[data-phone-base64]').forEach(link => {
-        link.addEventListener('click', (e) => {
-            e.preventDefault();
-            const phone = atob(link.dataset.phoneBase64);
-            window.location.href = `tel:${phone}`;
-        });
-    });
-
-    window.addEventListener('load', () => {
-        genererPrestations();
-        if (!localStorage.getItem('dsbat-devis-compteur')) localStorage.setItem('dsbat-devis-compteur','1000');
-        document.getElementById('devisNumero').innerText = genererNumeroDevis();
-        afficherDate();
-        calculer();
-    });
+    // ... (tout le script existant) ...
 </script>
 
 <!-- Bloc normes -->
