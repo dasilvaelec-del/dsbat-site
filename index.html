@@ -5,28 +5,30 @@
 <meta name="robots" content="noindex, nofollow">
 
 <!-- Google Consent Mode Default (obligatoire pour le consentement) -->
-<script data-cookieconsent="ignore">
-  window.dataLayer = window.dataLayer || [];
-  function gtag() { dataLayer.push(arguments); }
-  gtag("consent", "default", {
-    ad_storage: "denied",
-    ad_user_data: "denied",
-    ad_personalization: "denied",
-    analytics_storage: "denied",
-    functionality_storage: "denied",
-    personalization_storage: "denied",
-    security_storage: "granted", // Nécessaire pour la sécurité du site
-    wait_for_update: 500,
-  });
-  gtag("set", "ads_data_redaction", true);
-  gtag("set", "url_passthrough", true);
+<!-- Axeptio CMP + Google Consent Mode -->
+<script>
+window.axeptioSettings = {
+  clientId: "69d657f15cce55bf536c051d",
+  cookiesVersion: "b94e777b-840f-4b66-a52c-6b798ef52176",
+  googleConsentMode: {
+    default: {
+      analytics_storage: "denied",
+      ad_storage: "denied",
+      ad_user_data: "denied",
+      ad_personalization: "denied",
+      wait_for_update: 500
+    }
+  }
+};
+(function(d, s) {
+  var t = d.getElementsByTagName(s)[0], e = d.createElement(s);
+  e.async = true; e.src = "//static.axept.io/sdk.js";
+  t.parentNode.insertBefore(e, t);
+})(document, "script");
 </script>
 
-<!-- Cookiebot CMP (la bannière) -->
-<script id="Cookiebot" src="https://consent.cookiebot.com/uc.js" data-cbid="4ca5ad59-f0eb-4010-adef-c38cda83db9c" data-blockingmode="auto" type="text/javascript"></script>
-
-<!-- Script Ahrefs (désactivé tant que l'utilisateur n'a pas consenti aux statistiques) -->
-<script type="text/plain" data-cookieconsent="statistics" src="https://analytics.ahrefs.com/analytics.js" data-key="HqHLuU8xskPJDLAthFodeA" async></script>
+<!-- Script Ahrefs -->
+<script async src="https://analytics.ahrefs.com/analytics.js" data-key="HqHLuU8xskPJDLAthFodeA"></script>
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Électricien à Villevaudé – DS.BAT Électricité & Rénovation (77)</title>
