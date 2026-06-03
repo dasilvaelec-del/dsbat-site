@@ -1,0 +1,1621 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+
+<!-- Axeptio CMP -->
+<script>
+window.axeptioSettings = {
+  clientId: "69d657f15cce55bf536c051d",
+  cookiesVersion: "b94e777b-840f-4b66-a52c-6b798ef52176",
+  googleConsentMode: {
+    default: {
+      analytics_storage: "denied",
+      ad_storage: "denied",
+      ad_user_data: "denied",
+      ad_personalization: "denied",
+      wait_for_update: 500
+    }
+  }
+};
+(function(d, s) {
+  var t = d.getElementsByTagName(s)[0], e = d.createElement(s);
+  e.async = true; e.src = "//static.axept.io/sdk.js";
+  t.parentNode.insertBefore(e, t);
+})(document, "script");
+</script>
+
+<script async src="https://analytics.ahrefs.com/analytics.js" data-key="HqHLuU8xskPJDLAthFodeA"></script>
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Configurateur de travaux – DS.BAT</title>
+<meta name="description" content="Configurez vos travaux pièce par pièce pour obtenir un devis précis. DS.BAT – Électricien & Artisan à Villevaudé (77).">
+<link rel="canonical" href="https://dsbat.fr/devis-configurateur.html" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<script src="config.js"></script>
+<script src="prix.js"></script>
+<script src="menu.js"></script>
+
+<style>
+/* ===== CONFIGURATEUR PIÈCE PAR PIÈCE ===== */
+
+/* Phase selector */
+.phase-bar {
+  display: flex;
+  gap: 0;
+  margin: 24px auto;
+  max-width: 700px;
+  background: var(--surface-2);
+  border-radius: var(--radius-xl);
+  padding: 6px;
+  border: 1px solid var(--border);
+}
+
+.phase-btn {
+  flex: 1;
+  padding: 12px 8px;
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-xl);
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  color: var(--text-light);
+  transition: all 0.3s;
+  text-align: center;
+}
+
+.phase-btn.active {
+  background: var(--primary);
+  color: white;
+  box-shadow: var(--shadow-md);
+}
+
+/* Sélection des pièces */
+.pieces-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 14px;
+  margin-top: 16px;
+}
+
+.piece-select-card {
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 16px 12px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.25s;
+  user-select: none;
+}
+
+.piece-select-card:hover {
+  border-color: var(--primary-light);
+  transform: translateY(-2px);
+}
+
+.piece-select-card.selected {
+  border-color: var(--primary);
+  background: rgba(30,58,138,0.06);
+}
+
+.piece-icon {
+  font-size: 2rem;
+  margin-bottom: 8px;
+  display: block;
+}
+
+.piece-name {
+  font-weight: 600;
+  font-size: 0.88rem;
+  color: var(--text);
+  margin-bottom: 12px;
+  display: block;
+}
+
+.piece-counter {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.counter-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid var(--primary);
+  background: transparent;
+  color: var(--primary);
+  font-size: 1.1rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  line-height: 1;
+}
+
+.counter-btn:hover {
+  background: var(--primary);
+  color: white;
+}
+
+.counter-val {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--primary);
+  min-width: 20px;
+  text-align: center;
+}
+
+/* Onglets pièces */
+.pieces-tabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+}
+
+.piece-tab {
+  padding: 10px 20px;
+  border-radius: var(--radius-xl);
+  border: 2px solid var(--border);
+  background: var(--surface);
+  color: var(--text-light);
+  font-weight: 600;
+  font-size: 0.88rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.piece-tab.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: white;
+}
+
+.piece-tab .tab-check {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: white;
+  font-size: 0.65rem;
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+
+.piece-tab.done .tab-check {
+  display: flex;
+}
+
+/* Configurateur d'une pièce */
+.piece-config {
+  display: none;
+  animation: fadeInUp 0.3s ease;
+}
+
+.piece-config.active {
+  display: block;
+}
+
+.piece-config-header {
+  background: linear-gradient(135deg, var(--primary), var(--primary-light));
+  color: white;
+  padding: 20px 24px;
+  border-radius: var(--radius-md);
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.piece-config-header .piece-big-icon {
+  font-size: 2.5rem;
+}
+
+.piece-config-header h2 {
+  font-size: 1.3rem;
+  margin: 0 0 4px;
+}
+
+.piece-config-header p {
+  opacity: 0.85;
+  font-size: 0.88rem;
+  margin: 0;
+}
+
+/* Dimensions */
+.dimensions-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 14px;
+  margin-bottom: 8px;
+}
+
+.dim-input {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dim-input label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-light);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.dim-input input {
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 1rem;
+  font-weight: 600;
+  text-align: center;
+  transition: border-color 0.2s;
+}
+
+.dim-input input:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+.surface-auto {
+  background: var(--primary);
+  color: white;
+  padding: 12px 20px;
+  border-radius: 12px;
+  font-weight: 700;
+  text-align: center;
+  font-size: 1.1rem;
+}
+
+.surface-label {
+  font-size: 0.7rem;
+  opacity: 0.8;
+  display: block;
+}
+
+/* Sections métiers dans la pièce */
+.metier-section {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  margin-bottom: 16px;
+  overflow: hidden;
+}
+
+.metier-section-header {
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.2s;
+}
+
+.metier-section-header:hover {
+  background: rgba(30,58,138,0.04);
+}
+
+.metier-section-header h3 {
+  flex: 1;
+  margin: 0;
+  font-size: 1rem;
+  color: var(--primary);
+}
+
+.metier-section-header .section-total {
+  font-weight: 700;
+  color: var(--accent);
+  font-size: 0.95rem;
+}
+
+.metier-section-header .chevron {
+  transition: transform 0.3s;
+  color: var(--text-light);
+}
+
+.metier-section.open .chevron {
+  transform: rotate(180deg);
+}
+
+.metier-section-body {
+  display: none;
+  padding: 0 20px 20px;
+}
+
+.metier-section.open .metier-section-body {
+  display: block;
+}
+
+/* Items de prestation */
+.prestation-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px dashed var(--border);
+}
+
+.prestation-row:last-child {
+  border-bottom: none;
+}
+
+.prestation-info {
+  flex: 1;
+}
+
+.prestation-info .prest-label {
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.prestation-info .prest-prix {
+  font-size: 0.78rem;
+  color: var(--text-light);
+  margin-top: 2px;
+}
+
+.prestation-qty {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.qty-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  line-height: 1;
+}
+
+.qty-btn:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.qty-val {
+  font-weight: 700;
+  min-width: 24px;
+  text-align: center;
+  font-size: 0.95rem;
+}
+
+.prestation-total {
+  font-weight: 700;
+  color: var(--primary);
+  min-width: 70px;
+  text-align: right;
+  font-size: 0.9rem;
+}
+
+/* Auto-calculated fields */
+.auto-field {
+  background: rgba(22,163,74,0.08);
+  border: 1px solid rgba(22,163,74,0.3);
+  border-radius: 8px;
+  padding: 8px 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.auto-field .auto-label {
+  font-size: 0.85rem;
+  color: var(--text-light);
+}
+
+.auto-field .auto-val {
+  font-weight: 700;
+  color: var(--accent);
+}
+
+/* Total pièce */
+.piece-total-bar {
+  background: var(--primary);
+  color: white;
+  padding: 16px 20px;
+  border-radius: var(--radius-md);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 16px;
+}
+
+.piece-total-bar .total-label {
+  font-weight: 600;
+  opacity: 0.9;
+}
+
+.piece-total-bar .total-amount {
+  font-size: 1.4rem;
+  font-weight: 800;
+}
+
+/* Navigation pièces */
+.piece-nav {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 20px;
+  gap: 12px;
+}
+
+/* Récapitulatif global */
+.recap-global {
+  margin-top: 10px;
+}
+
+.recap-piece-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 20px;
+  background: var(--surface-2);
+  border-radius: var(--radius-md);
+  margin-bottom: 10px;
+  border: 1px solid var(--border);
+}
+
+.recap-piece-row .rp-name {
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.recap-piece-row .rp-detail {
+  font-size: 0.8rem;
+  color: var(--text-light);
+  margin-top: 2px;
+}
+
+.recap-piece-row .rp-total {
+  font-weight: 700;
+  color: var(--primary);
+  font-size: 1rem;
+}
+
+.recap-grand-total {
+  background: linear-gradient(135deg, var(--primary), var(--primary-light));
+  color: white;
+  padding: 28px;
+  border-radius: var(--radius-lg);
+  margin-top: 20px;
+  text-align: center;
+}
+
+.recap-grand-total .gt-label {
+  font-size: 1rem;
+  opacity: 0.85;
+  margin-bottom: 8px;
+}
+
+.recap-grand-total .gt-ht {
+  font-size: 3rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.recap-grand-total .gt-tva {
+  font-size: 0.9rem;
+  opacity: 0.8;
+  margin-top: 8px;
+}
+
+.recap-grand-total .gt-ttc {
+  font-size: 1.3rem;
+  font-weight: 700;
+  margin-top: 6px;
+  background: rgba(255,255,255,0.15);
+  display: inline-block;
+  padding: 6px 24px;
+  border-radius: var(--radius-xl);
+  margin-top: 12px;
+}
+
+.acomptes-recap {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.acompte-recap-badge {
+  background: rgba(255,255,255,0.15);
+  padding: 10px 20px;
+  border-radius: var(--radius-xl);
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.mention-visite-mini {
+  background: #fef9ec;
+  border: 2px solid #f59e0b;
+  border-radius: var(--radius-md);
+  padding: 16px 20px;
+  margin: 20px 0;
+  font-size: 0.88rem;
+  color: #78350f;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.actions-recap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  justify-content: center;
+  margin-top: 24px;
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 600px) {
+  .pieces-grid { grid-template-columns: repeat(2, 1fr); }
+  .phase-btn { font-size: 0.75rem; padding: 10px 4px; }
+  .dimensions-grid { grid-template-columns: repeat(2, 1fr); }
+  .piece-nav { flex-direction: column; }
+  .actions-recap { flex-direction: column; }
+}
+</style>
+</head>
+<body>
+
+<button class="menu-btn" id="menuBtn" aria-label="Ouvrir le menu" aria-expanded="false" aria-controls="menu">☰</button>
+<nav class="menu" id="menu" aria-hidden="true">
+  <a href="index.html">🏠 Accueil</a>
+  <a href="services.html">⚙️ Services</a>
+  <a href="realisations.html">📷 Réalisations</a>
+  <a href="zone.html">📍 Zone</a>
+  <a href="prix.html">💰 Prix</a>
+  <a href="devis.html">📋 Devis</a>
+  <a href="contact.html">📞 Contact</a>
+  <a href="avis-client.html">⭐ Avis</a>
+  <a href="faq.html">❓ FAQ</a>
+  <a href="engagements.html">📜 Engagements</a>
+  <a href="https://www.instagram.com/votrecompte" target="_blank">📸 Instagram</a>
+  <a href="https://www.facebook.com/votrecompte" target="_blank">👍 Facebook</a>
+</nav>
+
+<header class="hero">
+  <h1>🏗️ Configurateur de travaux</h1>
+  <p>Définissez vos pièces et configurez vos travaux — Estimation en temps réel</p>
+</header>
+
+<main class="container">
+
+  <!-- BARRE DE PHASES -->
+  <div class="phase-bar">
+    <button class="phase-btn active" id="phaseBtn1" onclick="allerPhase(1)">① Mes pièces</button>
+    <button class="phase-btn" id="phaseBtn2" onclick="allerPhase(2)">② Configuration</button>
+    <button class="phase-btn" id="phaseBtn3" onclick="allerPhase(3)">③ Récapitulatif</button>
+  </div>
+
+  <!-- ===== PHASE 1 — SÉLECTION DES PIÈCES ===== -->
+  <div id="phase1">
+
+    <div style="text-align:center; margin-bottom:24px;">
+      <p style="color:var(--text-light);">Sélectionnez vos pièces et indiquez le nombre de chaque type</p>
+    </div>
+
+    <div class="form-section" style="background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-md); padding:24px; margin-bottom:20px;">
+      <h3 style="color:var(--primary); margin-bottom:16px;">🏠 Pièces de vie</h3>
+      <div class="pieces-grid" id="gridVie"></div>
+    </div>
+
+    <div class="form-section" style="background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-md); padding:24px; margin-bottom:20px;">
+      <h3 style="color:var(--primary); margin-bottom:16px;">🛁 Sanitaires</h3>
+      <div class="pieces-grid" id="gridSanitaires"></div>
+    </div>
+
+    <div class="form-section" style="background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-md); padding:24px; margin-bottom:20px;">
+      <h3 style="color:var(--primary); margin-bottom:16px;">🚪 Circulations & Autres</h3>
+      <div class="pieces-grid" id="gridCirculations"></div>
+    </div>
+
+    <div class="form-section" style="background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-md); padding:24px; margin-bottom:20px;">
+      <h3 style="color:var(--primary); margin-bottom:16px;">🌿 Extérieur</h3>
+      <div class="pieces-grid" id="gridExterieur"></div>
+    </div>
+
+    <p id="erreur-pieces" style="color:#ef4444; text-align:center; display:none; margin-bottom:12px;">
+      ⚠️ Veuillez sélectionner au moins une pièce.
+    </p>
+
+    <div style="text-align:center; margin-top:20px;">
+      <button class="btn-next" onclick="validerPieces()" style="background:var(--primary); color:white; border:none; padding:16px 36px; border-radius:var(--radius-xl); font-weight:700; font-size:1rem; cursor:pointer;">
+        Configurer mes pièces →
+      </button>
+    </div>
+  </div>
+
+  <!-- ===== PHASE 2 — CONFIGURATION PIÈCE PAR PIÈCE ===== -->
+  <div id="phase2" style="display:none;">
+    <div class="pieces-tabs" id="piecesTabs"></div>
+    <div id="piecesConfigs"></div>
+
+    <div style="text-align:center; margin-top:24px;">
+      <button class="btn-next" onclick="allerPhase(3)" style="background:var(--accent); color:white; border:none; padding:16px 36px; border-radius:var(--radius-xl); font-weight:700; font-size:1rem; cursor:pointer;">
+        Voir le récapitulatif →
+      </button>
+    </div>
+  </div>
+
+  <!-- ===== PHASE 3 — RÉCAPITULATIF ===== -->
+  <div id="phase3" style="display:none;">
+    <div class="recap-global" id="recapGlobal"></div>
+  </div>
+
+</main>
+
+<a href="https://wa.me/33629556627" target="_blank" rel="noopener noreferrer" class="whatsapp-float" aria-label="Contact WhatsApp">
+  <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" alt="WhatsApp">
+</a>
+
+<div class="qrcode-container">
+  <img src="image/uploads/qrcode-site.webp" alt="QR code DS.BAT" class="qrcode-img" loading="lazy">
+  <p class="qrcode-text">Scannez pour l'expérience interactive DS.BAT</p>
+</div>
+
+<footer>
+  <p>© 2026 DS.BAT – 58 Grande Rue, 77410 Villevaudé | <a href="mentions-legales.html">Mentions légales</a></p>
+</footer>
+
+<script>
+// ===== DÉFINITION DES PIÈCES =====
+const PIECES_DEF = {
+  vie: [
+    { id:'salon', icon:'🛋️', nom:'Salon / Séjour' },
+    { id:'salle_manger', icon:'🍽️', nom:'Salle à manger' },
+    { id:'cuisine', icon:'🍳', nom:'Cuisine' },
+    { id:'bureau', icon:'💻', nom:'Bureau' },
+    { id:'chambre', icon:'🛏️', nom:'Chambre' },
+    { id:'dressing', icon:'👗', nom:'Dressing' },
+  ],
+  sanitaires: [
+    { id:'sdb', icon:'🛁', nom:'Salle de bain' },
+    { id:'sde', icon:'🚿', nom:'Salle d\'eau' },
+    { id:'wc', icon:'🚽', nom:'WC' },
+  ],
+  circulations: [
+    { id:'entree', icon:'🚪', nom:'Entrée / Hall' },
+    { id:'couloir', icon:'🚶', nom:'Couloir' },
+    { id:'escalier', icon:'🪜', nom:'Escalier' },
+    { id:'cave', icon:'📦', nom:'Cave / Buanderie' },
+    { id:'veranda', icon:'🌿', nom:'Véranda' },
+    { id:'garage', icon:'🚗', nom:'Garage' },
+  ],
+  exterieur: [
+    { id:'terrasse', icon:'☀️', nom:'Terrasse' },
+    { id:'jardin', icon:'🌳', nom:'Jardin / Allée' },
+    { id:'facade', icon:'🏠', nom:'Façade ext.' },
+    { id:'carport', icon:'🅿️', nom:'Carport' },
+  ]
+};
+
+// ===== PRESTATIONS PAR MÉTIER PAR TYPE DE PIÈCE =====
+// Filtrage intelligent selon le type de pièce
+function getPrestationsPourPiece(pieceId, metiersActifs) {
+  const sections = [];
+
+  if (metiersActifs.includes('electricite')) {
+    const prests = getElecPourPiece(pieceId);
+    if (prests.length > 0) sections.push({ metier:'electricite', icon:'⚡', label:'Électricité', prests });
+  }
+  if (metiersActifs.includes('plomberie')) {
+    const prests = getPlombPourPiece(pieceId);
+    if (prests.length > 0) sections.push({ metier:'plomberie', icon:'🚿', label:'Plomberie', prests });
+  }
+  if (metiersActifs.includes('peinture')) {
+    sections.push({ metier:'peinture', icon:'🎨', label:'Peinture', prests: [], auto: true, autoType: 'peinture' });
+  }
+  if (metiersActifs.includes('sols')) {
+    sections.push({ metier:'sols', icon:'🪵', label:'Revêtement sols', prests: [], auto: true, autoType: 'sols' });
+  }
+  if (metiersActifs.includes('carrelage')) {
+    const prests = getCarrelagePourPiece(pieceId);
+    if (prests.length > 0) sections.push({ metier:'carrelage', icon:'🔲', label:'Carrelage / Faïence', prests });
+  }
+  if (metiersActifs.includes('isolation')) {
+    const prests = getIsolationPourPiece(pieceId);
+    if (prests.length > 0) sections.push({ metier:'isolation', icon:'🧱', label:'Isolation / Plâtrerie', prests });
+  }
+  if (metiersActifs.includes('menuiserie')) {
+    const prests = getMenuiseriePourPiece(pieceId);
+    if (prests.length > 0) sections.push({ metier:'menuiserie', icon:'🚪', label:'Menuiserie', prests });
+  }
+  if (metiersActifs.includes('vmc')) {
+    const prests = getVmcPourPiece(pieceId);
+    if (prests.length > 0) sections.push({ metier:'vmc', icon:'💨', label:'VMC', prests });
+  }
+
+  return sections;
+}
+
+function getElecPourPiece(pieceId) {
+  const base = [
+    { code:'ELEC_PL_SA', label:'Point lumineux simple', unite:'U' },
+    { code:'ELEC_PL_VV', label:'Point lumineux va-et-vient', unite:'U' },
+    { code:'ELEC_PRISE10', label:'Prise 2P+T simple', unite:'U' },
+    { code:'ELEC_PRISED', label:'Prise double 2P+T', unite:'U' },
+  ];
+  const cuisine = [
+    { code:'ELEC_PRISE20', label:'Prise spécialisée 20A (four, lave-vaisselle)', unite:'U' },
+    { code:'ELEC_PRISE32', label:'Prise spécialisée 32A (plaque induction)', unite:'U' },
+    { code:'ELEC_SC20', label:'Sortie de câble 20A (hotte)', unite:'U' },
+  ];
+  const sdb = [
+    { code:'ELEC_SECH_SERV', label:'Sèche-serviette', unite:'U' },
+    { code:'ELEC_LIAISON_EQUI', label:'Liaison équipotentielle SDB', unite:'U' },
+  ];
+  const salon = [
+    { code:'ELEC_TV', label:'Prise TV', unite:'U' },
+    { code:'ELEC_RJ45', label:'Prise RJ45 cat6', unite:'U' },
+    { code:'ELEC_VOLET', label:'Commande volet roulant', unite:'U' },
+    { code:'ELEC_THERMO', label:'Thermostat d\'ambiance', unite:'U' },
+  ];
+  const commun = [
+    { code:'ELEC_SONETTE', label:'Sonnette / Interphone', unite:'U' },
+    { code:'ELEC_VOLET', label:'Commande volet roulant', unite:'U' },
+  ];
+
+  let prests = [...base];
+  if (['cuisine'].includes(pieceId)) prests = [...prests, ...cuisine];
+  if (['sdb','sde'].includes(pieceId)) prests = [...prests, ...sdb];
+  if (['salon','salle_manger'].includes(pieceId)) prests = [...prests, ...salon];
+  if (['entree'].includes(pieceId)) prests = [...prests, ...commun];
+  return prests;
+}
+
+function getPlombPourPiece(pieceId) {
+  if (['sdb'].includes(pieceId)) return [
+    { code:'PLO_BAIGNOIRE', label:'Baignoire', unite:'U' },
+    { code:'PLO_DOUCHE_ITAL', label:'Douche à l\'italienne', unite:'U' },
+    { code:'PLO_DOUCHE_CABINE', label:'Cabine de douche', unite:'U' },
+    { code:'PLO_MEUBLE_LAV', label:'Meuble vasque', unite:'U' },
+    { code:'PLO_WC_SUSP', label:'WC suspendu', unite:'U' },
+    { code:'PLO_BALLON_100', label:'Ballon eau chaude 100L', unite:'U' },
+  ];
+  if (['sde'].includes(pieceId)) return [
+    { code:'PLO_DOUCHE_ITAL', label:'Douche à l\'italienne', unite:'U' },
+    { code:'PLO_DOUCHE_CABINE', label:'Cabine de douche', unite:'U' },
+    { code:'PLO_MEUBLE_LAV', label:'Meuble vasque', unite:'U' },
+  ];
+  if (['wc'].includes(pieceId)) return [
+    { code:'PLO_WC_SIMPLE', label:'WC simple', unite:'U' },
+    { code:'PLO_WC_SUSP', label:'WC suspendu bâti', unite:'U' },
+    { code:'PLO_LAV_SIMPLE', label:'Lave-mains', unite:'U' },
+  ];
+  if (['cuisine'].includes(pieceId)) return [
+    { code:'PLO_EVIER', label:'Évier 1 bac', unite:'U' },
+    { code:'PLO_EVIER_DBL', label:'Évier double bac', unite:'U' },
+    { code:'PLO_RACCORD_LV', label:'Raccordement lave-vaisselle', unite:'U' },
+    { code:'PLO_ADOUCISSEUR', label:'Adoucisseur d\'eau', unite:'U' },
+  ];
+  if (['cave'].includes(pieceId)) return [
+    { code:'PLO_RACCORD_LV', label:'Raccordement lave-linge', unite:'U' },
+    { code:'PLO_BALLON_200', label:'Ballon eau chaude 200L', unite:'U' },
+  ];
+  return [];
+}
+
+function getCarrelagePourPiece(pieceId) {
+  const base = [
+    { code:'CAR_POSE_SOL', label:'Carrelage sol (standard)', unite:'m²' },
+    { code:'CAR_POSE_SOL_GRAND', label:'Carrelage sol grand format', unite:'m²' },
+    { code:'CAR_RAGREAGE', label:'Ragréage', unite:'m²' },
+  ];
+  const mur = [
+    { code:'CAR_POSE_MUR', label:'Faïence murale', unite:'m²' },
+    { code:'CAR_POSE_MUR_PETIT', label:'Faïence mosaïque', unite:'m²' },
+    { code:'CAR_ETANCHEITE', label:'Étanchéité (douche)', unite:'forfait' },
+  ];
+  if (['sdb','sde','wc','cuisine'].includes(pieceId)) return [...base, ...mur];
+  return base;
+}
+
+function getIsolationPourPiece(pieceId) {
+  const base = [
+    { code:'PLA_BA13_MUR_COL', label:'BA13 mur collé', unite:'m²' },
+    { code:'PLA_BA13_MUR_OSS', label:'BA13 mur sur ossature', unite:'m²' },
+    { code:'PLA_CLOISON_BA13', label:'Cloison BA13', unite:'m²' },
+  ];
+  if (['cave','garage'].includes(pieceId)) return [
+    { code:'ISO_LV_100', label:'Isolation 100mm', unite:'m²' },
+    { code:'ISO_LV_140', label:'Isolation 140mm', unite:'m²' },
+    { code:'PLA_BA13_MUR_OSS', label:'BA13 sur ossature', unite:'m²' },
+  ];
+  return base;
+}
+
+function getMenuiseriePourPiece(pieceId) {
+  const base = [
+    { code:'MEN_PORTE_INT', label:'Porte intérieure', unite:'U' },
+    { code:'MEN_VOLET_ROULANT', label:'Volet roulant', unite:'U' },
+  ];
+  if (['entree'].includes(pieceId)) return [
+    ...base,
+    { code:'MEN_PORTE_ENTREE_PVC', label:'Porte d\'entrée PVC', unite:'U' },
+    { code:'MEN_PORTE_BLINDEE', label:'Porte blindée A2P', unite:'U' },
+  ];
+  if (['salon'].includes(pieceId)) return [
+    ...base,
+    { code:'MEN_FEN_ALU_BAIE', label:'Baie vitrée coulissante', unite:'U' },
+    { code:'MEN_VERRIERE', label:'Verrière intérieure', unite:'U' },
+  ];
+  if (['escalier'].includes(pieceId)) return [
+    { code:'MEN_ESCALIER_BOIS', label:'Escalier bois', unite:'U' },
+    { code:'MEN_GARDE_CORPS', label:'Garde-corps', unite:'ml' },
+  ];
+  return base;
+}
+
+function getVmcPourPiece(pieceId) {
+  if (['sdb','sde','wc','cuisine'].includes(pieceId)) return [
+    { code:'VMC_BOUCHE', label:'Bouche d\'extraction', unite:'U' },
+    { code:'VMC_ENTREE_AIR', label:'Entrée d\'air hygro', unite:'U' },
+  ];
+  if (['salon','chambre'].includes(pieceId)) return [
+    { code:'VMC_ENTREE_AIR', label:'Entrée d\'air hygro', unite:'U' },
+  ];
+  return [];
+}
+
+// ===== ÉTAT GLOBAL =====
+let piecesSelectionnees = []; // [{id, nom, icon, numero, dims:{l,la,h,fenetres,portes}, config:{metier:{code:qty}}}]
+let metiersActifs = [];
+let phaseActuelle = 1;
+let pieceActiveIndex = 0;
+
+// ===== INIT =====
+window.addEventListener('DOMContentLoaded', () => {
+  // Récupérer les métiers depuis sessionStorage
+  const clientData = sessionStorage.getItem('client');
+  const chantierData = sessionStorage.getItem('chantier');
+
+  // Essayer de récupérer les métiers
+  try {
+    const devisData = sessionStorage.getItem('devisMetiers');
+    if (devisData) metiersActifs = JSON.parse(devisData);
+  } catch(e) {}
+
+  // Si pas de métiers → tous activés par défaut
+  if (metiersActifs.length === 0) {
+    metiersActifs = ['electricite','plomberie','peinture','sols','carrelage','isolation','menuiserie','vmc'];
+  }
+
+  renderPiecesSelection();
+});
+
+// ===== RENDU SÉLECTION PIÈCES =====
+function renderPiecesSelection() {
+  renderGrid('gridVie', PIECES_DEF.vie);
+  renderGrid('gridSanitaires', PIECES_DEF.sanitaires);
+  renderGrid('gridCirculations', PIECES_DEF.circulations);
+  renderGrid('gridExterieur', PIECES_DEF.exterieur);
+}
+
+function renderGrid(containerId, pieceDefs) {
+  const container = document.getElementById(containerId);
+  container.innerHTML = pieceDefs.map(p => `
+    <div class="piece-select-card" id="card_${p.id}" onclick="togglePiece('${p.id}')">
+      <span class="piece-icon">${p.icon}</span>
+      <span class="piece-name">${p.nom}</span>
+      <div class="piece-counter">
+        <button class="counter-btn" onclick="event.stopPropagation(); changerCompteur('${p.id}', -1)">−</button>
+        <span class="counter-val" id="count_${p.id}">0</span>
+        <button class="counter-btn" onclick="event.stopPropagation(); changerCompteur('${p.id}', 1)">+</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+// Compteurs pièces
+const compteurs = {};
+
+function togglePiece(id) {
+  if ((compteurs[id] || 0) === 0) {
+    changerCompteur(id, 1);
+  }
+}
+
+function changerCompteur(id, delta) {
+  const current = compteurs[id] || 0;
+  const newVal = Math.max(0, current + delta);
+  compteurs[id] = newVal;
+  const el = document.getElementById('count_' + id);
+  if (el) el.textContent = newVal;
+  const card = document.getElementById('card_' + id);
+  if (card) card.classList.toggle('selected', newVal > 0);
+}
+
+// ===== VALIDER PIÈCES =====
+function validerPieces() {
+  // Construire la liste des pièces sélectionnées
+  piecesSelectionnees = [];
+  const allPieces = [...PIECES_DEF.vie, ...PIECES_DEF.sanitaires, ...PIECES_DEF.circulations, ...PIECES_DEF.exterieur];
+
+  allPieces.forEach(p => {
+    const nb = compteurs[p.id] || 0;
+    for (let i = 1; i <= nb; i++) {
+      piecesSelectionnees.push({
+        id: p.id,
+        nom: nb > 1 ? `${p.nom} ${i}` : p.nom,
+        icon: p.icon,
+        numero: i,
+        dims: { l: 0, la: 0, h: 2.5, fenetres: 1, portes: 1 },
+        config: {}
+      });
+    }
+  });
+
+  if (piecesSelectionnees.length === 0) {
+    document.getElementById('erreur-pieces').style.display = 'block';
+    return;
+  }
+  document.getElementById('erreur-pieces').style.display = 'none';
+
+  allerPhase(2);
+}
+
+// ===== NAVIGATION PHASES =====
+function allerPhase(n) {
+  document.getElementById('phase1').style.display = n === 1 ? 'block' : 'none';
+  document.getElementById('phase2').style.display = n === 2 ? 'block' : 'none';
+  document.getElementById('phase3').style.display = n === 3 ? 'block' : 'none';
+
+  document.querySelectorAll('.phase-btn').forEach((btn, i) => {
+    btn.classList.toggle('active', i + 1 === n);
+  });
+
+  phaseActuelle = n;
+
+  if (n === 2) renderPhase2();
+  if (n === 3) renderPhase3();
+
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ===== PHASE 2 — CONFIG PIÈCES =====
+function renderPhase2() {
+  const tabsContainer = document.getElementById('piecesTabs');
+  const configsContainer = document.getElementById('piecesConfigs');
+
+  // Tabs
+  tabsContainer.innerHTML = piecesSelectionnees.map((p, i) => `
+    <button class="piece-tab ${i === 0 ? 'active' : ''}" id="tab_${i}" onclick="allerPiece(${i})">
+      ${p.icon} ${p.nom}
+      <span class="tab-check" id="check_${i}">✓</span>
+    </button>
+  `).join('');
+
+  // Configs
+  configsContainer.innerHTML = piecesSelectionnees.map((p, i) => renderPieceConfig(p, i)).join('');
+
+  pieceActiveIndex = 0;
+}
+
+function renderPieceConfig(piece, index) {
+  const sections = getPrestationsPourPiece(piece.id, metiersActifs);
+
+  return `
+    <div class="piece-config ${index === 0 ? 'active' : ''}" id="config_${index}">
+      <div class="piece-config-header">
+        <span class="piece-big-icon">${piece.icon}</span>
+        <div>
+          <h2>${piece.nom}</h2>
+          <p>Renseignez les dimensions et configurez vos travaux</p>
+        </div>
+      </div>
+
+      <!-- DIMENSIONS -->
+      <div class="form-section" style="background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-md); padding:20px; margin-bottom:16px;">
+        <h3 style="color:var(--primary); margin-bottom:16px; font-size:1rem;">📐 Dimensions</h3>
+        <div class="dimensions-grid">
+          <div class="dim-input">
+            <label>Longueur (m)</label>
+            <input type="number" step="0.1" min="0" placeholder="Ex: 5.5"
+              id="dim_l_${index}" onchange="recalcPiece(${index})" oninput="recalcPiece(${index})">
+          </div>
+          <div class="dim-input">
+            <label>Largeur (m)</label>
+            <input type="number" step="0.1" min="0" placeholder="Ex: 4.0"
+              id="dim_la_${index}" onchange="recalcPiece(${index})" oninput="recalcPiece(${index})">
+          </div>
+          <div class="dim-input">
+            <label>Hauteur plafond (m)</label>
+            <input type="number" step="0.1" min="2" value="2.5"
+              id="dim_h_${index}" onchange="recalcPiece(${index})" oninput="recalcPiece(${index})">
+          </div>
+          <div class="dim-input">
+            <label>Nb fenêtres</label>
+            <input type="number" min="0" value="1"
+              id="dim_fen_${index}" onchange="recalcPiece(${index})" oninput="recalcPiece(${index})">
+          </div>
+          <div class="dim-input">
+            <label>Nb portes</label>
+            <input type="number" min="0" value="1"
+              id="dim_por_${index}" onchange="recalcPiece(${index})" oninput="recalcPiece(${index})">
+          </div>
+          <div>
+            <div class="dim-input" style="opacity:0;"><label>.</label><input></div>
+          </div>
+        </div>
+
+        <!-- Surfaces calculées automatiquement -->
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(140px,1fr)); gap:10px; margin-top:14px;">
+          <div class="auto-field">
+            <span class="auto-label">Surface sol</span>
+            <span class="auto-val" id="surf_sol_${index}">— m²</span>
+          </div>
+          <div class="auto-field">
+            <span class="auto-label">Surface murs</span>
+            <span class="auto-val" id="surf_murs_${index}">— m²</span>
+          </div>
+          <div class="auto-field">
+            <span class="auto-label">Surface plafond</span>
+            <span class="auto-val" id="surf_plaf_${index}">— m²</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- SECTIONS MÉTIERS -->
+      ${sections.map(s => renderMetierSection(s, index)).join('')}
+
+      <!-- TOTAL PIÈCE -->
+      <div class="piece-total-bar">
+        <span class="total-label">Estimation ${piece.nom}</span>
+        <span class="total-amount" id="total_piece_${index}">0 €</span>
+      </div>
+
+      <!-- NAVIGATION -->
+      <div class="piece-nav">
+        ${index > 0 ? `<button class="btn-prev" onclick="allerPiece(${index - 1})">← ${piecesSelectionnees[index-1].icon} ${piecesSelectionnees[index-1].nom}</button>` : '<span></span>'}
+        ${index < piecesSelectionnees.length - 1
+          ? `<button class="btn-next" onclick="allerPiece(${index + 1})" style="background:var(--primary);color:white;border:none;padding:14px 28px;border-radius:var(--radius-xl);font-weight:700;cursor:pointer;">
+              ${piecesSelectionnees[index+1].nom} ${piecesSelectionnees[index+1].icon} →
+            </button>`
+          : `<button class="btn-next" onclick="allerPhase(3)" style="background:var(--accent);color:white;border:none;padding:14px 28px;border-radius:var(--radius-xl);font-weight:700;cursor:pointer;">
+              Voir le récapitulatif ✓
+            </button>`
+        }
+      </div>
+    </div>
+  `;
+}
+
+function renderMetierSection(section, pieceIndex) {
+  const sid = `sec_${pieceIndex}_${section.metier}`;
+
+  if (section.auto) {
+    // Sections avec calcul automatique depuis les dimensions
+    const isPaint = section.autoType === 'peinture';
+    return `
+      <div class="metier-section open" id="${sid}">
+        <div class="metier-section-header" onclick="toggleSection('${sid}')">
+          <span>${section.icon}</span>
+          <h3>${section.label}</h3>
+          <span class="section-total" id="${sid}_total">0 €</span>
+          <span class="chevron">▼</span>
+        </div>
+        <div class="metier-section-body">
+          <p style="font-size:0.85rem; color:var(--text-light); margin-bottom:12px;">
+            ${isPaint ? '💡 Les surfaces sont calculées automatiquement depuis vos dimensions. Choisissez la gamme de peinture.' : '💡 La surface de sol est calculée automatiquement. Choisissez votre revêtement.'}
+          </p>
+          ${isPaint ? renderPeintureAuto(pieceIndex) : renderSolsAuto(pieceIndex)}
+        </div>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="metier-section" id="${sid}">
+      <div class="metier-section-header" onclick="toggleSection('${sid}')">
+        <span>${section.icon}</span>
+        <h3>${section.label}</h3>
+        <span class="section-total" id="${sid}_total">0 €</span>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="metier-section-body">
+        ${section.prests.map(p => renderPrestRow(p, pieceIndex, section.metier)).join('')}
+      </div>
+    </div>
+  `;
+}
+
+function renderPeintureAuto(pieceIndex) {
+  const gammes = [
+    { val:'less', label:'Rafraîchissement (2 couches sur bon état)' },
+    { val:'std', label:'Standard (égrenage + 2 couches)' },
+    { val:'fort', label:'Travaux importants (enduit + 2 couches)' },
+  ];
+  return `
+    <div style="margin-bottom:14px;">
+      <label style="font-size:0.82rem;font-weight:700;color:var(--text-light);text-transform:uppercase;">Gamme murs</label>
+      <select id="peint_mur_${pieceIndex}" onchange="recalcPiece(${pieceIndex})" style="width:100%;margin-top:6px;padding:10px 14px;border-radius:12px;border:1.5px solid var(--border);background:var(--surface);color:var(--text);font-size:0.95rem;">
+        ${gammes.map(g => `<option value="${g.val}">${g.label}</option>`).join('')}
+      </select>
+    </div>
+    <div style="margin-bottom:14px;">
+      <label style="font-size:0.82rem;font-weight:700;color:var(--text-light);text-transform:uppercase;">Gamme plafond</label>
+      <select id="peint_plaf_${pieceIndex}" onchange="recalcPiece(${pieceIndex})" style="width:100%;margin-top:6px;padding:10px 14px;border-radius:12px;border:1.5px solid var(--border);background:var(--surface);color:var(--text);font-size:0.95rem;">
+        <option value="less">Rafraîchissement plafond</option>
+        <option value="std" selected>Standard plafond</option>
+      </select>
+    </div>
+    <div style="margin-bottom:8px;">
+      <label style="font-size:0.82rem;font-weight:700;color:var(--text-light);text-transform:uppercase;">Décollage papier peint ?</label>
+      <select id="peint_papier_${pieceIndex}" onchange="recalcPiece(${pieceIndex})" style="width:100%;margin-top:6px;padding:10px 14px;border-radius:12px;border:1.5px solid var(--border);background:var(--surface);color:var(--text);font-size:0.95rem;">
+        <option value="non">Non</option>
+        <option value="oui">Oui</option>
+      </select>
+    </div>
+  `;
+}
+
+function renderSolsAuto(pieceIndex) {
+  const types = [
+    { val:'parq_flot', label:'Parquet flottant (pose seule)' },
+    { val:'stratifie', label:'Sol stratifié (fourniture + pose)' },
+    { val:'pvc', label:'Sol PVC (fourniture + pose)' },
+    { val:'moquette', label:'Moquette (fourniture + pose)' },
+    { val:'lino', label:'Linoléum (fourniture + pose)' },
+  ];
+  return `
+    <div style="margin-bottom:14px;">
+      <label style="font-size:0.82rem;font-weight:700;color:var(--text-light);text-transform:uppercase;">Type de revêtement</label>
+      <select id="sol_type_${pieceIndex}" onchange="recalcPiece(${pieceIndex})" style="width:100%;margin-top:6px;padding:10px 14px;border-radius:12px;border:1.5px solid var(--border);background:var(--surface);color:var(--text);font-size:0.95rem;">
+        <option value="">-- Choisir --</option>
+        ${types.map(t => `<option value="${t.val}">${t.label}</option>`).join('')}
+      </select>
+    </div>
+    <div>
+      <label style="font-size:0.82rem;font-weight:700;color:var(--text-light);text-transform:uppercase;">Sous-couche ?</label>
+      <select id="sol_souscouche_${pieceIndex}" onchange="recalcPiece(${pieceIndex})" style="width:100%;margin-top:6px;padding:10px 14px;border-radius:12px;border:1.5px solid var(--border);background:var(--surface);color:var(--text);font-size:0.95rem;">
+        <option value="non">Non</option>
+        <option value="std">Standard</option>
+        <option value="liege">Liège</option>
+      </select>
+    </div>
+  `;
+}
+
+function renderPrestRow(prest, pieceIndex, metier) {
+  const prixData = getPrixPrest(prest.code);
+  const prixLabel = prixData ? `${prixData.min}–${prixData.max} €/${prest.unite}` : '';
+  const rowId = `row_${pieceIndex}_${prest.code}`;
+  return `
+    <div class="prestation-row" id="${rowId}">
+      <div class="prestation-info">
+        <div class="prest-label">${prest.label}</div>
+        <div class="prest-prix">${prixLabel}</div>
+      </div>
+      <div class="prestation-qty">
+        <button class="qty-btn" onclick="changerQty('${pieceIndex}','${prest.code}','${metier}',-1)">−</button>
+        <span class="qty-val" id="qty_${pieceIndex}_${prest.code}">0</span>
+        <button class="qty-btn" onclick="changerQty('${pieceIndex}','${prest.code}','${metier}',1)">+</button>
+      </div>
+      <div class="prestation-total" id="ptotal_${pieceIndex}_${prest.code}">0 €</div>
+    </div>
+  `;
+}
+
+function getPrixPrest(code) {
+  for (const cat of Object.values(PRIX)) {
+    const found = cat.find(p => p.code === code);
+    if (found) {
+      if (found.renov) return found.renov;
+      if (found.prix) return found.prix;
+    }
+  }
+  return null;
+}
+
+function getMoyenPrix(code) {
+  const p = getPrixPrest(code);
+  if (!p) return 0;
+  return (p.min + p.max) / 2;
+}
+
+// ===== QUANTITÉS =====
+function changerQty(pieceIndex, code, metier, delta) {
+  const p = piecesSelectionnees[pieceIndex];
+  if (!p.config[metier]) p.config[metier] = {};
+  const current = p.config[metier][code] || 0;
+  const newVal = Math.max(0, current + delta);
+  p.config[metier][code] = newVal;
+
+  const el = document.getElementById(`qty_${pieceIndex}_${code}`);
+  if (el) el.textContent = newVal;
+
+  const prix = getMoyenPrix(code);
+  const total = prix * newVal;
+  const tel = document.getElementById(`ptotal_${pieceIndex}_${code}`);
+  if (tel) tel.textContent = formatEuro(total);
+
+  recalcPiece(parseInt(pieceIndex));
+}
+
+// ===== RECALCUL PIÈCE =====
+function recalcPiece(index) {
+  const piece = piecesSelectionnees[index];
+
+  const l = parseFloat(document.getElementById(`dim_l_${index}`)?.value) || 0;
+  const la = parseFloat(document.getElementById(`dim_la_${index}`)?.value) || 0;
+  const h = parseFloat(document.getElementById(`dim_h_${index}`)?.value) || 2.5;
+  const fen = parseInt(document.getElementById(`dim_fen_${index}`)?.value) || 0;
+  const por = parseInt(document.getElementById(`dim_por_${index}`)?.value) || 0;
+
+  piece.dims = { l, la, h, fenetres: fen, portes: por };
+
+  const surfSol = l * la;
+  const surfPlaf = surfSol;
+  const surfMursTotal = 2 * (l + la) * h;
+  const surfOuvertures = (fen * 1.5) + (por * 2.0);
+  const surfMursNette = Math.max(0, surfMursTotal - surfOuvertures);
+
+  // Afficher surfaces
+  const s = (v) => v > 0 ? v.toFixed(1) + ' m²' : '— m²';
+  const setSurf = (id, val) => { const el = document.getElementById(id); if(el) el.textContent = val; };
+  setSurf(`surf_sol_${index}`, s(surfSol));
+  setSurf(`surf_murs_${index}`, s(surfMursNette));
+  setSurf(`surf_plaf_${index}`, s(surfPlaf));
+
+  piece.surfaces = { sol: surfSol, murs: surfMursNette, plafond: surfPlaf };
+
+  let totalPiece = 0;
+
+  // Calcul peinture auto
+  if (metiersActifs.includes('peinture')) {
+    const murGamme = document.getElementById(`peint_mur_${index}`)?.value;
+    const plafGamme = document.getElementById(`peint_plaf_${index}`)?.value;
+    const papier = document.getElementById(`peint_papier_${index}`)?.value;
+
+    let pMur = 0, pPlaf = 0, pPapier = 0;
+    if (murGamme === 'less') pMur = 20 * surfMursNette;
+    else if (murGamme === 'std') pMur = 30 * surfMursNette;
+    else if (murGamme === 'fort') pMur = 40 * surfMursNette;
+
+    if (plafGamme === 'less') pPlaf = 47 * surfPlaf;
+    else if (plafGamme === 'std') pPlaf = 57 * surfPlaf;
+
+    if (papier === 'oui') pPapier = 8 * surfMursNette;
+
+    const totalPeinture = pMur + pPlaf + pPapier;
+    const secId = `sec_${index}_peinture_total`;
+    const secEl = document.getElementById(`sec_${index}_peinture_total`);
+    if (secEl) secEl.textContent = formatEuro(totalPeinture);
+    // Update section total
+    const secTot = document.getElementById(`sec_${index}_peinture_total`);
+    if(secTot) secTot.textContent = formatEuro(totalPeinture);
+    totalPiece += totalPeinture;
+    piece.config['peinture_auto'] = totalPeinture;
+  }
+
+  // Calcul sols auto
+  if (metiersActifs.includes('sols')) {
+    const solType = document.getElementById(`sol_type_${index}`)?.value;
+    const sousCouche = document.getElementById(`sol_souscouche_${index}`)?.value;
+
+    const PRIX_SOLS = { parq_flot:52, stratifie:70, pvc:65, moquette:31, lino:65 };
+    const PRIX_SC = { std:17, liege:11 };
+
+    let pSol = (PRIX_SOLS[solType] || 0) * surfSol;
+    let pSC = (PRIX_SC[sousCouche] || 0) * surfSol;
+    const totalSols = pSol + pSC;
+    totalPiece += totalSols;
+    piece.config['sols_auto'] = totalSols;
+  }
+
+  // Calcul prestations manuelles
+  for (const [metier, prestations] of Object.entries(piece.config)) {
+    if (metier === 'peinture_auto' || metier === 'sols_auto') continue;
+    for (const [code, qty] of Object.entries(prestations)) {
+      totalPiece += getMoyenPrix(code) * qty;
+    }
+  }
+
+  // Mettre à jour les totaux de section
+  updateSectionTotals(index, piece);
+
+  // Total pièce
+  piece.totalHT = totalPiece;
+  const el = document.getElementById(`total_piece_${index}`);
+  if (el) el.textContent = formatEuro(totalPiece);
+
+  // Marquer l'onglet comme "en cours"
+  const tab = document.getElementById(`tab_${index}`);
+  if (tab && totalPiece > 0) {
+    tab.querySelector('.tab-check').style.display = 'flex';
+  }
+}
+
+function updateSectionTotals(index, piece) {
+  const sections = getPrestationsPourPiece(piece.id, metiersActifs);
+  sections.forEach(s => {
+    const sid = `sec_${index}_${s.metier}`;
+    const totalEl = document.getElementById(`${sid}_total`);
+    if (!totalEl) return;
+
+    if (s.auto) {
+      const key = s.autoType + '_auto';
+      totalEl.textContent = formatEuro(piece.config[key] || 0);
+      return;
+    }
+
+    let t = 0;
+    const metierConfig = piece.config[s.metier] || {};
+    for (const [code, qty] of Object.entries(metierConfig)) {
+      t += getMoyenPrix(code) * qty;
+    }
+    totalEl.textContent = formatEuro(t);
+  });
+}
+
+// ===== NAVIGATION ENTRE PIÈCES =====
+function allerPiece(index) {
+  document.querySelectorAll('.piece-config').forEach((el, i) => {
+    el.classList.toggle('active', i === index);
+  });
+  document.querySelectorAll('.piece-tab').forEach((el, i) => {
+    el.classList.toggle('active', i === index);
+  });
+  pieceActiveIndex = index;
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function toggleSection(sid) {
+  const el = document.getElementById(sid);
+  if (el) el.classList.toggle('open');
+}
+
+// ===== PHASE 3 — RÉCAPITULATIF =====
+function renderPhase3() {
+  const container = document.getElementById('recapGlobal');
+
+  let totalGlobalHT = 0;
+  piecesSelectionnees.forEach(p => {
+    totalGlobalHT += p.totalHT || 0;
+  });
+
+  // TVA
+  const tva = totalGlobalHT * 0.10;
+  const ttc = totalGlobalHT + tva;
+  const a1 = ttc * 0.40;
+  const a2 = ttc * 0.30;
+  const a3 = ttc * 0.30;
+
+  const rowsHtml = piecesSelectionnees.map(p => `
+    <div class="recap-piece-row">
+      <div>
+        <div class="rp-name">${p.icon} ${p.nom}</div>
+        <div class="rp-detail">
+          ${p.dims.l && p.dims.la ? `${p.dims.l}m × ${p.dims.la}m = ${(p.dims.l * p.dims.la).toFixed(1)}m²` : 'Dimensions non renseignées'}
+        </div>
+      </div>
+      <div class="rp-total">${formatEuro(p.totalHT || 0)}</div>
+    </div>
+  `).join('');
+
+  // Récap par métier
+  const metierTotaux = {};
+  piecesSelectionnees.forEach(p => {
+    for (const [metier, config] of Object.entries(p.config)) {
+      if (!metierTotaux[metier]) metierTotaux[metier] = 0;
+      if (metier === 'peinture_auto' || metier === 'sols_auto') {
+        metierTotaux[metier] += config;
+      } else {
+        for (const [code, qty] of Object.entries(config)) {
+          metierTotaux[metier] += getMoyenPrix(code) * qty;
+        }
+      }
+    }
+  });
+
+  const METIER_ICONS = { electricite:'⚡', plomberie:'🚿', peinture_auto:'🎨', sols_auto:'🪵', carrelage:'🔲', isolation:'🧱', menuiserie:'🚪', vmc:'💨' };
+  const METIER_LABELS = { electricite:'Électricité', plomberie:'Plomberie', peinture_auto:'Peinture', sols_auto:'Revêtement sols', carrelage:'Carrelage', isolation:'Isolation', menuiserie:'Menuiserie', vmc:'VMC' };
+
+  const metierRowsHtml = Object.entries(metierTotaux).filter(([,v]) => v > 0).map(([k, v]) => `
+    <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px dashed var(--border);">
+      <span>${METIER_ICONS[k] || '🔧'} ${METIER_LABELS[k] || k}</span>
+      <strong>${formatEuro(v)}</strong>
+    </div>
+  `).join('');
+
+  container.innerHTML = `
+    <h2 style="color:var(--primary);margin-bottom:20px;">📊 Récapitulatif par pièce</h2>
+    ${rowsHtml}
+
+    <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-md);padding:20px;margin:20px 0;">
+      <h3 style="color:var(--primary);margin-bottom:14px;font-size:1rem;">📊 Répartition par corps de métier</h3>
+      ${metierRowsHtml || '<p style="color:var(--text-light);">Aucune prestation configurée</p>'}
+    </div>
+
+    <div class="recap-grand-total">
+      <div class="gt-label">Estimation totale HT</div>
+      <div class="gt-ht">${formatEuro(totalGlobalHT)}</div>
+      <div class="gt-tva">TVA 10% (rénovation) : ${formatEuro(tva)}</div>
+      <div class="gt-ttc">Total TTC : ${formatEuro(ttc)}</div>
+    </div>
+
+    <div class="acomptes-recap">
+      <div class="acompte-recap-badge">Acompte 1 (40%) : ${formatEuro(a1)}</div>
+      <div class="acompte-recap-badge">Acompte 2 (30%) : ${formatEuro(a2)}</div>
+      <div class="acompte-recap-badge">Solde (30%) : ${formatEuro(a3)}</div>
+    </div>
+
+    <div class="mention-visite-mini">
+      <span style="font-size:1.5rem;">⚠️</span>
+      <div>
+        <strong>Estimation indicative — Visite technique obligatoire</strong><br>
+        Ce devis est établi sur la base des informations renseignées. Le devis définitif et contractuel sera établi après une <strong>visite technique gratuite</strong> sur votre chantier pour confirmer l'ensemble des travaux, contraintes d'accès et spécificités de votre projet.<br>
+        <strong>Nous vous contacterons dans les 24h.</strong>
+      </div>
+    </div>
+
+    <div class="actions-recap">
+      <button onclick="genererPDFConfig()" class="btn btn-pdf" style="display:flex;align-items:center;gap:8px;padding:14px 28px;">
+        📄 Télécharger le devis PDF
+      </button>
+      <a href="https://wa.me/33629556627" target="_blank" class="btn btn-whatsapp" style="display:flex;align-items:center;gap:8px;padding:14px 28px;">
+        💬 Envoyer sur WhatsApp
+      </a>
+      <button onclick="allerPhase(2)" class="btn" style="background:var(--surface-2);border:2px solid var(--border);padding:14px 28px;">
+        ✏️ Modifier
+      </button>
+    </div>
+
+    <div class="badges" style="margin-top:24px;">
+      <span class="badge">✔️ Artisan certifié</span>
+      <span class="badge">✔️ Assurance décennale</span>
+      <span class="badge">✔️ Visite gratuite</span>
+      <span class="badge">✔️ Devis sans engagement</span>
+      <span class="badge">⭐ 4,9/5 – 12 avis</span>
+    </div>
+  `;
+}
+
+// ===== PDF =====
+function genererPDFConfig() {
+  let totalGlobalHT = 0;
+  piecesSelectionnees.forEach(p => totalGlobalHT += p.totalHT || 0);
+  const tva = totalGlobalHT * 0.10;
+  const ttc = totalGlobalHT + tva;
+  const date = new Date().toLocaleDateString('fr-FR');
+  const numero = 'DSBT-' + Date.now().toString().slice(-6);
+
+  const clientData = (() => { try { return JSON.parse(sessionStorage.getItem('client') || '{}'); } catch(e) { return {}; } })();
+
+  const lignesPieces = piecesSelectionnees.map(p => `
+    <tr>
+      <td style="padding:8px;border-bottom:1px solid #e2e8f0;">${p.icon} ${p.nom}</td>
+      <td style="padding:8px;border-bottom:1px solid #e2e8f0;text-align:center;">${p.dims.l && p.dims.la ? (p.dims.l * p.dims.la).toFixed(1) + ' m²' : '—'}</td>
+      <td style="padding:8px;border-bottom:1px solid #e2e8f0;text-align:right;font-weight:700;">${formatEuro(p.totalHT || 0)}</td>
+    </tr>
+  `).join('');
+
+  const html = `
+    <div style="font-family:Arial,sans-serif;max-width:700px;margin:0 auto;padding:30px;color:#0f172a;">
+      <div style="text-align:center;border-bottom:3px solid #1e3a8a;padding-bottom:20px;margin-bottom:24px;">
+        <h1 style="color:#1e3a8a;margin:0;">DS.BAT Électricité & Rénovation</h1>
+        <p style="color:#64748b;margin:4px 0;">58 Grande Rue, 77410 Villevaudé | 06 29 55 66 27 | contact@dsbat.fr</p>
+      </div>
+
+      <div style="display:flex;justify-content:space-between;margin-bottom:20px;">
+        <div>
+          <p style="font-size:1.3rem;font-weight:800;color:#1e3a8a;margin:0;">DEVIS ESTIMATIF</p>
+          <p style="color:#64748b;margin:4px 0;">N° ${numero} — ${date}</p>
+        </div>
+        ${clientData.nom ? `<div style="text-align:right;">
+          <p style="font-weight:700;margin:0;">${clientData.nom}</p>
+          <p style="color:#64748b;margin:2px 0;">${clientData.tel || ''}</p>
+          <p style="color:#64748b;margin:2px 0;">${clientData.adresse || ''}</p>
+        </div>` : ''}
+      </div>
+
+      <table style="width:100%;border-collapse:collapse;margin-bottom:20px;">
+        <thead>
+          <tr style="background:#1e3a8a;color:white;">
+            <th style="padding:10px;text-align:left;">Pièce</th>
+            <th style="padding:10px;text-align:center;">Surface</th>
+            <th style="padding:10px;text-align:right;">Montant HT</th>
+          </tr>
+        </thead>
+        <tbody>${lignesPieces}</tbody>
+        <tfoot>
+          <tr style="background:#f8fafc;">
+            <td colspan="2" style="padding:10px;font-weight:700;">Total HT</td>
+            <td style="padding:10px;text-align:right;font-weight:700;">${formatEuro(totalGlobalHT)}</td>
+          </tr>
+          <tr>
+            <td colspan="2" style="padding:10px;">TVA 10%</td>
+            <td style="padding:10px;text-align:right;">${formatEuro(tva)}</td>
+          </tr>
+          <tr style="background:#1e3a8a;color:white;">
+            <td colspan="2" style="padding:12px;font-weight:800;font-size:1.1rem;">Total TTC</td>
+            <td style="padding:12px;text-align:right;font-weight:800;font-size:1.1rem;">${formatEuro(ttc)}</td>
+          </tr>
+        </tfoot>
+      </table>
+
+      <div style="background:#fef9ec;border:2px solid #f59e0b;border-radius:12px;padding:16px;margin-bottom:20px;">
+        <p style="font-weight:700;color:#92400e;margin:0 0 6px;">⚠️ Estimation indicative — Visite technique obligatoire</p>
+        <p style="color:#78350f;font-size:0.85rem;margin:0;">Le devis définitif sera établi après visite gratuite sur votre chantier.</p>
+      </div>
+
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px;">
+        <span style="background:#0f2b5e;color:white;padding:5px 14px;border-radius:20px;font-size:0.8rem;">✔️ Artisan certifié</span>
+        <span style="background:#0f2b5e;color:white;padding:5px 14px;border-radius:20px;font-size:0.8rem;">✔️ Assurance décennale</span>
+        <span style="background:#0f2b5e;color:white;padding:5px 14px;border-radius:20px;font-size:0.8rem;">✔️ Devis gratuit</span>
+        <span style="background:#0f2b5e;color:white;padding:5px 14px;border-radius:20px;font-size:0.8rem;">⭐ 4,9/5</span>
+      </div>
+
+      <p style="text-align:center;color:#94a3b8;font-size:0.8rem;border-top:1px solid #e2e8f0;padding-top:14px;">
+        DS.BAT – SIREN 978 281 970 – dsbat.fr – contact@dsbat.fr
+      </p>
+    </div>
+  `;
+
+  const div = document.createElement('div');
+  div.innerHTML = html;
+  document.body.appendChild(div);
+
+  const loadAndPrint = () => {
+    html2pdf().from(div).set({
+      margin: 10,
+      filename: `Devis_DSBAT_${numero}.pdf`,
+      image: { type: 'jpeg', quality: 0.95 },
+      html2canvas: { scale: 2 },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    }).save().then(() => document.body.removeChild(div));
+  };
+
+  if (!window.html2pdf) {
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+    s.onload = loadAndPrint;
+    document.head.appendChild(s);
+  } else {
+    loadAndPrint();
+  }
+}
+
+// ===== UTILITAIRES =====
+function formatEuro(val) {
+  if (!val || val === 0) return '0 €';
+  return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(val);
+}
+</script>
+
+</body>
+</html>
