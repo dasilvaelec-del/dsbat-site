@@ -16,7 +16,7 @@ const CONFIG = {
   // ----- RÉSEAUX SOCIAUX (remplace "votrecompte") -----
   social: {
     instagram: "https://www.instagram.com/votrecompte",
-    facebook: "https://www.facebook.com/votrecompte",
+    facebook: "https://www.facebook.com/profile.php?id=61590265183793",
   },
 
   // ----- IMAGES (chemins relatifs) -----
