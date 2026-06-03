@@ -3,200 +3,1417 @@
 <head>
 <meta charset="UTF-8">
 
-
-<!-- Google Consent Mode Default -->
-<script data-cookieconsent="ignore">
-  window.dataLayer = window.dataLayer || [];
-  function gtag() { dataLayer.push(arguments); }
-  gtag("consent", "default", {
-    ad_storage: "denied",
-    ad_user_data: "denied",
-    ad_personalization: "denied",
-    analytics_storage: "denied",
-    functionality_storage: "denied",
-    personalization_storage: "denied",
-    security_storage: "granted",
-    wait_for_update: 500,
-  });
-  gtag("set", "ads_data_redaction", true);
-  gtag("set", "url_passthrough", true);
+<!-- Axeptio CMP + Google Consent Mode -->
+<script>
+window.axeptioSettings = {
+  clientId: "69d657f15cce55bf536c051d",
+  cookiesVersion: "b94e777b-840f-4b66-a52c-6b798ef52176",
+  googleConsentMode: {
+    default: {
+      analytics_storage: "denied",
+      ad_storage: "denied",
+      ad_user_data: "denied",
+      ad_personalization: "denied",
+      wait_for_update: 500
+    }
+  }
+};
+(function(d, s) {
+  var t = d.getElementsByTagName(s)[0], e = d.createElement(s);
+  e.async = true; e.src = "//static.axept.io/sdk.js";
+  t.parentNode.insertBefore(e, t);
+})(document, "script");
 </script>
 
-<!-- Cookiebot CMP -->
-<script id="Cookiebot" src="https://consent.cookiebot.com/uc.js" data-cbid="4ca5ad59-f0eb-4010-adef-c38cda83db9c" data-blockingmode="auto" type="text/javascript"></script>
+<!-- Script Ahrefs -->
+<script async src="https://analytics.ahrefs.com/analytics.js" data-key="HqHLuU8xskPJDLAthFodeA"></script>
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Devis interactif – DS.BAT</title>
-<meta name="description" content="Renseignez les caractéristiques de votre chantier pour obtenir des devis personnalisés par corps de métier.">
+<title>Devis interactif gratuit – DS.BAT Électricité & Rénovation Villevaudé (77)</title>
+<meta name="description" content="Créez votre devis personnalisé en ligne pour vos travaux d'électricité, plomberie, peinture et rénovation. DS.BAT – Artisan à Villevaudé (77).">
+<link rel="canonical" href="https://dsbat.fr/devis.html" />
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
-<meta property="og:title" content="Services d'électricité et rénovation – DS.BAT à Villevaudé (77)" />
-<meta property="og:description" content="Découvrez nos prestations : électricité générale, rénovation intérieure, dépannage, mise aux normes. Intervention en Seine-et-Marne et Paris." />
-<meta property="og:image" content="https://dasilvaelec-del.github.io/dsbat-site/image/uploads/chantier-verriere.webp" />
-<meta property="og:url" content="https://dasilvaelec-del.github.io/dsbat-site/services.html" />
+
+<meta property="og:title" content="Devis interactif gratuit – DS.BAT Villevaudé (77)" />
+<meta property="og:description" content="Créez votre devis en ligne pour vos travaux d'électricité et rénovation. Estimation immédiate, visite de confirmation gratuite." />
+<meta property="og:image" content="https://dsbat.fr/image/uploads/chantier-verriere.webp" />
+<meta property="og:url" content="https://dsbat.fr/devis.html" />
 <meta property="og:type" content="website" />
 <meta name="twitter:card" content="summary_large_image" />
+
+<style>
+/* ===== WIZARD DEVIS ===== */
+
+/* Barre de progression */
+.wizard-progress {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  margin: 30px auto;
+  max-width: 600px;
+  padding: 0 20px;
+}
+
+.wizard-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  position: relative;
+}
+
+.wizard-step::after {
+  content: '';
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  width: 100%;
+  height: 3px;
+  background: var(--border);
+  z-index: 0;
+  transition: background 0.4s;
+}
+
+.wizard-step:last-child::after {
+  display: none;
+}
+
+.wizard-step.done::after {
+  background: var(--primary);
+}
+
+.step-circle {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 3px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--text-light);
+  z-index: 1;
+  transition: all 0.4s;
+}
+
+.wizard-step.active .step-circle {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: white;
+  box-shadow: 0 0 0 4px rgba(30,58,138,0.2);
+}
+
+.wizard-step.done .step-circle {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+
+.step-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-light);
+  text-align: center;
+  white-space: nowrap;
+}
+
+.wizard-step.active .step-label {
+  color: var(--primary);
+}
+
+/* Panels */
+.wizard-panel {
+  display: none;
+  animation: fadeInUp 0.4s ease;
+}
+
+.wizard-panel.active {
+  display: block;
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Sections du formulaire */
+.form-section {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 28px;
+  margin-bottom: 24px;
+}
+
+.form-section h3 {
+  color: var(--primary);
+  margin-bottom: 20px;
+  font-size: 1.1rem;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 18px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-group label {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-light);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+  padding: 13px 16px;
+  border-radius: 14px;
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 1rem;
+  font-family: inherit;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  width: 100%;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(30,58,138,0.12);
+}
+
+.form-group input.error,
+.form-group select.error {
+  border-color: #ef4444;
+  box-shadow: 0 0 0 3px rgba(239,68,68,0.12);
+}
+
+.form-group .error-msg {
+  font-size: 0.8rem;
+  color: #ef4444;
+  display: none;
+}
+
+.form-group.has-error .error-msg {
+  display: block;
+}
+
+.champ-conditionnel {
+  display: none;
+}
+
+/* Corps de métier */
+.metiers-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-top: 10px;
+}
+
+.metier-card {
+  position: relative;
+  cursor: pointer;
+}
+
+.metier-card input[type="checkbox"] {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.metier-label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 22px 16px;
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.25s;
+  text-align: center;
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--text);
+  user-select: none;
+}
+
+.metier-label .metier-icon {
+  font-size: 2.2rem;
+  line-height: 1;
+}
+
+.metier-label .metier-desc {
+  font-size: 0.78rem;
+  font-weight: 400;
+  color: var(--text-light);
+}
+
+.metier-card input:checked + .metier-label {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: white;
+  box-shadow: var(--shadow-md);
+  transform: translateY(-3px);
+}
+
+.metier-card input:checked + .metier-label .metier-desc {
+  color: rgba(255,255,255,0.8);
+}
+
+.metier-card .checkmark {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 22px;
+  height: 22px;
+  background: var(--accent);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 0.75rem;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.metier-card input:checked ~ .checkmark {
+  opacity: 1;
+}
+
+/* Navigation wizard */
+.wizard-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 30px;
+  gap: 15px;
+  flex-wrap: wrap;
+}
+
+.btn-prev {
+  background: var(--surface-2);
+  color: var(--text);
+  border: 2px solid var(--border);
+  padding: 14px 28px;
+  border-radius: var(--radius-xl);
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition);
+  font-size: 1rem;
+}
+
+.btn-prev:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.btn-next {
+  background: var(--primary);
+  color: white;
+  border: none;
+  padding: 14px 32px;
+  border-radius: var(--radius-xl);
+  font-weight: 700;
+  cursor: pointer;
+  transition: var(--transition);
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-next:hover {
+  background: var(--primary-light);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+/* Récapitulatif étape 4 */
+.recap-client {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 24px;
+  margin-bottom: 20px;
+}
+
+.recap-client h3 {
+  color: var(--primary);
+  margin-bottom: 16px;
+  font-size: 1rem;
+}
+
+.recap-client-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.recap-item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.recap-item .recap-key {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-light);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.recap-item .recap-val {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.recap-metiers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.metier-tag {
+  background: var(--primary);
+  color: white;
+  padding: 6px 16px;
+  border-radius: var(--radius-xl);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+/* Mention visite obligatoire */
+.mention-visite {
+  background: linear-gradient(135deg, #fef9ec, #fef3c7);
+  border: 2px solid #f59e0b;
+  border-radius: var(--radius-md);
+  padding: 24px;
+  margin: 24px 0;
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.mention-visite .mention-icon {
+  font-size: 2rem;
+  flex-shrink: 0;
+}
+
+.mention-visite h4 {
+  color: #92400e;
+  margin-bottom: 8px;
+  font-size: 1rem;
+}
+
+.mention-visite p {
+  color: #78350f;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* Boutons finaux */
+.actions-finales {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  justify-content: center;
+  margin-top: 30px;
+}
+
+.btn-envoyer {
+  background: var(--accent);
+  color: white;
+  border: none;
+  padding: 16px 36px;
+  border-radius: var(--radius-xl);
+  font-weight: 700;
+  font-size: 1.05rem;
+  cursor: pointer;
+  transition: var(--transition);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.btn-envoyer:hover {
+  background: #15803d;
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+/* Message de confirmation */
+.confirmation-box {
+  display: none;
+  text-align: center;
+  padding: 50px 30px;
+  animation: fadeInUp 0.5s ease;
+}
+
+.confirmation-box .confirm-icon {
+  font-size: 5rem;
+  margin-bottom: 20px;
+}
+
+.confirmation-box h2 {
+  color: var(--accent);
+  margin-bottom: 16px;
+  font-size: 1.8rem;
+}
+
+.confirmation-box p {
+  color: var(--text-light);
+  max-width: 480px;
+  margin: 0 auto 24px;
+  line-height: 1.7;
+}
+
+/* Indicateur étapes mobile */
+.step-counter {
+  text-align: center;
+  color: var(--text-light);
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-top: -10px;
+  margin-bottom: 10px;
+}
+
+@media (max-width: 600px) {
+  .step-label { display: none; }
+  .metiers-grid { grid-template-columns: repeat(2, 1fr); }
+  .wizard-nav { flex-direction: column-reverse; }
+  .wizard-nav button, .wizard-nav .btn-next { width: 100%; justify-content: center; }
+  .actions-finales { flex-direction: column; }
+  .actions-finales button, .actions-finales a { width: 100%; justify-content: center; }
+}
+</style>
 </head>
 <body>
 
-<!-- MENU AVEC SYMBOLES -->
+<!-- MENU -->
 <button class="menu-btn" id="menuBtn" aria-label="Ouvrir le menu" aria-expanded="false" aria-controls="menu">☰</button>
 <nav class="menu" id="menu" aria-hidden="true">
-    <a href="index.html">🏠 Accueil</a>
-    <a href="services.html">⚙️ Services</a>
-    <a href="realisations.html">📷 Réalisations</a>
-    <a href="zone.html">📍 Zone</a>
-    <a href="prix.html">💰 Prix</a>
-    <a href="devis.html">📋 Devis</a>
-    <a href="contact.html">📞 Contact</a>
-    <a href="avis-client.html">⭐ Avis</a>
-    <a href="faq.html">❓ FAQ</a>
-<a href="engagements.html">📜 Engagements</a>
-    <a href="https://www.instagram.com/votrecompte" target="_blank">📸 Instagram</a>
-    <a href="https://www.facebook.com/votrecompte" target="_blank">👍 Facebook</a>
+  <a href="index.html">🏠 Accueil</a>
+  <a href="services.html">⚙️ Services</a>
+  <a href="realisations.html">📷 Réalisations</a>
+  <a href="zone.html">📍 Zone</a>
+  <a href="prix.html">💰 Prix</a>
+  <a href="devis.html">📋 Devis</a>
+  <a href="contact.html">📞 Contact</a>
+  <a href="avis-client.html">⭐ Avis</a>
+  <a href="faq.html">❓ FAQ</a>
+  <a href="engagements.html">📜 Engagements</a>
+  <a href="https://www.instagram.com/votrecompte" target="_blank">📸 Instagram</a>
+  <a href="https://www.facebook.com/votrecompte" target="_blank">👍 Facebook</a>
 </nav>
 
 <!-- HERO -->
 <header class="hero">
-    <h1>📋 Devis interactif</h1>
-    <p>Renseignez les informations de votre chantier, puis choisissez un corps de métier</p>
+  <h1>📋 Configurateur de devis</h1>
+  <p>Obtenez une estimation en quelques minutes — Visite de confirmation gratuite</p>
 </header>
 
 <main class="container">
 
-    <!-- QUESTIONNAIRE -->
-    <div class="questionnaire" style="background:var(--surface-2); padding:25px; border-radius:var(--radius-md); margin-bottom:30px; border:1px solid var(--border);">
-        <h3 style="color:var(--primary); margin-bottom:20px; margin-top:20px;">🏗️ Caractéristiques générales</h3>
-        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px,1fr)); gap:20px;">
-            <!-- ... (tout le formulaire reste inchangé) ... -->
+  <!-- BARRE DE PROGRESSION -->
+  <div class="wizard-progress" id="wizardProgress">
+    <div class="wizard-step active" data-step="1">
+      <div class="step-circle">1</div>
+      <span class="step-label">Vos infos</span>
+    </div>
+    <div class="wizard-step" data-step="2">
+      <div class="step-circle">2</div>
+      <span class="step-label">Chantier</span>
+    </div>
+    <div class="wizard-step" data-step="3">
+      <div class="step-circle">3</div>
+      <span class="step-label">Travaux</span>
+    </div>
+    <div class="wizard-step" data-step="4">
+      <div class="step-circle">4</div>
+      <span class="step-label">Récapitulatif</span>
+    </div>
+  </div>
+
+  <div class="step-counter" id="stepCounter">Étape 1 sur 4</div>
+
+  <!-- ===== ÉTAPE 1 — INFOS CLIENT ===== -->
+  <div class="wizard-panel active" id="panel1">
+    <div class="form-section">
+      <h3>👤 Vos coordonnées</h3>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Prénom et Nom *</label>
+          <input type="text" id="clientNom" placeholder="Ex : Jean Dupont" autocomplete="name">
+          <span class="error-msg">Ce champ est obligatoire</span>
         </div>
+        <div class="form-group">
+          <label>Téléphone *</label>
+          <input type="tel" id="clientTel" placeholder="06 XX XX XX XX" autocomplete="tel">
+          <span class="error-msg">Numéro de téléphone invalide</span>
+        </div>
+        <div class="form-group">
+          <label>Email *</label>
+          <input type="email" id="clientEmail" placeholder="votre@email.fr" autocomplete="email">
+          <span class="error-msg">Adresse email invalide</span>
+        </div>
+        <div class="form-group">
+          <label>Adresse du chantier *</label>
+          <input type="text" id="clientAdresse" placeholder="Ex : 12 rue de la Paix, 77400 Lagny" autocomplete="street-address">
+          <span class="error-msg">Ce champ est obligatoire</span>
+        </div>
+      </div>
     </div>
 
-    <!-- BOUTONS MÉTIERS -->
-    <div style="display:flex; flex-wrap:wrap; gap:15px; justify-content:center; margin-top:40px;">
-        <a href="devis-electricite.html" class="btn btn-primary" id="btnElectricite" style="padding:16px 24px;">⚡ Électricité</a>
-        <a href="devis-plomberie.html" class="btn btn-primary" id="btnPlomberie" style="padding:16px 24px;">🚿 Plomberie sanitaire</a>
-        <a href="devis-vmc.html" class="btn btn-primary" id="btnVMC" style="padding:16px 24px;">💨 VMC</a>
-        <a href="devis-isolation.html" class="btn btn-primary" id="btnIsolation" style="padding:16px 24px;">🧱 Isolation / Plâtrerie</a>
-        <a href="devis-peinture.html" class="btn btn-primary" id="btnPeinture" style="padding:16px 24px;">🎨 Peinture revêtement int</a>
-        <a href="devis-menuiserie.html" class="btn btn-primary" id="btnMenuiserie" style="padding:16px 24px;">🚪 Menuiserie int</a>
-        <a href="devis-sols.html" class="btn btn-primary" id="btnSols" style="padding:16px 24px;">🪵 Revêtement sols</a>
-        <a href="devis-carrelage.html" class="btn btn-primary" id="btnCarrelage" style="padding:16px 24px;">🧱 Carrelage faïence</a>
+    <div class="form-section">
+      <h3>💬 Comment nous avez-vous connu ?</h3>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Source</label>
+          <select id="clientSource">
+            <option value="">-- Sélectionnez --</option>
+            <option value="google">Google</option>
+            <option value="bouche">Bouche à oreille</option>
+            <option value="reseaux">Réseaux sociaux</option>
+            <option value="panneau">Panneau de chantier</option>
+            <option value="autre">Autre</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Délai souhaité</label>
+          <select id="clientDelai">
+            <option value="urgent">Urgent (moins d'1 mois)</option>
+            <option value="normal" selected>Normal (1 à 3 mois)</option>
+            <option value="flexible">Flexible (plus de 3 mois)</option>
+          </select>
+        </div>
+      </div>
     </div>
+
+    <div class="wizard-nav">
+      <span></span>
+      <button class="btn-next" onclick="allerEtape(2)">
+        Suivant — Caractéristiques du chantier <span>→</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- ===== ÉTAPE 2 — CARACTÉRISTIQUES DU CHANTIER ===== -->
+  <div class="wizard-panel" id="panel2">
+
+    <div class="form-section">
+      <h3>🏠 Type de bien</h3>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Type de bien *</label>
+          <select id="typeBien" onchange="updateConditionnel()">
+            <option value="maison">Maison individuelle</option>
+            <option value="appartement">Appartement</option>
+            <option value="local">Local commercial / Bureau</option>
+            <option value="autre">Autre</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Statut *</label>
+          <select id="typeLogement">
+            <option value="principal">Résidence principale</option>
+            <option value="secondaire">Résidence secondaire</option>
+            <option value="locatif">Bien locatif</option>
+            <option value="vente">Préparation à la vente</option>
+          </select>
+        </div>
+        <div class="form-group champ-conditionnel" id="champEtage">
+          <label>Étage</label>
+          <select id="etage">
+            <option value="0">RDC</option>
+            <option value="1">1er étage</option>
+            <option value="2">2ème étage</option>
+            <option value="3">3ème étage</option>
+            <option value="4">4ème étage et +</option>
+          </select>
+        </div>
+        <div class="form-group champ-conditionnel" id="champAscenseur">
+          <label>Ascenseur disponible ?</label>
+          <select id="ascenseur">
+            <option value="oui">Oui</option>
+            <option value="non">Non</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <h3>📐 Dimensions et état</h3>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Surface totale (m²) *</label>
+          <input type="number" id="surface" placeholder="Ex : 85" min="10" max="1000">
+          <span class="error-msg">Indiquez une surface entre 10 et 1000 m²</span>
+        </div>
+        <div class="form-group">
+          <label>Nombre de pièces principales *</label>
+          <select id="pieces">
+            <option value="1">1 pièce (studio)</option>
+            <option value="2">2 pièces</option>
+            <option value="3">3 pièces</option>
+            <option value="4">4 pièces</option>
+            <option value="5">5 pièces</option>
+            <option value="6">6 pièces et +</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Hauteur sous plafond</label>
+          <select id="hauteurPlafond">
+            <option value="standard">Standard (2,4 à 2,7 m)</option>
+            <option value="haut">Haut (2,7 à 3,2 m)</option>
+            <option value="tres_haut">Très haut (+ de 3,2 m)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Âge du bâtiment</label>
+          <select id="ageBati">
+            <option value="recent">Récent (- de 10 ans)</option>
+            <option value="moyen" selected>Moyen (10 à 30 ans)</option>
+            <option value="ancien">Ancien (30 à 50 ans)</option>
+            <option value="tres_ancien">Très ancien (+ de 50 ans)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>État général des lieux</label>
+          <select id="etatLieux">
+            <option value="bon">Bon état</option>
+            <option value="moyen" selected>État moyen</option>
+            <option value="mauvais">Mauvais état / À rénover</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Type de projet</label>
+          <select id="typeProjet">
+            <option value="renov" selected>Rénovation</option>
+            <option value="neuf">Construction neuve</option>
+            <option value="extension">Extension / Agrandissement</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <h3>🚐 Accessibilité du chantier</h3>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Accès véhicule</label>
+          <select id="accessibilite">
+            <option value="facile">Facile (rue accessible, parking)</option>
+            <option value="moyen">Moyen (rue étroite, pas de parking)</option>
+            <option value="difficile">Difficile (centre-ville, zone piétonne)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Contraintes particulières</label>
+          <select id="accessSup">
+            <option value="aucune">Aucune</option>
+            <option value="voisins">Voisins mitoyens à protéger</option>
+            <option value="occupé">Logement occupé pendant les travaux</option>
+            <option value="copro">Copropriété avec règlement strict</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <h3>🔧 Installations existantes</h3>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Tableau électrique actuel</label>
+          <select id="tableauExistant">
+            <option value="recent">Récent (disjoncteurs différentiels)</option>
+            <option value="ancien">Ancien (fusibles)</option>
+            <option value="inexistant">Inexistant / À créer</option>
+            <option value="inconnu">Je ne sais pas</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Type de chauffage</label>
+          <select id="chauffage">
+            <option value="electrique">Électrique</option>
+            <option value="gaz">Gaz</option>
+            <option value="fioul">Fioul</option>
+            <option value="pompe">Pompe à chaleur</option>
+            <option value="autre">Autre</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>VMC existante ?</label>
+          <select id="vmc">
+            <option value="oui">Oui, fonctionnelle</option>
+            <option value="defaillante">Oui, mais défaillante</option>
+            <option value="non">Non</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Eau chaude sanitaire</label>
+          <select id="eauChaude">
+            <option value="chaudiere">Chaudière centrale</option>
+            <option value="ballon">Ballon électrique</option>
+            <option value="instantane">Chauffe-eau instantané</option>
+            <option value="autre">Autre</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <h3>⭐ Qualité et options</h3>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Gamme de matériaux souhaitée</label>
+          <select id="qualiteMateriaux">
+            <option value="eco">Économique</option>
+            <option value="standard" selected>Standard</option>
+            <option value="premium">Premium / Haut de gamme</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Domotique / Smart home ?</label>
+          <select id="domotique">
+            <option value="non" selected>Non</option>
+            <option value="basique">Basique (prises connectées)</option>
+            <option value="complet">Complet (éclairage, volets, alarme)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Borne de recharge véhicule électrique ?</label>
+          <select id="borneVE">
+            <option value="non" selected>Non</option>
+            <option value="oui">Oui</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Panneaux solaires envisagés ?</label>
+          <select id="pv">
+            <option value="non" selected>Non</option>
+            <option value="oui">Oui</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="wizard-nav">
+      <button class="btn-prev" onclick="allerEtape(1)">← Retour</button>
+      <button class="btn-next" onclick="allerEtape(3)">
+        Suivant — Choisir les travaux <span>→</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- ===== ÉTAPE 3 — CORPS DE MÉTIER ===== -->
+  <div class="wizard-panel" id="panel3">
+
+    <div class="form-section">
+      <h3>🔨 Sélectionnez vos travaux <span style="font-weight:400; font-size:0.85rem; color:var(--text-light);">(un ou plusieurs)</span></h3>
+      <div class="metiers-grid">
+
+        <label class="metier-card">
+          <input type="checkbox" name="metier" value="electricite" id="m_elec">
+          <div class="metier-label">
+            <span class="metier-icon">⚡</span>
+            <span>Électricité</span>
+            <span class="metier-desc">Tableau, prises, éclairage, mise aux normes</span>
+          </div>
+          <div class="checkmark">✓</div>
+        </label>
+
+        <label class="metier-card">
+          <input type="checkbox" name="metier" value="plomberie" id="m_plomb">
+          <div class="metier-label">
+            <span class="metier-icon">🚿</span>
+            <span>Plomberie</span>
+            <span class="metier-desc">Salle de bain, cuisine, sanitaires</span>
+          </div>
+          <div class="checkmark">✓</div>
+        </label>
+
+        <label class="metier-card">
+          <input type="checkbox" name="metier" value="vmc" id="m_vmc">
+          <div class="metier-label">
+            <span class="metier-icon">💨</span>
+            <span>VMC</span>
+            <span class="metier-desc">Ventilation, extraction, qualité de l'air</span>
+          </div>
+          <div class="checkmark">✓</div>
+        </label>
+
+        <label class="metier-card">
+          <input type="checkbox" name="metier" value="isolation" id="m_iso">
+          <div class="metier-label">
+            <span class="metier-icon">🧱</span>
+            <span>Isolation / Plâtrerie</span>
+            <span class="metier-desc">Murs, combles, cloisons</span>
+          </div>
+          <div class="checkmark">✓</div>
+        </label>
+
+        <label class="metier-card">
+          <input type="checkbox" name="metier" value="peinture" id="m_peinture">
+          <div class="metier-label">
+            <span class="metier-icon">🎨</span>
+            <span>Peinture</span>
+            <span class="metier-desc">Murs, plafonds, boiseries</span>
+          </div>
+          <div class="checkmark">✓</div>
+        </label>
+
+        <label class="metier-card">
+          <input type="checkbox" name="metier" value="menuiserie" id="m_menu">
+          <div class="metier-label">
+            <span class="metier-icon">🚪</span>
+            <span>Menuiserie int.</span>
+            <span class="metier-desc">Portes, placards, fenêtres</span>
+          </div>
+          <div class="checkmark">✓</div>
+        </label>
+
+        <label class="metier-card">
+          <input type="checkbox" name="metier" value="sols" id="m_sols">
+          <div class="metier-label">
+            <span class="metier-icon">🪵</span>
+            <span>Revêtement sols</span>
+            <span class="metier-desc">Parquet, stratifié, vinyle</span>
+          </div>
+          <div class="checkmark">✓</div>
+        </label>
+
+        <label class="metier-card">
+          <input type="checkbox" name="metier" value="carrelage" id="m_carre">
+          <div class="metier-label">
+            <span class="metier-icon">🔲</span>
+            <span>Carrelage / Faïence</span>
+            <span class="metier-desc">Sol, mur, salle de bain, cuisine</span>
+          </div>
+          <div class="checkmark">✓</div>
+        </label>
+
+      </div>
+
+      <p id="erreur-metier" style="color:#ef4444; font-size:0.88rem; margin-top:14px; display:none;">
+        ⚠️ Veuillez sélectionner au moins un corps de métier.
+      </p>
+    </div>
+
+    <div class="form-section">
+      <h3>📝 Informations complémentaires</h3>
+      <div class="form-group">
+        <label>Décrivez votre projet (optionnel)</label>
+        <textarea id="description" rows="4" placeholder="Ex : Rénovation complète d'un appartement de 3 pièces. Cuisine à refaire entièrement, salle de bain vieillissante, électricité à mettre aux normes..."></textarea>
+      </div>
+    </div>
+
+    <div class="wizard-nav">
+      <button class="btn-prev" onclick="allerEtape(2)">← Retour</button>
+      <button class="btn-next" onclick="allerEtape(4)">
+        Suivant — Récapitulatif <span>→</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- ===== ÉTAPE 4 — RÉCAPITULATIF ===== -->
+  <div class="wizard-panel" id="panel4">
+
+    <!-- Récap client -->
+    <div class="recap-client" id="recapClientBox">
+      <h3>👤 Vos coordonnées</h3>
+      <div class="recap-client-grid" id="recapClientGrid"></div>
+    </div>
+
+    <!-- Récap chantier -->
+    <div class="recap-client" id="recapChantierBox">
+      <h3>🏗️ Caractéristiques du chantier</h3>
+      <div class="recap-client-grid" id="recapChantierGrid"></div>
+    </div>
+
+    <!-- Récap travaux -->
+    <div class="recap-client" id="recapTravauxBox">
+      <h3>🔨 Travaux demandés</h3>
+      <div class="recap-metiers" id="recapMetiersList"></div>
+      <p id="recapDescription" style="margin-top:14px; font-size:0.9rem; color:var(--text-light); font-style:italic;"></p>
+    </div>
+
+    <!-- Mention visite obligatoire -->
+    <div class="mention-visite">
+      <div class="mention-icon">⚠️</div>
+      <div>
+        <h4>Visite technique obligatoire avant validation</h4>
+        <p>
+          Cette estimation est fournie à titre indicatif sur la base des informations que vous avez renseignées.
+          <strong>Le devis définitif et contractuel sera établi uniquement après une visite technique gratuite</strong>
+          sur votre chantier, permettant de confirmer l'ensemble des travaux, les contraintes d'accès,
+          l'approvisionnement en matériaux et les spécificités de votre projet.
+          <br><br>
+          📞 <strong>Nous vous contacterons dans les 24h</strong> pour fixer un rendez-vous de visite à votre convenance.
+        </p>
+      </div>
+    </div>
+
+    <!-- Boutons action -->
+    <div class="actions-finales">
+      <button class="btn-envoyer" onclick="envoyerDevis()">
+        ✅ Envoyer ma demande de devis
+      </button>
+      <button class="btn btn-pdf" onclick="genererPDFRecap()" style="display:flex; align-items:center; gap:8px;">
+        📄 Télécharger en PDF
+      </button>
+      <a class="btn btn-whatsapp" href="https://wa.me/33629556627" target="_blank" style="display:flex; align-items:center; gap:8px;">
+        💬 Contacter sur WhatsApp
+      </a>
+    </div>
+
+    <div class="wizard-nav" style="justify-content:flex-start;">
+      <button class="btn-prev" onclick="allerEtape(3)">← Modifier les travaux</button>
+    </div>
+  </div>
+
+  <!-- ===== CONFIRMATION ===== -->
+  <div class="confirmation-box" id="confirmationBox">
+    <div class="confirm-icon">🎉</div>
+    <h2>Demande envoyée avec succès !</h2>
+    <p>
+      Merci <strong id="confirmNom"></strong> ! Votre demande de devis a bien été enregistrée.
+      <br><br>
+      Nous vous contacterons <strong>dans les 24h</strong> au <strong id="confirmTel"></strong>
+      pour fixer une visite technique gratuite sur votre chantier.
+    </p>
+    <div class="badges" style="justify-content:center;">
+      <span class="badge">✔️ Réponse sous 24h</span>
+      <span class="badge">✔️ Visite gratuite</span>
+      <span class="badge">✔️ Devis sans engagement</span>
+    </div>
+    <div style="margin-top:24px; display:flex; flex-wrap:wrap; gap:12px; justify-content:center;">
+      <a href="index.html" class="btn btn-primary">🏠 Retour à l'accueil</a>
+      <a href="services.html" class="btn btn-secondary">⚙️ Nos services</a>
+    </div>
+  </div>
+
 </main>
+
+<!-- WHATSAPP FLOTTANT -->
+<a href="https://wa.me/33629556627" target="_blank" rel="noopener noreferrer" class="whatsapp-float" aria-label="Contact WhatsApp">
+  <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" alt="WhatsApp">
+</a>
 
 <!-- QR CODE -->
 <div class="qrcode-container">
-    <img src="image/uploads/qrcode-site.webp" alt="QR code DS.BAT - Expérience immersive" class="qrcode-img" loading="lazy">
-    <p class="qrcode-text">Scannez pour vivre l'expérience interactive DS.BAT et découvrir tous nos services.</p>
+  <img src="image/uploads/qrcode-site.webp" alt="QR code DS.BAT" class="qrcode-img" loading="lazy">
+  <p class="qrcode-text">Scannez pour vivre l'expérience interactive DS.BAT</p>
 </div>
 
-<!-- FOOTER -->
 <footer>
-    <p>© 2026 DS.BAT – 58 Grande Rue, 77410 Villevaudé | <a href="mentions-legales.html">Mentions légales</a></p>
+  <p>© 2026 DS.BAT – 58 Grande Rue, 77410 Villevaudé | <a href="mentions-legales.html">Mentions légales</a></p>
 </footer>
 
-<!-- SCRIPTS -->
 <script src="config.js"></script>
 <script src="menu.js"></script>
 <script>
-// Gestion des champs conditionnels (étage/ascenseur)
-const typeBien = document.getElementById('typeBien');
-const champEtage = document.getElementById('champEtage');
-const champAscenseur = document.getElementById('champAscenseur');
+// ===== NAVIGATION WIZARD =====
+let etapeActuelle = 1;
+const totalEtapes = 4;
 
-function updateConditionnel() {
-    if (typeBien.value === 'appartement') {
-        champEtage.style.display = 'flex';
-        champAscenseur.style.display = 'flex';
-    } else {
-        champEtage.style.display = 'none';
-        champAscenseur.style.display = 'none';
-        document.getElementById('etage').value = 0;
-        document.getElementById('ascenseur').value = 'oui';
-    }
+function allerEtape(n) {
+  if (n > etapeActuelle) {
+    if (!validerEtape(etapeActuelle)) return;
+  }
+
+  // Mise à jour panels
+  document.querySelectorAll('.wizard-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('panel' + n).classList.add('active');
+
+  // Mise à jour progress bar
+  document.querySelectorAll('.wizard-step').forEach(s => {
+    const step = parseInt(s.dataset.step);
+    s.classList.remove('active', 'done');
+    if (step === n) s.classList.add('active');
+    if (step < n) s.classList.add('done');
+  });
+
+  // Compteur
+  document.getElementById('stepCounter').textContent = `Étape ${n} sur ${totalEtapes}`;
+
+  etapeActuelle = n;
+
+  // Scroll haut
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+
+  // Si étape 4, remplir le récapitulatif
+  if (n === 4) remplirRecap();
 }
-typeBien.addEventListener('change', updateConditionnel);
+
+// ===== VALIDATION =====
+function validerEtape(n) {
+  if (n === 1) {
+    let ok = true;
+
+    const nom = document.getElementById('clientNom');
+    const tel = document.getElementById('clientTel');
+    const email = document.getElementById('clientEmail');
+    const adresse = document.getElementById('clientAdresse');
+
+    // Nom
+    if (!nom.value.trim()) {
+      nom.classList.add('error');
+      nom.closest('.form-group').classList.add('has-error');
+      ok = false;
+    } else {
+      nom.classList.remove('error');
+      nom.closest('.form-group').classList.remove('has-error');
+    }
+
+    // Téléphone
+    const telVal = tel.value.replace(/\s/g, '');
+    if (!telVal.match(/^(\+33|0)[0-9]{9}$/)) {
+      tel.classList.add('error');
+      tel.closest('.form-group').classList.add('has-error');
+      ok = false;
+    } else {
+      tel.classList.remove('error');
+      tel.closest('.form-group').classList.remove('has-error');
+    }
+
+    // Email
+    if (!email.value.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
+      email.classList.add('error');
+      email.closest('.form-group').classList.add('has-error');
+      ok = false;
+    } else {
+      email.classList.remove('error');
+      email.closest('.form-group').classList.remove('has-error');
+    }
+
+    // Adresse
+    if (!adresse.value.trim()) {
+      adresse.classList.add('error');
+      adresse.closest('.form-group').classList.add('has-error');
+      ok = false;
+    } else {
+      adresse.classList.remove('error');
+      adresse.closest('.form-group').classList.remove('has-error');
+    }
+
+    return ok;
+  }
+
+  if (n === 2) {
+    const surface = document.getElementById('surface');
+    const val = parseInt(surface.value);
+    if (!val || val < 10 || val > 1000) {
+      surface.classList.add('error');
+      surface.closest('.form-group').classList.add('has-error');
+      return false;
+    } else {
+      surface.classList.remove('error');
+      surface.closest('.form-group').classList.remove('has-error');
+    }
+    return true;
+  }
+
+  if (n === 3) {
+    const checked = document.querySelectorAll('input[name="metier"]:checked');
+    if (checked.length === 0) {
+      document.getElementById('erreur-metier').style.display = 'block';
+      return false;
+    }
+    document.getElementById('erreur-metier').style.display = 'none';
+    return true;
+  }
+
+  return true;
+}
+
+// ===== CHAMPS CONDITIONNELS =====
+function updateConditionnel() {
+  const type = document.getElementById('typeBien').value;
+  const isAppart = type === 'appartement';
+  document.getElementById('champEtage').style.display = isAppart ? 'flex' : 'none';
+  document.getElementById('champAscenseur').style.display = isAppart ? 'flex' : 'none';
+}
 updateConditionnel();
 
-// Sauvegarde et redirection
-function sauvegarderEtRediriger(url) {
-    const data = {
-        typeBien: document.getElementById('typeBien').value,
-        typeLogement: document.getElementById('typeLogement').value,
-        surface: document.getElementById('surface').value,
-        pieces: document.getElementById('pieces').value,
-        accessibilite: document.getElementById('accessibilite').value,
-        etage: document.getElementById('etage').value,
-        ascenseur: document.getElementById('ascenseur').value,
-        ageBati: document.getElementById('ageBati').value,
-        typeProjet: document.getElementById('typeProjet').value,
-        etatLieux: document.getElementById('etatLieux').value,
-        accessSup: document.getElementById('accessSup').value,
-        hauteurPlafond: document.getElementById('hauteurPlafond').value,
-        qualiteMateriaux: document.getElementById('qualiteMateriaux').value,
-        delai: document.getElementById('delai').value,
-        compteurType: document.getElementById('compteurType').value,
-        compteurPuissance: document.getElementById('compteurPuissance').value,
-        chauffage: document.getElementById('chauffage').value,
-        typeChaudiere: document.getElementById('typeChaudiere').value,
-        vmc: document.getElementById('vmc').value,
-        eauChaude: document.getElementById('eauChaude').value,
-        adoucisseur: document.getElementById('adoucisseur').value,
-        tableauExistant: document.getElementById('tableauExistant').value,
-        liaisonTerre: document.getElementById('liaisonTerre').value,
-        pv: document.getElementById('pv').value,
-        borneVE: document.getElementById('borneVE').value,
-        domotique: document.getElementById('domotique').value,
-        alarme: document.getElementById('alarme').value,
-        mursIsoles: document.getElementById('mursIsoles').value,
-        murIsolationType: document.getElementById('murIsolationType').value,
-        comblesIsolation: document.getElementById('comblesIsolation').value,
-        cuisineType: document.getElementById('cuisineType').value,
-        pointsEauCuisine: document.getElementById('pointsEauCuisine').value,
-        sdbType: document.getElementById('sdbType').value,
-        laveLinge: document.getElementById('laveLinge').value,
-        solType: document.getElementById('solType').value,
-        menuiseries: document.getElementById('menuiseries').value,
-        devisType: document.getElementById('devisType').value
-    };
-    sessionStorage.setItem('chantier', JSON.stringify(data));
-    window.location.href = url;
+// ===== LABELS LISIBLES =====
+const LABELS = {
+  typeBien: { maison:'Maison', appartement:'Appartement', local:'Local commercial', autre:'Autre' },
+  typeLogement: { principal:'Résidence principale', secondaire:'Résidence secondaire', locatif:'Bien locatif', vente:'Préparation vente' },
+  ageBati: { recent:'Récent (- 10 ans)', moyen:'Moyen (10-30 ans)', ancien:'Ancien (30-50 ans)', tres_ancien:'Très ancien (+ 50 ans)' },
+  etatLieux: { bon:'Bon état', moyen:'État moyen', mauvais:'À rénover' },
+  typeProjet: { renov:'Rénovation', neuf:'Construction neuve', extension:'Extension' },
+  accessibilite: { facile:'Facile', moyen:'Moyen', difficile:'Difficile' },
+  qualiteMateriaux: { eco:'Économique', standard:'Standard', premium:'Premium' },
+  chauffage: { electrique:'Électrique', gaz:'Gaz', fioul:'Fioul', pompe:'Pompe à chaleur', autre:'Autre' },
+  vmc: { oui:'Fonctionnelle', defaillante:'Défaillante', non:'Absente' },
+  hauteurPlafond: { standard:'Standard', haut:'Haut', tres_haut:'Très haut' },
+  metier: { electricite:'⚡ Électricité', plomberie:'🚿 Plomberie', vmc:'💨 VMC', isolation:'🧱 Isolation', peinture:'🎨 Peinture', menuiserie:'🚪 Menuiserie', sols:'🪵 Sols', carrelage:'🔲 Carrelage' }
+};
+
+function getLabel(key, val) {
+  return LABELS[key]?.[val] || val;
 }
 
-// Liaison des boutons métiers
-document.getElementById('btnElectricite').addEventListener('click', (e) => {
+// ===== REMPLIR RÉCAPITULATIF =====
+function remplirRecap() {
+  // Client
+  const clientData = [
+    { k:'Nom', v: document.getElementById('clientNom').value },
+    { k:'Téléphone', v: document.getElementById('clientTel').value },
+    { k:'Email', v: document.getElementById('clientEmail').value },
+    { k:'Adresse chantier', v: document.getElementById('clientAdresse').value },
+    { k:'Délai souhaité', v: document.getElementById('clientDelai').options[document.getElementById('clientDelai').selectedIndex].text }
+  ];
+  document.getElementById('recapClientGrid').innerHTML = clientData.map(d =>
+    `<div class="recap-item"><span class="recap-key">${d.k}</span><span class="recap-val">${d.v}</span></div>`
+  ).join('');
+
+  // Chantier
+  const surface = document.getElementById('surface').value;
+  const pieces = document.getElementById('pieces').value;
+  const chantierData = [
+    { k:'Type de bien', v: getLabel('typeBien', document.getElementById('typeBien').value) },
+    { k:'Surface', v: surface + ' m²' },
+    { k:'Pièces', v: pieces },
+    { k:'État', v: getLabel('etatLieux', document.getElementById('etatLieux').value) },
+    { k:'Âge bâti', v: getLabel('ageBati', document.getElementById('ageBati').value) },
+    { k:'Type projet', v: getLabel('typeProjet', document.getElementById('typeProjet').value) },
+    { k:'Gamme', v: getLabel('qualiteMateriaux', document.getElementById('qualiteMateriaux').value) }
+  ];
+  document.getElementById('recapChantierGrid').innerHTML = chantierData.map(d =>
+    `<div class="recap-item"><span class="recap-key">${d.k}</span><span class="recap-val">${d.v}</span></div>`
+  ).join('');
+
+  // Métiers
+  const checked = document.querySelectorAll('input[name="metier"]:checked');
+  document.getElementById('recapMetiersList').innerHTML = Array.from(checked).map(c =>
+    `<span class="metier-tag">${getLabel('metier', c.value)}</span>`
+  ).join('');
+
+  // Description
+  const desc = document.getElementById('description').value;
+  if (desc) {
+    document.getElementById('recapDescription').textContent = '"' + desc + '"';
+  }
+}
+
+// ===== COLLECTER TOUTES LES DONNÉES =====
+function collecterDonnees() {
+  const metiers = Array.from(document.querySelectorAll('input[name="metier"]:checked')).map(c => c.value);
+  return {
+    client: {
+      nom: document.getElementById('clientNom').value,
+      tel: document.getElementById('clientTel').value,
+      email: document.getElementById('clientEmail').value,
+      adresse: document.getElementById('clientAdresse').value,
+      source: document.getElementById('clientSource').value,
+      delai: document.getElementById('clientDelai').value
+    },
+    chantier: {
+      typeBien: document.getElementById('typeBien').value,
+      typeLogement: document.getElementById('typeLogement').value,
+      surface: document.getElementById('surface').value,
+      pieces: document.getElementById('pieces').value,
+      ageBati: document.getElementById('ageBati').value,
+      etatLieux: document.getElementById('etatLieux').value,
+      typeProjet: document.getElementById('typeProjet').value,
+      hauteurPlafond: document.getElementById('hauteurPlafond').value,
+      accessibilite: document.getElementById('accessibilite').value,
+      qualiteMateriaux: document.getElementById('qualiteMateriaux').value,
+      chauffage: document.getElementById('chauffage').value,
+      vmc: document.getElementById('vmc').value,
+      tableauExistant: document.getElementById('tableauExistant').value,
+      borneVE: document.getElementById('borneVE').value,
+      pv: document.getElementById('pv').value,
+      domotique: document.getElementById('domotique').value
+    },
+    metiers: metiers,
+    description: document.getElementById('description').value
+  };
+}
+
+// ===== ENVOYER LE DEVIS =====
+function envoyerDevis() {
+  const data = collecterDonnees();
+
+  // Sauvegarder en sessionStorage pour les pages devis
+  sessionStorage.setItem('chantier', JSON.stringify(data.chantier));
+  sessionStorage.setItem('client', JSON.stringify(data.client));
+
+  // Message WhatsApp pour toi
+  const metiersStr = data.metiers.map(m => getLabel('metier', m)).join(', ');
+  const msgWA = `🔔 *Nouveau devis DS.BAT*\n\n👤 *${data.client.nom}*\n📞 ${data.client.tel}\n📧 ${data.client.email}\n📍 ${data.client.adresse}\n\n🏗️ ${getLabel('typeBien', data.chantier.typeBien)} – ${data.chantier.surface}m² – ${data.chantier.pieces} pièces\n🔨 ${metiersStr}\n⏱️ Délai : ${data.client.delai}\n\n${data.description ? '💬 ' + data.description : ''}`;
+
+  // Ouvrir WhatsApp
+  window.open('https://wa.me/33629556627?text=' + encodeURIComponent(msgWA), '_blank');
+
+  // Afficher confirmation
+  document.querySelectorAll('.wizard-panel').forEach(p => p.style.display = 'none');
+  document.querySelector('.wizard-progress').style.display = 'none';
+  document.getElementById('stepCounter').style.display = 'none';
+  const confirmBox = document.getElementById('confirmationBox');
+  confirmBox.style.display = 'block';
+  document.getElementById('confirmNom').textContent = data.client.nom.split(' ')[0];
+  document.getElementById('confirmTel').textContent = data.client.tel;
+
+  // Rediriger vers le bon simulateur si un seul métier
+  if (data.metiers.length === 1) {
+    const routes = {
+      electricite: 'devis-electricite.html',
+      plomberie: 'devis-plomberie.html',
+      vmc: 'devis-vmc.html',
+      isolation: 'devis-isolation.html',
+      peinture: 'devis-peinture.html',
+      menuiserie: 'devis-menuiserie.html',
+      sols: 'devis-sols.html',
+      carrelage: 'devis-carrelage.html'
+    };
+    const url = routes[data.metiers[0]];
+    if (url) {
+      setTimeout(() => { window.location.href = url; }, 3000);
+    }
+  }
+}
+
+// ===== GÉNÉRER PDF =====
+function genererPDFRecap() {
+  const data = collecterDonnees();
+  const metiersStr = data.metiers.map(m => getLabel('metier', m)).join(', ');
+  const date = new Date().toLocaleDateString('fr-FR');
+  const numero = 'DSBT-' + Date.now().toString().slice(-6);
+
+  const contenu = `
+    <div style="font-family:Arial, sans-serif; max-width:700px; margin:0 auto; padding:30px; color:#0f172a;">
+      <div style="text-align:center; margin-bottom:30px; border-bottom:3px solid #1e3a8a; padding-bottom:20px;">
+        <h1 style="color:#1e3a8a; font-size:1.8rem; margin:0;">DS.BAT Électricité & Rénovation</h1>
+        <p style="color:#64748b; margin:5px 0;">58 Grande Rue, 77410 Villevaudé | 06 29 55 66 27 | contact@dsbat.fr</p>
+        <p style="margin:0; color:#64748b;">dsbat.fr</p>
+      </div>
+
+      <div style="display:flex; justify-content:space-between; margin-bottom:24px;">
+        <div>
+          <p style="font-size:1.4rem; font-weight:800; color:#1e3a8a; margin:0;">DEMANDE DE DEVIS</p>
+          <p style="color:#64748b; margin:4px 0;">N° ${numero}</p>
+        </div>
+        <div style="text-align:right;">
+          <p style="font-weight:600; margin:0;">Date : ${date}</p>
+          <p style="color:#64748b; margin:4px 0; font-size:0.85rem;">Estimation indicative</p>
+        </div>
+      </div>
+
+      <table style="width:100%; margin-bottom:24px;">
+        <tr>
+          <td style="width:50%; vertical-align:top; padding-right:20px;">
+            <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:16px;">
+              <h3 style="color:#1e3a8a; margin:0 0 12px; font-size:0.9rem; text-transform:uppercase; letter-spacing:0.05em;">Client</h3>
+              <p style="margin:4px 0; font-weight:700;">${data.client.nom}</p>
+              <p style="margin:4px 0;">📞 ${data.client.tel}</p>
+              <p style="margin:4px 0;">📧 ${data.client.email}</p>
+              <p style="margin:4px 0;">📍 ${data.client.adresse}</p>
+            </div>
+          </td>
+          <td style="width:50%; vertical-align:top;">
+            <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:16px;">
+              <h3 style="color:#1e3a8a; margin:0 0 12px; font-size:0.9rem; text-transform:uppercase; letter-spacing:0.05em;">Chantier</h3>
+              <p style="margin:4px 0;">${getLabel('typeBien', data.chantier.typeBien)} – ${data.chantier.surface} m²</p>
+              <p style="margin:4px 0;">${data.chantier.pieces} pièce(s)</p>
+              <p style="margin:4px 0;">État : ${getLabel('etatLieux', data.chantier.etatLieux)}</p>
+              <p style="margin:4px 0;">Gamme : ${getLabel('qualiteMateriaux', data.chantier.qualiteMateriaux)}</p>
+            </div>
+          </td>
+        </tr>
+      </table>
+
+      <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:16px; margin-bottom:20px;">
+        <h3 style="color:#1e3a8a; margin:0 0 12px; font-size:0.9rem; text-transform:uppercase; letter-spacing:0.05em;">Travaux demandés</h3>
+        <p style="margin:0; font-weight:600;">${metiersStr}</p>
+        ${data.description ? `<p style="margin:8px 0 0; color:#475569; font-style:italic;">"${data.description}"</p>` : ''}
+      </div>
+
+      <div style="background:#fef9ec; border:2px solid #f59e0b; border-radius:12px; padding:20px; margin-bottom:24px;">
+        <p style="font-weight:700; color:#92400e; margin:0 0 8px;">⚠️ Estimation indicative – Visite technique obligatoire</p>
+        <p style="color:#78350f; font-size:0.88rem; margin:0; line-height:1.6;">
+          Ce document est une demande de devis préliminaire. Le devis définitif et contractuel sera établi
+          après une visite technique gratuite sur votre chantier, permettant de confirmer l'ensemble des
+          travaux, les contraintes d'accès et les spécificités de votre projet.
+        </p>
+      </div>
+
+      <div style="display:flex; flex-wrap:wrap; gap:10px; margin-bottom:24px;">
+        <span style="background:#0f2b5e; color:white; padding:6px 16px; border-radius:30px; font-size:0.85rem;">✔️ Artisan certifié</span>
+        <span style="background:#0f2b5e; color:white; padding:6px 16px; border-radius:30px; font-size:0.85rem;">✔️ Assurance décennale</span>
+        <span style="background:#0f2b5e; color:white; padding:6px 16px; border-radius:30px; font-size:0.85rem;">✔️ Devis gratuit</span>
+        <span style="background:#0f2b5e; color:white; padding:6px 16px; border-radius:30px; font-size:0.85rem;">⭐ 4,9/5</span>
+      </div>
+
+      <p style="text-align:center; color:#94a3b8; font-size:0.8rem; border-top:1px solid #e2e8f0; padding-top:16px;">
+        DS.BAT – SIREN 978 281 970 – dsbat.fr – contact@dsbat.fr – 06 29 55 66 27
+      </p>
+    </div>
+  `;
+
+  const tempDiv = document.createElement('div');
+  tempDiv.innerHTML = contenu;
+  document.body.appendChild(tempDiv);
+
+  if (!window.html2pdf) {
+    const script = document.createElement('script');
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+    script.onload = () => {
+      html2pdf().from(tempDiv).set({
+        margin: 10,
+        filename: `Devis_DSBAT_${numero}.pdf`,
+        image: { type: 'jpeg', quality: 0.95 },
+        html2canvas: { scale: 2 },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+      }).save().then(() => document.body.removeChild(tempDiv));
+    };
+    document.head.appendChild(script);
+  } else {
+    html2pdf().from(tempDiv).set({
+      margin: 10,
+      filename: `Devis_DSBAT_${numero}.pdf`,
+      image: { type: 'jpeg', quality: 0.95 },
+      html2canvas: { scale: 2 },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    }).save().then(() => document.body.removeChild(tempDiv));
+  }
+}
+
+// Protection téléphone
+document.querySelectorAll('[data-phone-base64]').forEach(link => {
+  link.addEventListener('click', e => {
     e.preventDefault();
-    sauvegarderEtRediriger('devis-electricite.html');
-});
-document.getElementById('btnPlomberie').addEventListener('click', (e) => {
-    e.preventDefault();
-    sauvegarderEtRediriger('devis-plomberie.html');
-});
-document.getElementById('btnVMC').addEventListener('click', (e) => {
-    e.preventDefault();
-    sauvegarderEtRediriger('devis-vmc.html');
-});
-document.getElementById('btnIsolation').addEventListener('click', (e) => {
-    e.preventDefault();
-    sauvegarderEtRediriger('devis-isolation.html');
-});
-document.getElementById('btnPeinture').addEventListener('click', (e) => {
-    e.preventDefault();
-    sauvegarderEtRediriger('devis-peinture.html');
-});
-document.getElementById('btnMenuiserie').addEventListener('click', (e) => {
-    e.preventDefault();
-    sauvegarderEtRediriger('devis-menuiserie.html');
-});
-document.getElementById('btnSols').addEventListener('click', (e) => {
-    e.preventDefault();
-    sauvegarderEtRediriger('devis-sols.html');
-});
-document.getElementById('btnCarrelage').addEventListener('click', (e) => {
-    e.preventDefault();
-    sauvegarderEtRediriger('devis-carrelage.html');
+    window.location.href = `tel:${atob(link.dataset.phoneBase64)}`;
+  });
 });
 </script>
+
 </body>
 </html>
