@@ -982,7 +982,7 @@ window.axeptioSettings = {
     <!-- Boutons action -->
     <div class="actions-finales">
       <button class="btn-envoyer" onclick="envoyerDevis()">
-        ✅ Envoyer ma demande de devis
+        ✅ Continuer vers la configuration des travaux →
       </button>
       <button class="btn btn-pdf" onclick="genererPDFRecap()" style="display:flex; align-items:center; gap:8px;">
         📄 Télécharger en PDF
@@ -1272,7 +1272,13 @@ function envoyerDevis() {
 
   // Ouvrir WhatsApp
   window.open('https://wa.me/33629556627?text=' + encodeURIComponent(msgWA), '_blank');
+// Sauvegarder les métiers sélectionnés
+sessionStorage.setItem('devisMetiers', JSON.stringify(data.metiers));
 
+// Rediriger vers le configurateur après 1 seconde
+setTimeout(() => {
+  window.location.href = 'devis-configurateur.html';
+}, 1000);
   // Afficher confirmation
   document.querySelectorAll('.wizard-panel').forEach(p => p.style.display = 'none');
   document.querySelector('.wizard-progress').style.display = 'none';
