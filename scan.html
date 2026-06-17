@@ -4,26 +4,27 @@
     <meta charset="UTF-8">
 
 
-    <!-- Google Consent Mode Default -->
-    <script data-cookieconsent="ignore">
-      window.dataLayer = window.dataLayer || [];
-      function gtag() { dataLayer.push(arguments); }
-      gtag("consent", "default", {
-        ad_storage: "denied",
-        ad_user_data: "denied",
-        ad_personalization: "denied",
-        analytics_storage: "denied",
-        functionality_storage: "denied",
-        personalization_storage: "denied",
-        security_storage: "granted",
-        wait_for_update: 500,
-      });
-      gtag("set", "ads_data_redaction", true);
-      gtag("set", "url_passthrough", true);
+    <!-- Axeptio CMP + Google Consent Mode -->
+    <script>
+    window.axeptioSettings = {
+      clientId: "69d657f15cce55bf536c051d",
+      cookiesVersion: "b94e777b-840f-4b66-a52c-6b798ef52176",
+      googleConsentMode: {
+        default: {
+          analytics_storage: "denied",
+          ad_storage: "denied",
+          ad_user_data: "denied",
+          ad_personalization: "denied",
+          wait_for_update: 500
+        }
+      }
+    };
+    (function(d, s) {
+      var t = d.getElementsByTagName(s)[0], e = d.createElement(s);
+      e.async = true; e.src = "//static.axept.io/sdk.js";
+      t.parentNode.insertBefore(e, t);
+    })(document, "script");
     </script>
-
-    <!-- Cookiebot CMP -->
-    <script id="Cookiebot" src="https://consent.cookiebot.com/uc.js" data-cbid="4ca5ad59-f0eb-4010-adef-c38cda83db9c" data-blockingmode="auto" type="text/javascript"></script>
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.5, user-scalable=yes">
     <title>DS.BAT – Expérience 8.0</title>
@@ -75,11 +76,11 @@
             <div class="card">
                 <h3><i class="fas fa-vr-cardboard"></i> Visite virtuelle</h3>
                 <div class="virtual-tour">
-                    <iframe 
-                        title="Vidéo de présentation d'un chantier DS.BAT en réalité virtuelle"
-                        src="https://www.youtube.com/embed/dQw4w9WgXcQ?autoplay=0&mute=1" 
-                        allowfullscreen>
-                    </iframe>
+                    <div style="background:#1e293b; border-radius:16px; padding:40px 20px; text-align:center; color:#94a3b8;">
+                        <div style="font-size:3rem; margin-bottom:12px;">🎬</div>
+                        <p style="font-weight:600; color:#f1f5f9; margin-bottom:6px;">Vidéo bientôt disponible</p>
+                        <p style="font-size:0.9rem;">Les photos et vidéos de nos réalisations arrivent prochainement.</p>
+                    </div>
                     <p style="margin-top:10px;">Explorez un chantier réalisé par DS.BAT en immersion 360°.</p>
                 </div>
             </div>
@@ -161,7 +162,7 @@
 
     <script>
         // ==================== CONFIGURATION ====================
-        const siteUrl = 'https://dasilvaelec-del.github.io/dsbat-site';
+        const siteUrl = 'https://dsbat.fr';
 
         // ==================== 1. DÉTECTION SOURCE ====================
         const urlParams = new URLSearchParams(window.location.search);
