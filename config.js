@@ -13,16 +13,18 @@ const CONFIG = {
     siret: "97828197000019",
   },
 
-  // ----- RÉSEAUX SOCIAUX (remplace "votrecompte") -----
+  // ----- RÉSEAUX SOCIAUX -----
+  // ⚠️ INSTAGRAM : remplace "votrecompte" par ton vrai handle (ex: "dsbat_renovation")
   social: {
     instagram: "https://www.instagram.com/votrecompte",
     facebook: "https://www.facebook.com/profile.php?id=61590265183793",
+    whatsapp: "https://wa.me/33629556627",
   },
 
   // ----- IMAGES (chemins relatifs) -----
   images: {
     hero: "image/uploads/chantier-verriere.webp",
-    qrCode: "image/qrcode-site.png",
+    qrCode: "image/uploads/qrcode-site.webp",
   },
 
   // ----- OPTIONS GÉNÉRALES (TVAs, acomptes) -----
@@ -48,3 +50,45 @@ const CONFIG = {
     // ... autres corps de métier
   }
 };
+
+// ===== APPLICATION AUTOMATIQUE DE LA CONFIG =====
+// Ce bloc s'exécute sur toutes les pages qui chargent config.js.
+// Il met à jour les éléments dynamiques (WhatsApp, Instagram, Facebook, favicon).
+(function () {
+  function applyConfig() {
+    // Favicon (injecté si absent)
+    if (!document.querySelector('link[rel="icon"]')) {
+      var lnk = document.createElement('link');
+      lnk.rel = 'icon';
+      lnk.type = 'image/svg+xml';
+      lnk.href = 'favicon.svg';
+      document.head.appendChild(lnk);
+    }
+
+    // Bouton WhatsApp flottant : URL depuis config + icône locale
+    document.querySelectorAll('.whatsapp-float').forEach(function (el) {
+      el.href = CONFIG.social.whatsapp;
+      var img = el.querySelector('img');
+      if (img) {
+        img.src = 'image/whatsapp.svg';
+        img.removeAttribute('loading');
+      }
+    });
+
+    // Liens Instagram dans le menu
+    document.querySelectorAll('a[href*="instagram.com"]').forEach(function (el) {
+      el.href = CONFIG.social.instagram;
+    });
+
+    // Liens Facebook dans le menu
+    document.querySelectorAll('a[href*="facebook.com"]').forEach(function (el) {
+      el.href = CONFIG.social.facebook;
+    });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', applyConfig);
+  } else {
+    applyConfig();
+  }
+})();
