@@ -76,10 +76,23 @@
             <div class="card">
                 <h3><i class="fas fa-vr-cardboard"></i> Visite virtuelle</h3>
                 <div class="virtual-tour">
-                    <div style="background:#1e293b; border-radius:16px; padding:40px 20px; text-align:center; color:#94a3b8;">
-                        <div style="font-size:3rem; margin-bottom:12px;">🎬</div>
-                        <p style="font-weight:600; color:#f1f5f9; margin-bottom:6px;">Vidéo bientôt disponible</p>
-                        <p style="font-size:0.9rem;">Les photos et vidéos de nos réalisations arrivent prochainement.</p>
+                    <div style="background:linear-gradient(135deg,#0f172a,#1e3a8a); border-radius:16px; padding:44px 20px; text-align:center; color:#94a3b8; position:relative; overflow:hidden;">
+                        <!-- Cercle animé derrière le bouton play -->
+                        <div style="position:relative; display:inline-flex; align-items:center; justify-content:center; margin-bottom:16px;">
+                            <div style="width:72px; height:72px; border-radius:50%; background:rgba(196,157,95,0.15); animation:pulse-ring 2s ease-out infinite; position:absolute;"></div>
+                            <div style="width:56px; height:56px; border-radius:50%; background:#c59d5f; display:flex; align-items:center; justify-content:center; position:relative; z-index:1;">
+                                <svg viewBox="0 0 24 24" width="26" height="26" fill="white" style="margin-left:3px;"><polygon points="5,3 19,12 5,21"/></svg>
+                            </div>
+                        </div>
+                        <p style="font-weight:700; color:#f1f5f9; font-size:1.05rem; margin-bottom:8px;">Vidéo de nos réalisations</p>
+                        <p style="font-size:0.88rem; line-height:1.5;">Bientôt disponible — revenez nous voir,<br>nos chantiers valent le détour !</p>
+                        <style>
+                            @keyframes pulse-ring {
+                                0%   { transform: scale(1);   opacity:.7; }
+                                70%  { transform: scale(1.7); opacity:0;  }
+                                100% { transform: scale(1.7); opacity:0;  }
+                            }
+                        </style>
                     </div>
                     <p style="margin-top:10px;">Explorez un chantier réalisé par DS.BAT en immersion 360°.</p>
                 </div>
