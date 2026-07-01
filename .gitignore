@@ -1,2 +1,6 @@
 backup-devis.html
 admin/
+
+# Sauvegardes locales (ne jamais publier)
+*.backup-*.js
+*.backup-*.html
