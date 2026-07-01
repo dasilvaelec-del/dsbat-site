@@ -614,6 +614,14 @@ window.axeptioSettings = {
 
 <main class="container">
 
+  <!-- Bandeau promesse (valeur claire dès l'entrée) -->
+  <div style="margin:0 0 24px;padding:16px 22px;background:linear-gradient(135deg,#1e3a8a,#3b82f6);color:#fff;border-radius:16px;display:flex;align-items:center;gap:14px;box-shadow:0 10px 30px rgba(30,58,138,.22);">
+    <span style="font-size:1.9rem;line-height:1;flex-shrink:0;">🏗️</span>
+    <span style="font-size:1rem;line-height:1.5;">
+      <strong>Estimez votre chantier en quelques minutes.</strong> Configurez vos pièces et obtenez un devis chiffré et détaillé, exportable en PDF et envoyable par WhatsApp. <span style="opacity:.9;">Gratuit et sans engagement.</span>
+    </span>
+  </div>
+
   <!-- BARRE DE PHASES -->
   <div class="phase-bar">
     <button class="phase-btn active" id="phaseBtn1" onclick="allerPhase(1)">① Mes pièces</button>
@@ -1747,4 +1755,13 @@ function genererPDFConfig() {
 
   if (!window.html2pdf) {
     const s = document.createElement('script');
-    s.src = 'https://cdnjs.cloudflare.c
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+    s.onload = loadAndPrint;
+    document.head.appendChild(s);
+  } else {
+    loadAndPrint();
+  }
+}
+</script>
+</body>
+</html>
