@@ -974,7 +974,10 @@ function validerPieces() {
         icon: p.icon,
         numero: i,
         dims: { l: 0, la: 0, h: 2.5, fenetres: 1, portes: 1 },
-        config: {}
+        config: {},
+        elecMethode: 'saignee',
+        elecGamme: 'dooxie',
+        ploGamme: 'standard'
       });
     }
   });
@@ -1147,6 +1150,8 @@ function renderMetierSection(section, pieceIndex) {
         <span class="chevron">▼</span>
       </div>
       <div class="metier-section-body">
+        ${section.metier === 'electricite' ? selecteursElec(pieceIndex) : ''}
+        ${section.metier === 'plomberie' ? selecteursPlomberie(pieceIndex) : ''}
         ${section.prests.map(p => renderPrestRow(p, pieceIndex, section.metier)).join('')}
       </div>
     </div>
@@ -1210,22 +1215,112 @@ function renderSolsAuto(pieceIndex) {
   `;
 }
 
-function renderPrestRow(prest, pieceIndex, metier) {
-  const prixData = getPrixPrest(prest.code);
-  const prixLabel = prixData ? `${prixData.min}–${prixData.max} €/${prest.unite}` : '';
-  const rowId = `row_${pieceIndex}_${prest.code}`;
+// ===== SÉLECTEURS POSE / GAMME (par pièce) =====
+const _SEL_SS = 'width:100%;margin-top:6px;padding:10px 14px;border-radius:12px;border:1.5px solid var(--border);background:var(--surface);color:var(--text);font-size:0.95rem;';
+const _SEL_LS = 'font-size:0.82rem;font-weight:700;color:var(--text-light);text-transform:uppercase;';
+
+function selecteursElec(pieceIndex) {
+  const piece = piecesSelectionnees[pieceIndex];
+  const m = piece.elecMethode || 'saignee';
+  const g = piece.elecGamme || 'dooxie';
   return `
-    <div class="prestation-row" id="${rowId}">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;padding:12px;background:var(--surface-2);border-radius:12px;">
+      <div>
+        <label style="${_SEL_LS}">Méthode de pose</label>
+        <select id="elecmethode_${pieceIndex}" onchange="setElecMethode(${pieceIndex}, this.value)" style="${_SEL_SS}">
+          <option value="saillie" ${m==='saillie'?'selected':''}>Apparent / goulotte (saillie)</option>
+          <option value="goulotte_enc" ${m==='goulotte_enc'?'selected':''}>Goulotte + encastré</option>
+          <option value="placo" ${m==='placo'?'selected':''}>Encastré sous placo (neuf)</option>
+          <option value="saignee" ${m==='saignee'?'selected':''}>Encastré scellé (saignée)</option>
+        </select>
+      </div>
+      <div>
+        <label style="${_SEL_LS}">Gamme appareillage</label>
+        <select id="elecgamme_${pieceIndex}" onchange="setElecGamme(${pieceIndex}, this.value)" style="${_SEL_SS}" ${m==='saillie'?'disabled':''}>
+          <option value="dooxie" ${g==='dooxie'?'selected':''}>Dooxie (basique)</option>
+          <option value="mosaic" ${g==='mosaic'?'selected':''}>Mosaic (standard)</option>
+          <option value="celiane" ${g==='celiane'?'selected':''}>Céliane (premium)</option>
+        </select>
+      </div>
+    </div>`;
+}
+
+function selecteursPlomberie(pieceIndex) {
+  const piece = piecesSelectionnees[pieceIndex];
+  const g = piece.ploGamme || 'standard';
+  return `
+    <div style="margin-bottom:14px;padding:12px;background:var(--surface-2);border-radius:12px;">
+      <label style="${_SEL_LS}">Gamme sanitaire</label>
+      <select id="plogamme_${pieceIndex}" onchange="setPloGamme(${pieceIndex}, this.value)" style="${_SEL_SS}">
+        <option value="entree" ${g==='entree'?'selected':''}>Entrée de gamme</option>
+        <option value="standard" ${g==='standard'?'selected':''}>Standard</option>
+        <option value="premium" ${g==='premium'?'selected':''}>Premium</option>
+      </select>
+    </div>`;
+}
+
+function setElecMethode(i, v) {
+  piecesSelectionnees[i].elecMethode = v;
+  const g = document.getElementById('elecgamme_' + i);
+  if (g) g.disabled = (v === 'saillie');
+  majPrixMetier(i, 'electricite');
+}
+function setElecGamme(i, v) { piecesSelectionnees[i].elecGamme = v; majPrixMetier(i, 'electricite'); }
+function setPloGamme(i, v) { piecesSelectionnees[i].ploGamme = v; majPrixMetier(i, 'plomberie'); }
+
+// Met à jour les libellés de prix + totaux ligne d'un métier après changement de pose/gamme
+function majPrixMetier(i, metier) {
+  const piece = piecesSelectionnees[i];
+  const prests = metier === 'electricite' ? getElecPourPiece(piece.id) : getPlombPourPiece(piece.id);
+  prests.forEach(pr => {
+    const prix = getPrixPrestFor(pr.code, piece);
+    const lab = document.getElementById(`pprix_${i}_${pr.code}`);
+    if (lab && prix) lab.textContent = `${prix.min}–${prix.max} €/${pr.unite}`;
+    const qty = (piece.config[metier] && piece.config[metier][pr.code]) || 0;
+    const pt = document.getElementById(`ptotal_${i}_${pr.code}`);
+    if (pt) pt.textContent = formatEuro(getMoyenPrixFor(pr.code, piece) * qty);
+  });
+  recalcPiece(i);
+}
+
+// Prix d'une prestation en tenant compte des choix de la pièce (pose/gamme)
+function getPrixPrestFor(code, piece) {
+  for (const cat of Object.values(PRIX)) {
+    const f = cat.find(p => p.code === code);
+    if (f) {
+      if (f.renov) return f.renov;
+      if (f.prix) return f.prix;
+      if (f.pose && f.app && typeof prixElec === 'function')
+        return prixElec(f, (piece && piece.elecMethode) || 'saignee', (piece && piece.elecGamme) || 'dooxie');
+      if (f.pose && f.four && typeof prixPlomberie === 'function')
+        return prixPlomberie(f, (piece && piece.ploGamme) || 'standard');
+    }
+  }
+  return null;
+}
+function getMoyenPrixFor(code, piece) {
+  const p = getPrixPrestFor(code, piece);
+  return p ? (p.min + p.max) / 2 : 0;
+}
+
+function renderPrestRow(prest, pieceIndex, metier) {
+  const piece = piecesSelectionnees[pieceIndex];
+  const prixData = getPrixPrestFor(prest.code, piece);
+  const prixLabel = prixData ? `${prixData.min}–${prixData.max} €/${prest.unite}` : '';
+  const qty = (piece.config[metier] && piece.config[metier][prest.code]) || 0;
+  const lineTotal = getMoyenPrixFor(prest.code, piece) * qty;
+  return `
+    <div class="prestation-row" id="row_${pieceIndex}_${prest.code}">
       <div class="prestation-info">
         <div class="prest-label">${prest.label}</div>
-        <div class="prest-prix">${prixLabel}</div>
+        <div class="prest-prix" id="pprix_${pieceIndex}_${prest.code}">${prixLabel}</div>
       </div>
       <div class="prestation-qty">
         <button class="qty-btn" onclick="changerQty('${pieceIndex}','${prest.code}','${metier}',-1)">−</button>
-        <span class="qty-val" id="qty_${pieceIndex}_${prest.code}">0</span>
+        <span class="qty-val" id="qty_${pieceIndex}_${prest.code}">${qty}</span>
         <button class="qty-btn" onclick="changerQty('${pieceIndex}','${prest.code}','${metier}',1)">+</button>
       </div>
-      <div class="prestation-total" id="ptotal_${pieceIndex}_${prest.code}">0 €</div>
+      <div class="prestation-total" id="ptotal_${pieceIndex}_${prest.code}">${formatEuro(lineTotal)}</div>
     </div>
   `;
 }
@@ -1262,7 +1357,7 @@ function changerQty(pieceIndex, code, metier, delta) {
   const el = document.getElementById(`qty_${pieceIndex}_${code}`);
   if (el) el.textContent = newVal;
 
-  const prix = getMoyenPrix(code);
+  const prix = getMoyenPrixFor(code, p);
   const total = prix * newVal;
   const tel = document.getElementById(`ptotal_${pieceIndex}_${code}`);
   if (tel) tel.textContent = formatEuro(total);
@@ -1345,7 +1440,7 @@ function recalcPiece(index) {
   for (const [metier, prestations] of Object.entries(piece.config)) {
     if (metier === 'peinture_auto' || metier === 'sols_auto') continue;
     for (const [code, qty] of Object.entries(prestations)) {
-      totalPiece += getMoyenPrix(code) * qty;
+      totalPiece += getMoyenPrixFor(code, piece) * qty;
     }
   }
 
@@ -1380,7 +1475,7 @@ function updateSectionTotals(index, piece) {
     let t = 0;
     const metierConfig = piece.config[s.metier] || {};
     for (const [code, qty] of Object.entries(metierConfig)) {
-      t += getMoyenPrix(code) * qty;
+      t += getMoyenPrixFor(code, piece) * qty;
     }
     totalEl.textContent = formatEuro(t);
   });
@@ -1412,6 +1507,32 @@ function renderPhase3() {
     totalGlobalHT += p.totalHT || 0;
   });
 
+  // ===== TABLEAU ÉLECTRIQUE AUTO (NF C 15-100) =====
+  let tableau = null;
+  if (metiersActifs.includes('electricite') && typeof dimensionnementTableau === 'function') {
+    const b = { prises16:0, pointsLumineux:0, specialises20A:0, cuisson:false, chauffeEau:false, vmc:metiersActifs.includes('vmc'), circuitsVolets:0, circuitsChauffage:0, sonnerie:false };
+    let volets = 0, secheServ = 0;
+    piecesSelectionnees.forEach(p => {
+      const e = p.config.electricite || {};
+      b.prises16 += (e.ELEC_PRISE10||0) + (e.ELEC_PRISED||0)*2;
+      b.pointsLumineux += (e.ELEC_PL_SA||0) + (e.ELEC_PL_VV||0);
+      b.specialises20A += (e.ELEC_PRISE20||0) + (e.ELEC_SC20||0);
+      if ((e.ELEC_PRISE32||0) > 0) b.cuisson = true;
+      if ((e.ELEC_SONETTE||0) > 0) b.sonnerie = true;
+      volets += (e.ELEC_VOLET||0);
+      secheServ += (e.ELEC_SECH_SERV||0);
+      const pl = p.config.plomberie || {};
+      if (((pl.PLO_BALLON_100||0) + (pl.PLO_BALLON_200||0)) > 0) b.chauffeEau = true;
+    });
+    b.circuitsVolets = volets > 0 ? Math.max(1, Math.ceil(volets/5)) : 0;
+    b.circuitsChauffage = secheServ;
+    if ((b.prises16 + b.pointsLumineux + b.specialises20A) > 0) {
+      tableau = dimensionnementTableau(b);
+      totalGlobalHT += tableau.prixTotalHT;
+    }
+  }
+  window.__tableauAuto = tableau;
+
   // TVA
   const tva = totalGlobalHT * 0.10;
   const ttc = totalGlobalHT + tva;
@@ -1440,7 +1561,7 @@ function renderPhase3() {
         metierTotaux[metier] += config;
       } else {
         for (const [code, qty] of Object.entries(config)) {
-          metierTotaux[metier] += getMoyenPrix(code) * qty;
+          metierTotaux[metier] += getMoyenPrixFor(code, p) * qty;
         }
       }
     }
@@ -1456,9 +1577,22 @@ function renderPhase3() {
     </div>
   `).join('');
 
+  const tableauHtml = tableau ? `
+    <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-md);padding:20px;margin:20px 0;">
+      <h3 style="color:var(--primary);margin-bottom:10px;font-size:1rem;">⚡ Tableau électrique — dimensionnement auto (NF C 15-100)</h3>
+      <div style="font-size:0.88rem;color:var(--text-light);margin-bottom:10px;">
+        ${tableau.nbCircuits} circuits · ${tableau.differentiels.total} inter. différentiels (dont ${tableau.differentiels.typeA} type A) · coffret ${tableau.rangees} rangée(s) · ${tableau.modulesUtiles} modules
+      </div>
+      <div style="display:flex;justify-content:space-between;font-weight:700;">
+        <span>Tableau (fourniture + pose)</span>
+        <span>${formatEuro(tableau.prixTotalHT)}</span>
+      </div>
+    </div>` : '';
+
   container.innerHTML = `
     <h2 style="color:var(--primary);margin-bottom:20px;">📊 Récapitulatif par pièce</h2>
     ${rowsHtml}
+    ${tableauHtml}
 
     <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-md);padding:20px;margin:20px 0;">
       <h3 style="color:var(--primary);margin-bottom:14px;font-size:1rem;">📊 Répartition par corps de métier</h3>
@@ -1513,6 +1647,8 @@ function renderPhase3() {
 function genererPDFConfig() {
   let totalGlobalHT = 0;
   piecesSelectionnees.forEach(p => totalGlobalHT += p.totalHT || 0);
+  const _tab = window.__tableauAuto;
+  if (_tab) totalGlobalHT += _tab.prixTotalHT;
   const tva = totalGlobalHT * 0.10;
   const ttc = totalGlobalHT + tva;
   const date = new Date().toLocaleDateString('fr-FR');
@@ -1526,7 +1662,12 @@ function genererPDFConfig() {
       <td style="padding:8px;border-bottom:1px solid #e2e8f0;text-align:center;">${p.dims.l && p.dims.la ? (p.dims.l * p.dims.la).toFixed(1) + ' m²' : '—'}</td>
       <td style="padding:8px;border-bottom:1px solid #e2e8f0;text-align:right;font-weight:700;">${formatEuro(p.totalHT || 0)}</td>
     </tr>
-  `).join('');
+  `).join('') + (_tab ? `
+    <tr>
+      <td style="padding:8px;border-bottom:1px solid #e2e8f0;">⚡ Tableau électrique (NF C 15-100)</td>
+      <td style="padding:8px;border-bottom:1px solid #e2e8f0;text-align:center;">${_tab.nbCircuits} circ.</td>
+      <td style="padding:8px;border-bottom:1px solid #e2e8f0;text-align:right;font-weight:700;">${formatEuro(_tab.prixTotalHT)}</td>
+    </tr>` : '');
 
   const html = `
     <div style="font-family:Arial,sans-serif;max-width:700px;margin:0 auto;padding:30px;color:#0f172a;">
