@@ -1504,7 +1504,7 @@ function renderPhase3() {
       <span class="badge">✔️ Assurance décennale</span>
       <span class="badge">✔️ Visite gratuite</span>
       <span class="badge">✔️ Devis sans engagement</span>
-      <span class="badge">⭐ 4,9/5 – 12 avis</span>
+      <span class="badge">⭐ 4,9/5</span>
     </div>
   `;
 }
@@ -1606,20 +1606,4 @@ function genererPDFConfig() {
 
   if (!window.html2pdf) {
     const s = document.createElement('script');
-    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
-    s.onload = loadAndPrint;
-    document.head.appendChild(s);
-  } else {
-    loadAndPrint();
-  }
-}
-
-// ===== UTILITAIRES =====
-function formatEuro(val) {
-  if (!val || val === 0) return '0 €';
-  return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(val);
-}
-</script>
-
-</body>
-</html>
+    s.src = 'https://cdnjs.cloudflare.c
