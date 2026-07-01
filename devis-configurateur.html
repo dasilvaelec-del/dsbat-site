@@ -614,6 +614,14 @@ window.axeptioSettings = {
 
 <main class="container">
 
+  <!-- Bandeau promesse (valeur claire dès l'entrée) -->
+  <div style="margin:0 0 24px;padding:16px 22px;background:linear-gradient(135deg,#1e3a8a,#3b82f6);color:#fff;border-radius:16px;display:flex;align-items:center;gap:14px;box-shadow:0 10px 30px rgba(30,58,138,.22);">
+    <span style="font-size:1.9rem;line-height:1;flex-shrink:0;">🏗️</span>
+    <span style="font-size:1rem;line-height:1.5;">
+      <strong>Estimez votre chantier en quelques minutes.</strong> Configurez vos pièces et obtenez un devis chiffré et détaillé, exportable en PDF et envoyable par WhatsApp. <span style="opacity:.9;">Gratuit et sans engagement.</span>
+    </span>
+  </div>
+
   <!-- BARRE DE PHASES -->
   <div class="phase-bar">
     <button class="phase-btn active" id="phaseBtn1" onclick="allerPhase(1)">① Mes pièces</button>
@@ -1583,168 +1591,4 @@ function renderPhase3() {
       <div style="font-size:0.88rem;color:var(--text-light);margin-bottom:10px;">
         ${tableau.nbCircuits} circuits · ${tableau.differentiels.total} inter. différentiels (dont ${tableau.differentiels.typeA} type A) · coffret ${tableau.rangees} rangée(s) · ${tableau.modulesUtiles} modules
       </div>
-      <div style="display:flex;justify-content:space-between;font-weight:700;">
-        <span>Tableau (fourniture + pose)</span>
-        <span>${formatEuro(tableau.prixTotalHT)}</span>
-      </div>
-    </div>` : '';
-
-  container.innerHTML = `
-    <h2 style="color:var(--primary);margin-bottom:20px;">📊 Récapitulatif par pièce</h2>
-    ${rowsHtml}
-    ${tableauHtml}
-
-    <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-md);padding:20px;margin:20px 0;">
-      <h3 style="color:var(--primary);margin-bottom:14px;font-size:1rem;">📊 Répartition par corps de métier</h3>
-      ${metierRowsHtml || '<p style="color:var(--text-light);">Aucune prestation configurée</p>'}
-    </div>
-
-    <div class="recap-grand-total">
-      <div class="gt-label">Estimation totale HT</div>
-      <div class="gt-ht">${formatEuro(totalGlobalHT)}</div>
-      <div class="gt-tva">TVA 10% (rénovation) : ${formatEuro(tva)}</div>
-      <div class="gt-ttc">Total TTC : ${formatEuro(ttc)}</div>
-    </div>
-
-    <div class="acomptes-recap">
-      <div class="acompte-recap-badge">Acompte 1 (40%) : ${formatEuro(a1)}</div>
-      <div class="acompte-recap-badge">Acompte 2 (30%) : ${formatEuro(a2)}</div>
-      <div class="acompte-recap-badge">Solde (30%) : ${formatEuro(a3)}</div>
-    </div>
-
-    <div class="mention-visite-mini">
-      <span style="font-size:1.5rem;">⚠️</span>
-      <div>
-        <strong>Estimation indicative — Visite technique obligatoire</strong><br>
-        Ce devis est établi sur la base des informations renseignées. Le devis définitif et contractuel sera établi après une <strong>visite technique gratuite</strong> sur votre chantier pour confirmer l'ensemble des travaux, contraintes d'accès et spécificités de votre projet.<br>
-        <strong>Nous vous contacterons dans les 24h.</strong>
-      </div>
-    </div>
-
-    <div class="actions-recap">
-      <button onclick="genererPDFConfig()" class="btn btn-pdf" style="display:flex;align-items:center;gap:8px;padding:14px 28px;">
-        📄 Télécharger le devis PDF
-      </button>
-      <a href="https://wa.me/33629556627" target="_blank" class="btn btn-whatsapp" style="display:flex;align-items:center;gap:8px;padding:14px 28px;">
-        💬 Envoyer sur WhatsApp
-      </a>
-      <button onclick="allerPhase(2)" class="btn" style="background:var(--surface-2);border:2px solid var(--border);padding:14px 28px;">
-        ✏️ Modifier
-      </button>
-    </div>
-
-    <div class="badges" style="margin-top:24px;">
-      <span class="badge">✔️ Artisan certifié</span>
-      <span class="badge">✔️ Assurance décennale</span>
-      <span class="badge">✔️ Visite gratuite</span>
-      <span class="badge">✔️ Devis sans engagement</span>
-      <span class="badge">⭐ 4,9/5</span>
-    </div>
-  `;
-}
-
-// ===== PDF =====
-function genererPDFConfig() {
-  let totalGlobalHT = 0;
-  piecesSelectionnees.forEach(p => totalGlobalHT += p.totalHT || 0);
-  const _tab = window.__tableauAuto;
-  if (_tab) totalGlobalHT += _tab.prixTotalHT;
-  const tva = totalGlobalHT * 0.10;
-  const ttc = totalGlobalHT + tva;
-  const date = new Date().toLocaleDateString('fr-FR');
-  const numero = 'DSBT-' + Date.now().toString().slice(-6);
-
-  const clientData = (() => { try { return JSON.parse(sessionStorage.getItem('client') || '{}'); } catch(e) { return {}; } })();
-
-  const lignesPieces = piecesSelectionnees.map(p => `
-    <tr>
-      <td style="padding:8px;border-bottom:1px solid #e2e8f0;">${p.icon} ${p.nom}</td>
-      <td style="padding:8px;border-bottom:1px solid #e2e8f0;text-align:center;">${p.dims.l && p.dims.la ? (p.dims.l * p.dims.la).toFixed(1) + ' m²' : '—'}</td>
-      <td style="padding:8px;border-bottom:1px solid #e2e8f0;text-align:right;font-weight:700;">${formatEuro(p.totalHT || 0)}</td>
-    </tr>
-  `).join('') + (_tab ? `
-    <tr>
-      <td style="padding:8px;border-bottom:1px solid #e2e8f0;">⚡ Tableau électrique (NF C 15-100)</td>
-      <td style="padding:8px;border-bottom:1px solid #e2e8f0;text-align:center;">${_tab.nbCircuits} circ.</td>
-      <td style="padding:8px;border-bottom:1px solid #e2e8f0;text-align:right;font-weight:700;">${formatEuro(_tab.prixTotalHT)}</td>
-    </tr>` : '');
-
-  const html = `
-    <div style="font-family:Arial,sans-serif;max-width:700px;margin:0 auto;padding:30px;color:#0f172a;">
-      <div style="text-align:center;border-bottom:3px solid #1e3a8a;padding-bottom:20px;margin-bottom:24px;">
-        <h1 style="color:#1e3a8a;margin:0;">DS.BAT Électricité & Rénovation</h1>
-        <p style="color:#64748b;margin:4px 0;">58 Grande Rue, 77410 Villevaudé | 06 29 55 66 27 | contact@dsbat.fr</p>
-      </div>
-
-      <div style="display:flex;justify-content:space-between;margin-bottom:20px;">
-        <div>
-          <p style="font-size:1.3rem;font-weight:800;color:#1e3a8a;margin:0;">DEVIS ESTIMATIF</p>
-          <p style="color:#64748b;margin:4px 0;">N° ${numero} — ${date}</p>
-        </div>
-        ${clientData.nom ? `<div style="text-align:right;">
-          <p style="font-weight:700;margin:0;">${clientData.nom}</p>
-          <p style="color:#64748b;margin:2px 0;">${clientData.tel || ''}</p>
-          <p style="color:#64748b;margin:2px 0;">${clientData.adresse || ''}</p>
-        </div>` : ''}
-      </div>
-
-      <table style="width:100%;border-collapse:collapse;margin-bottom:20px;">
-        <thead>
-          <tr style="background:#1e3a8a;color:white;">
-            <th style="padding:10px;text-align:left;">Pièce</th>
-            <th style="padding:10px;text-align:center;">Surface</th>
-            <th style="padding:10px;text-align:right;">Montant HT</th>
-          </tr>
-        </thead>
-        <tbody>${lignesPieces}</tbody>
-        <tfoot>
-          <tr style="background:#f8fafc;">
-            <td colspan="2" style="padding:10px;font-weight:700;">Total HT</td>
-            <td style="padding:10px;text-align:right;font-weight:700;">${formatEuro(totalGlobalHT)}</td>
-          </tr>
-          <tr>
-            <td colspan="2" style="padding:10px;">TVA 10%</td>
-            <td style="padding:10px;text-align:right;">${formatEuro(tva)}</td>
-          </tr>
-          <tr style="background:#1e3a8a;color:white;">
-            <td colspan="2" style="padding:12px;font-weight:800;font-size:1.1rem;">Total TTC</td>
-            <td style="padding:12px;text-align:right;font-weight:800;font-size:1.1rem;">${formatEuro(ttc)}</td>
-          </tr>
-        </tfoot>
-      </table>
-
-      <div style="background:#fef9ec;border:2px solid #f59e0b;border-radius:12px;padding:16px;margin-bottom:20px;">
-        <p style="font-weight:700;color:#92400e;margin:0 0 6px;">⚠️ Estimation indicative — Visite technique obligatoire</p>
-        <p style="color:#78350f;font-size:0.85rem;margin:0;">Le devis définitif sera établi après visite gratuite sur votre chantier.</p>
-      </div>
-
-      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px;">
-        <span style="background:#0f2b5e;color:white;padding:5px 14px;border-radius:20px;font-size:0.8rem;">✔️ Artisan certifié</span>
-        <span style="background:#0f2b5e;color:white;padding:5px 14px;border-radius:20px;font-size:0.8rem;">✔️ Assurance décennale</span>
-        <span style="background:#0f2b5e;color:white;padding:5px 14px;border-radius:20px;font-size:0.8rem;">✔️ Devis gratuit</span>
-        <span style="background:#0f2b5e;color:white;padding:5px 14px;border-radius:20px;font-size:0.8rem;">⭐ 4,9/5</span>
-      </div>
-
-      <p style="text-align:center;color:#94a3b8;font-size:0.8rem;border-top:1px solid #e2e8f0;padding-top:14px;">
-        DS.BAT – SIREN 978 281 970 – dsbat.fr – contact@dsbat.fr
-      </p>
-    </div>
-  `;
-
-  const div = document.createElement('div');
-  div.innerHTML = html;
-  document.body.appendChild(div);
-
-  const loadAndPrint = () => {
-    html2pdf().from(div).set({
-      margin: 10,
-      filename: `Devis_DSBAT_${numero}.pdf`,
-      image: { type: 'jpeg', quality: 0.95 },
-      html2canvas: { scale: 2 },
-      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-    }).save().then(() => document.body.removeChild(div));
-  };
-
-  if (!window.html2pdf) {
-    const s = document.createElement('script');
-    s.src = 'https://cdnjs.cloudflare.c
+      <div style="display:

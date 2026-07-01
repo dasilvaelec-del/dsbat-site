@@ -93,6 +93,14 @@
 
 <main class="container" id="contenuDevis">
 
+    <!-- Bandeau promesse (valeur claire dès l'entrée) -->
+    <div style="margin:0 0 24px;padding:16px 22px;background:linear-gradient(135deg,#1e3a8a,#3b82f6);color:#fff;border-radius:16px;display:flex;align-items:center;gap:14px;box-shadow:0 10px 30px rgba(30,58,138,.22);">
+        <span style="font-size:1.9rem;line-height:1;flex-shrink:0;">🌀</span>
+        <span style="font-size:1rem;line-height:1.5;">
+            <strong>Obtenez votre estimation en 2 minutes.</strong> Un devis chiffré et détaillé, exportable en PDF et envoyable par WhatsApp. <span style="opacity:.9;">Gratuit et sans engagement.</span>
+        </span>
+    </div>
+
     <div class="devis-header">
         <span class="devis-numero" id="devisNumero">VMC‑2026‑1001</span>
         <span class="devis-date" id="devisDate"></span>
@@ -172,20 +180,4 @@
         let html = `
             <div class="recap" style="margin-top:40px; background:#f8fafc; border:2px solid #1e3a8a; padding:20px; border-radius:20px;">
                 <h3 style="color:#1e3a8a;">📜 Conformité aux normes – ${normes.titre}</h3>
-                <p>Les prestations de ce lot sont réalisées conformément aux normes et DTU en vigueur :</p>
-                <ul style="columns:2; margin-top:15px;">
-        `;
-        normes.normes.forEach(n => {
-            html += `<li><strong>${n.ref}</strong> – ${n.description}</li>`;
-        });
-        html += `
-                </ul>
-                <p style="font-size:0.85rem; margin-top:15px; color:#475569;">🔒 Pour plus de détails, consultez notre page <a href="engagements.html" style="color:#1e3a8a;">Nos engagements</a>.</p>
-            </div>
-        `;
-        container.insertAdjacentHTML('beforeend', html);
-    });
-</script>
-
-</body>
-</html>
+                <p>Le
