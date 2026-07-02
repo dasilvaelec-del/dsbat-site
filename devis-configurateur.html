@@ -733,6 +733,12 @@ const PIECES_DEF = {
 
 // ===== PRESTATIONS PAR MÉTIER PAR TYPE DE PIÈCE =====
 // Filtrage intelligent selon le type de pièce
+// ===== Formatage des montants en euros (format français) =====
+function formatEuro(n) {
+  const val = Number(n) || 0;
+  return val.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 }) + ' €';
+}
+
 function getPrestationsPourPiece(pieceId, metiersActifs) {
   const sections = [];
 
