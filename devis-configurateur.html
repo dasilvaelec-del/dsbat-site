@@ -779,7 +779,8 @@ function getPrestationsPourPiece(pieceId, metiersActifs) {
 function getElecPourPiece(pieceId) {
   const base = [
     { code:'ELEC_PL_SA', label:'Point lumineux simple', unite:'U' },
-    { code:'ELEC_PL_VV', label:'Point lumineux va-et-vient', unite:'U' },
+    { code:'ELEC_PL_VV', label:'Point lumineux va-et-vient (2 accès)', unite:'U' },
+    { code:'ELEC_PL_3BP', label:'Point lumineux télérupteur (3+ accès)', unite:'U' },
     { code:'ELEC_PRISE10', label:'Prise 2P+T simple', unite:'U' },
     { code:'ELEC_PRISED', label:'Prise double 2P+T', unite:'U' },
   ];
@@ -807,6 +808,7 @@ function getElecPourPiece(pieceId) {
   if (['cuisine'].includes(pieceId)) prests = [...prests, ...cuisine];
   if (['sdb','sde'].includes(pieceId)) prests = [...prests, ...sdb];
   if (['salon','salle_manger'].includes(pieceId)) prests = [...prests, ...salon];
+  if (['chambre'].includes(pieceId)) prests = [...prests, { code:'ELEC_TV', label:'Prise TV', unite:'U' }, { code:'ELEC_RJ45', label:'Prise RJ45 cat6', unite:'U' }];
   if (['entree'].includes(pieceId)) prests = [...prests, ...commun];
   return prests;
 }
@@ -1039,6 +1041,8 @@ function renderPhase2() {
   // Configs
   configsContainer.innerHTML = piecesSelectionnees.map((p, i) => renderPieceConfig(p, i)).join('');
 
+  piecesSelectionnees.forEach((p, i) => recalcPiece(i));
+
   pieceActiveIndex = 0;
 }
 
@@ -1164,7 +1168,7 @@ function renderMetierSection(section, pieceIndex) {
         <span class="chevron">▼</span>
       </div>
       <div class="metier-section-body">
-        ${section.metier === 'electricite' ? selecteursElec(pieceIndex) : ''}
+        ${section.metier === 'electricite' ? bandeauNorme() + selecteursElec(pieceIndex) : ''}
         ${section.metier === 'plomberie' ? selecteursPlomberie(pieceIndex) : ''}
         ${section.prests.map(p => renderPrestRow(p, pieceIndex, section.metier)).join('')}
       </div>
@@ -1317,6 +1321,70 @@ function getMoyenPrixFor(code, piece) {
   return p ? (p.min + p.max) / 2 : 0;
 }
 
+// ===== NF C 15-100 — équipement minimum par pièce (verrouillé) =====
+// Éclairage selon nombre de portes : 1 accès = simple, 2 = va-et-vient, 3+ = télérupteur
+function normeMin(pieceId, portes) {
+  portes = portes || 1;
+  const light = portes >= 3 ? 'ELEC_PL_3BP' : (portes === 2 ? 'ELEC_PL_VV' : 'ELEC_PL_SA');
+  const min = {};
+  min[light] = 1;
+  if (pieceId === 'cuisine') { min.ELEC_PRISE10 = 6; min.ELEC_PRISE32 = 1; min.ELEC_PRISE20 = 2; }
+  else if (pieceId === 'salon' || pieceId === 'salle_manger') { min.ELEC_PRISE10 = 5; min.ELEC_RJ45 = 1; min.ELEC_TV = 1; }
+  else if (pieceId === 'chambre') { min.ELEC_PRISE10 = 3; min.ELEC_RJ45 = 1; min.ELEC_TV = 1; }
+  else if (pieceId === 'sdb') { min.ELEC_PRISE10 = 1; min.ELEC_LIAISON_EQUI = 1; min.ELEC_SECH_SERV = 1; }
+  else if (pieceId === 'sde') { min.ELEC_PRISE10 = 1; }
+  else if (pieceId === 'wc') { /* éclairage seul */ }
+  else if (pieceId === 'entree') { min.ELEC_PRISE10 = 1; min.ELEC_SONETTE = 1; }
+  else { min.ELEC_PRISE10 = 1; }
+  return min;
+}
+
+// Applique/actualise le minimum réglementaire (jamais en dessous), gère le changement de portes
+function appliquerNorme(index) {
+  const piece = piecesSelectionnees[index];
+  const portes = (piece.dims && piece.dims.portes) || 1;
+  const oldMin = piece.normeMin || {};
+  const newMin = normeMin(piece.id, portes);
+  if (!piece.config.electricite) piece.config.electricite = {};
+  const cfg = piece.config.electricite;
+  // libérer les anciens minimums qui ne sont plus requis (ex : éclairage remplacé selon portes)
+  for (const code in oldMin) {
+    if (!(code in newMin) && (cfg[code] || 0) <= oldMin[code]) cfg[code] = 0;
+  }
+  // appliquer les nouveaux minimums
+  for (const code in newMin) {
+    cfg[code] = Math.max(cfg[code] || 0, newMin[code]);
+  }
+  piece.normeMin = newMin;
+}
+
+// Rafraîchit l'affichage élec (quantités, libellés prix, totaux ligne) d'une pièce
+function syncElecDOM(index) {
+  const piece = piecesSelectionnees[index];
+  const cfg = piece.config.electricite || {};
+  getElecPourPiece(piece.id).forEach(pr => {
+    const qty = cfg[pr.code] || 0;
+    const qs = document.getElementById(`qty_${index}_${pr.code}`);
+    if (qs) qs.textContent = qty;
+    const prix = getPrixPrestFor(pr.code, piece);
+    const lab = document.getElementById(`pprix_${index}_${pr.code}`);
+    if (lab && prix) lab.textContent = `${prix.min}–${prix.max} €/${pr.unite}`;
+    const pt = document.getElementById(`ptotal_${index}_${pr.code}`);
+    if (pt) pt.textContent = formatEuro(getMoyenPrixFor(pr.code, piece) * qty);
+  });
+}
+
+function bandeauNorme() {
+  return `
+    <div style="display:flex;gap:10px;align-items:flex-start;background:#fef9ec;border:1px solid #f59e0b;border-radius:12px;padding:12px;margin-bottom:14px;">
+      <span style="font-size:1.2rem;">⚠️</span>
+      <div style="font-size:0.85rem;color:#78350f;">
+        <strong>Installation conforme à la norme NF C 15-100 (obligatoire).</strong>
+        L'équipement minimum réglementaire est inclus automatiquement selon la pièce et le nombre de portes. Vous pouvez seulement <strong>ajouter</strong> des prises ou points supplémentaires.
+      </div>
+    </div>`;
+}
+
 function renderPrestRow(prest, pieceIndex, metier) {
   const piece = piecesSelectionnees[pieceIndex];
   const prixData = getPrixPrestFor(prest.code, piece);
@@ -1365,7 +1433,8 @@ function changerQty(pieceIndex, code, metier, delta) {
   const p = piecesSelectionnees[pieceIndex];
   if (!p.config[metier]) p.config[metier] = {};
   const current = p.config[metier][code] || 0;
-  const newVal = Math.max(0, current + delta);
+  const minNorme = (metier === 'electricite' && p.normeMin && p.normeMin[code]) || 0;
+  const newVal = Math.max(minNorme, current + delta);
   p.config[metier][code] = newVal;
 
   const el = document.getElementById(`qty_${pieceIndex}_${code}`);
@@ -1390,6 +1459,8 @@ function recalcPiece(index) {
   const por = parseInt(document.getElementById(`dim_por_${index}`)?.value) || 0;
 
   piece.dims = { l, la, h, fenetres: fen, portes: por };
+
+  if (metiersActifs.includes('electricite')) { appliquerNorme(index); syncElecDOM(index); }
 
   const surfSol = l * la;
   const surfPlaf = surfSol;
@@ -1524,12 +1595,13 @@ function renderPhase3() {
   // ===== TABLEAU ÉLECTRIQUE AUTO (NF C 15-100) =====
   let tableau = null;
   if (metiersActifs.includes('electricite') && typeof dimensionnementTableau === 'function') {
-    const b = { prises16:0, pointsLumineux:0, specialises20A:0, cuisson:false, chauffeEau:false, vmc:metiersActifs.includes('vmc'), circuitsVolets:0, circuitsChauffage:0, sonnerie:false };
+    const b = { prises16:0, pointsLumineux:0, specialises20A:0, cuisson:false, chauffeEau:false, vmc:metiersActifs.includes('vmc'), circuitsVolets:0, circuitsChauffage:0, sonnerie:false, telerupteurs:0 };
     let volets = 0, secheServ = 0;
     piecesSelectionnees.forEach(p => {
       const e = p.config.electricite || {};
       b.prises16 += (e.ELEC_PRISE10||0) + (e.ELEC_PRISED||0)*2;
-      b.pointsLumineux += (e.ELEC_PL_SA||0) + (e.ELEC_PL_VV||0);
+      b.pointsLumineux += (e.ELEC_PL_SA||0) + (e.ELEC_PL_VV||0) + (e.ELEC_PL_3BP||0);
+      b.telerupteurs += (e.ELEC_PL_3BP||0);
       b.specialises20A += (e.ELEC_PRISE20||0) + (e.ELEC_SC20||0);
       if ((e.ELEC_PRISE32||0) > 0) b.cuisson = true;
       if ((e.ELEC_SONETTE||0) > 0) b.sonnerie = true;
