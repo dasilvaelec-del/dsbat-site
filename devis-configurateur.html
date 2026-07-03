@@ -952,12 +952,33 @@ function renderGrid(containerId, pieceDefs) {
         <span class="counter-val" id="count_${p.id}">0</span>
         <button class="counter-btn" onclick="event.stopPropagation(); changerCompteur('${p.id}', 1)">+</button>
       </div>
+      <div class="piece-dims" id="pdims_${p.id}" onclick="event.stopPropagation()" style="display:none;margin-top:12px;text-align:left;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:0.72rem;color:var(--text-light);">
+          <label>Longueur (m)<input type="number" step="0.1" min="0" placeholder="ex 4.5" id="pdim_l_${p.id}" oninput="setDimType('${p.id}','l',this.value)" style="width:100%;padding:5px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);"></label>
+          <label>Largeur (m)<input type="number" step="0.1" min="0" placeholder="ex 3.5" id="pdim_la_${p.id}" oninput="setDimType('${p.id}','la',this.value)" style="width:100%;padding:5px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);"></label>
+          <label>Hauteur (m)<input type="number" step="0.1" min="2" value="2.5" id="pdim_h_${p.id}" oninput="setDimType('${p.id}','h',this.value)" style="width:100%;padding:5px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);"></label>
+          <label>Fenêtres<input type="number" min="0" value="1" id="pdim_fen_${p.id}" oninput="setDimType('${p.id}','fenetres',this.value)" style="width:100%;padding:5px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);"></label>
+          <label>Portes<input type="number" min="0" value="1" id="pdim_por_${p.id}" oninput="setDimType('${p.id}','portes',this.value)" style="width:100%;padding:5px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);"></label>
+        </div>
+      </div>
     </div>
   `).join('');
 }
 
 // Compteurs pièces
 const compteurs = {};
+
+// Dimensions par type de pièce (saisies à l'étape Pièces)
+const dimsParType = {};
+function ensureDims(id) {
+  if (!dimsParType[id]) dimsParType[id] = { l: 0, la: 0, h: 2.5, fenetres: 1, portes: 1 };
+  return dimsParType[id];
+}
+function setDimType(id, field, value) {
+  const d = ensureDims(id);
+  const v = parseFloat(value);
+  d[field] = isNaN(v) ? (field === 'h' ? 2.5 : 0) : v;
+}
 
 function togglePiece(id) {
   if ((compteurs[id] || 0) === 0) {
@@ -973,6 +994,8 @@ function changerCompteur(id, delta) {
   if (el) el.textContent = newVal;
   const card = document.getElementById('card_' + id);
   if (card) card.classList.toggle('selected', newVal > 0);
+  const dims = document.getElementById('pdims_' + id);
+  if (dims) { if (newVal > 0) ensureDims(id); dims.style.display = newVal > 0 ? 'block' : 'none'; }
 }
 
 // ===== VALIDER PIÈCES =====
@@ -989,7 +1012,7 @@ function validerPieces() {
         nom: nb > 1 ? `${p.nom} ${i}` : p.nom,
         icon: p.icon,
         numero: i,
-        dims: { l: 0, la: 0, h: 2.5, fenetres: 1, portes: 1 },
+        dims: Object.assign({ l: 0, la: 0, h: 2.5, fenetres: 1, portes: 1 }, dimsParType[p.id] || {}),
         config: {},
         elecMethode: 'saignee',
         elecGamme: 'dooxie',
@@ -1055,58 +1078,24 @@ function renderPieceConfig(piece, index) {
         <span class="piece-big-icon">${piece.icon}</span>
         <div>
           <h2>${piece.nom}</h2>
-          <p>Renseignez les dimensions et configurez vos travaux</p>
+          <p>Configurez vos travaux</p>
         </div>
       </div>
 
-      <!-- DIMENSIONS -->
+      <!-- DIMENSIONS (rappel — saisies à l'étape « Pièces ») -->
       <div class="form-section" style="background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-md); padding:20px; margin-bottom:16px;">
-        <h3 style="color:var(--primary); margin-bottom:16px; font-size:1rem;">📐 Dimensions</h3>
-        <div class="dimensions-grid">
-          <div class="dim-input">
-            <label>Longueur (m)</label>
-            <input type="number" step="0.1" min="0" placeholder="Ex: 5.5"
-              id="dim_l_${index}" onchange="recalcPiece(${index})" oninput="recalcPiece(${index})">
-          </div>
-          <div class="dim-input">
-            <label>Largeur (m)</label>
-            <input type="number" step="0.1" min="0" placeholder="Ex: 4.0"
-              id="dim_la_${index}" onchange="recalcPiece(${index})" oninput="recalcPiece(${index})">
-          </div>
-          <div class="dim-input">
-            <label>Hauteur plafond (m)</label>
-            <input type="number" step="0.1" min="2" value="2.5"
-              id="dim_h_${index}" onchange="recalcPiece(${index})" oninput="recalcPiece(${index})">
-          </div>
-          <div class="dim-input">
-            <label>Nb fenêtres</label>
-            <input type="number" min="0" value="1"
-              id="dim_fen_${index}" onchange="recalcPiece(${index})" oninput="recalcPiece(${index})">
-          </div>
-          <div class="dim-input">
-            <label>Nb portes</label>
-            <input type="number" min="0" value="1"
-              id="dim_por_${index}" onchange="recalcPiece(${index})" oninput="recalcPiece(${index})">
-          </div>
-          <div>
-            <div class="dim-input" style="opacity:0;"><label>.</label><input></div>
-          </div>
+        <h3 style="color:var(--primary); margin-bottom:12px; font-size:1rem;">📐 Dimensions <span style="font-weight:400;font-size:0.8rem;color:var(--text-light);">(renseignées à l'étape « Pièces »)</span></h3>
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(105px,1fr)); gap:10px;">
+          <div class="auto-field"><span class="auto-label">Longueur</span><span class="auto-val">${piece.dims.l ? piece.dims.l + ' m' : '—'}</span></div>
+          <div class="auto-field"><span class="auto-label">Largeur</span><span class="auto-val">${piece.dims.la ? piece.dims.la + ' m' : '—'}</span></div>
+          <div class="auto-field"><span class="auto-label">Hauteur</span><span class="auto-val">${piece.dims.h ? piece.dims.h + ' m' : '—'}</span></div>
+          <div class="auto-field"><span class="auto-label">Fenêtres</span><span class="auto-val">${piece.dims.fenetres || 0}</span></div>
+          <div class="auto-field"><span class="auto-label">Portes</span><span class="auto-val">${piece.dims.portes || 0}</span></div>
         </div>
-
-        <!-- Surfaces calculées automatiquement -->
         <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(140px,1fr)); gap:10px; margin-top:14px;">
-          <div class="auto-field">
-            <span class="auto-label">Surface sol</span>
-            <span class="auto-val" id="surf_sol_${index}">— m²</span>
-          </div>
-          <div class="auto-field">
-            <span class="auto-label">Surface murs</span>
-            <span class="auto-val" id="surf_murs_${index}">— m²</span>
-          </div>
-          <div class="auto-field">
-            <span class="auto-label">Surface plafond</span>
-            <span class="auto-val" id="surf_plaf_${index}">— m²</span>
-          </div>
+          <div class="auto-field"><span class="auto-label">Surface sol</span><span class="auto-val" id="surf_sol_${index}">— m²</span></div>
+          <div class="auto-field"><span class="auto-label">Surface murs</span><span class="auto-val" id="surf_murs_${index}">— m²</span></div>
+          <div class="auto-field"><span class="auto-label">Surface plafond</span><span class="auto-val" id="surf_plaf_${index}">— m²</span></div>
         </div>
       </div>
 
@@ -1452,13 +1441,12 @@ function changerQty(pieceIndex, code, metier, delta) {
 function recalcPiece(index) {
   const piece = piecesSelectionnees[index];
 
-  const l = parseFloat(document.getElementById(`dim_l_${index}`)?.value) || 0;
-  const la = parseFloat(document.getElementById(`dim_la_${index}`)?.value) || 0;
-  const h = parseFloat(document.getElementById(`dim_h_${index}`)?.value) || 2.5;
-  const fen = parseInt(document.getElementById(`dim_fen_${index}`)?.value) || 0;
-  const por = parseInt(document.getElementById(`dim_por_${index}`)?.value) || 0;
-
-  piece.dims = { l, la, h, fenetres: fen, portes: por };
+  const d = piece.dims || {};
+  const l = d.l || 0;
+  const la = d.la || 0;
+  const h = d.h || 2.5;
+  const fen = d.fenetres || 0;
+  const por = d.portes || 0;
 
   if (metiersActifs.includes('electricite')) { appliquerNorme(index); syncElecDOM(index); }
 
