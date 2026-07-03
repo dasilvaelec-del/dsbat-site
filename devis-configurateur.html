@@ -910,6 +910,7 @@ function getVmcPourPiece(pieceId) {
 // ===== ÉTAT GLOBAL =====
 let piecesSelectionnees = []; // [{id, nom, icon, numero, dims:{l,la,h,fenetres,portes}, config:{metier:{code:qty}}}]
 let metiersActifs = [];
+let chantier = {}; // infos du formulaire (typeProjet, etatLieux, qualiteMateriaux, ...)
 let phaseActuelle = 1;
 let pieceActiveIndex = 0;
 
@@ -929,6 +930,8 @@ window.addEventListener('DOMContentLoaded', () => {
   if (metiersActifs.length === 0) {
     metiersActifs = ['electricite','plomberie','peinture','sols','carrelage','isolation','menuiserie','vmc'];
   }
+
+  try { chantier = JSON.parse(chantierData) || {}; } catch(e) { chantier = {}; }
 
   renderPiecesSelection();
 });
@@ -980,6 +983,25 @@ function setDimType(id, field, value) {
   d[field] = isNaN(v) ? (field === 'h' ? 2.5 : 0) : v;
 }
 
+// ===== Pré-sélection depuis le formulaire chantier =====
+// Pose : neuf/extension -> placo ; réno bon état -> saillie ; moyen -> goulotte+encastré ; à rénover -> saignée
+function poseParDefaut(ch) {
+  ch = ch || {};
+  if (ch.typeProjet === 'neuf' || ch.typeProjet === 'extension') return 'placo';
+  if (ch.etatLieux === 'bon') return 'saillie';
+  if (ch.etatLieux === 'mauvais') return 'saignee';
+  return 'goulotte_enc';
+}
+// Gamme selon qualité des matériaux (éco / standard / premium)
+function gammeElecParDefaut(ch) {
+  const q = (ch && ch.qualiteMateriaux) || 'standard';
+  return q === 'eco' ? 'dooxie' : (q === 'premium' ? 'celiane' : 'mosaic');
+}
+function gammePloParDefaut(ch) {
+  const q = (ch && ch.qualiteMateriaux) || 'standard';
+  return q === 'eco' ? 'entree' : (q === 'premium' ? 'premium' : 'standard');
+}
+
 function togglePiece(id) {
   if ((compteurs[id] || 0) === 0) {
     changerCompteur(id, 1);
@@ -1014,9 +1036,9 @@ function validerPieces() {
         numero: i,
         dims: Object.assign({ l: 0, la: 0, h: 2.5, fenetres: 1, portes: 1 }, dimsParType[p.id] || {}),
         config: {},
-        elecMethode: 'saignee',
-        elecGamme: 'dooxie',
-        ploGamme: 'standard'
+        elecMethode: poseParDefaut(chantier),
+        elecGamme: gammeElecParDefaut(chantier),
+        ploGamme: gammePloParDefaut(chantier)
       });
     }
   });
