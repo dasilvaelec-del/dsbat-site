@@ -923,8 +923,14 @@ let pieceActiveIndex = 0;
 
 // ===== INIT =====
 window.addEventListener('DOMContentLoaded', () => {
-  // Récupérer les métiers depuis sessionStorage
+  // ===== Coordonnées obligatoires : accès uniquement via le formulaire devis =====
   const clientData = sessionStorage.getItem('client');
+  let __client = null;
+  try { __client = JSON.parse(clientData || 'null'); } catch(e) {}
+  if (!__client || !__client.nom || !__client.tel) {
+    window.location.replace('devis.html?configurateur=1');
+    return;
+  }
   const chantierData = sessionStorage.getItem('chantier');
 
   // Essayer de récupérer les métiers
@@ -1341,13 +1347,14 @@ function getMoyenPrixFor(code, piece) {
 
 // ===== NF C 15-100 — équipement minimum par pièce (verrouillé) =====
 // Éclairage selon nombre de portes : 1 accès = simple, 2 = va-et-vient, 3+ = télérupteur
-function normeMin(pieceId, portes) {
+function normeMin(pieceId, portes, surface) {
   portes = portes || 1;
+  surface = surface || 0;
   const light = portes >= 3 ? 'ELEC_PL_3BP' : (portes === 2 ? 'ELEC_PL_VV' : 'ELEC_PL_SA');
   const min = {};
   min[light] = 1;
   if (pieceId === 'cuisine') { min.ELEC_PRISE10 = 6; min.ELEC_PRISE32 = 1; min.ELEC_PRISE20 = 2; }
-  else if (pieceId === 'salon' || pieceId === 'salle_manger') { min.ELEC_PRISE10 = 5; min.ELEC_RJ45 = 1; min.ELEC_TV = 1; }
+  else if (pieceId === 'salon' || pieceId === 'salle_manger') { min.ELEC_PRISE10 = Math.max(5, Math.ceil(surface / 4) || 0); min.ELEC_RJ45 = 1; min.ELEC_TV = 1; } // 1 prise / 4 m², min 5 (NF C 15-100)
   else if (pieceId === 'chambre') { min.ELEC_PRISE10 = 3; min.ELEC_RJ45 = 1; min.ELEC_TV = 1; }
   else if (pieceId === 'sdb') { min.ELEC_PRISE10 = 1; min.ELEC_LIAISON_EQUI = 1; min.ELEC_SECH_SERV = 1; }
   else if (pieceId === 'sde') { min.ELEC_PRISE10 = 1; }
@@ -1361,8 +1368,9 @@ function normeMin(pieceId, portes) {
 function appliquerNorme(index) {
   const piece = piecesSelectionnees[index];
   const portes = (piece.dims && piece.dims.portes) || 1;
+  const surface = ((piece.dims && piece.dims.l) || 0) * ((piece.dims && piece.dims.la) || 0);
   const oldMin = piece.normeMin || {};
-  const newMin = normeMin(piece.id, portes);
+  const newMin = normeMin(piece.id, portes, surface);
   if (!piece.config.electricite) piece.config.electricite = {};
   const cfg = piece.config.electricite;
   // libérer les anciens minimums qui ne sont plus requis (ex : éclairage remplacé selon portes)
@@ -1398,7 +1406,7 @@ function bandeauNorme() {
       <span style="font-size:1.2rem;">⚠️</span>
       <div style="font-size:0.85rem;color:#78350f;">
         <strong>Installation conforme à la norme NF C 15-100 (obligatoire).</strong>
-        L'équipement minimum réglementaire est inclus automatiquement selon la pièce et le nombre de portes. Vous pouvez seulement <strong>ajouter</strong> des prises ou points supplémentaires.
+        L'équipement minimum réglementaire est inclus automatiquement selon la pièce, sa surface et le nombre de portes. Vous pouvez seulement <strong>ajouter</strong> des prises ou points supplémentaires.
       </div>
     </div>`;
 }
@@ -1600,6 +1608,15 @@ function toggleSection(sid) {
   if (el) el.classList.toggle('open');
 }
 
+
+// ===== TVA selon le type de projet (neuf/extension : 20 % — rénovation logement >2 ans : 10 %) =====
+function tauxTVA() {
+  return (chantier && (chantier.typeProjet === 'neuf' || chantier.typeProjet === 'extension')) ? 0.20 : 0.10;
+}
+function labelTVA() {
+  return tauxTVA() === 0.20 ? 'TVA 20 % (neuf / extension)' : 'TVA 10 % (rénovation)';
+}
+
 // ===== PHASE 3 — RÉCAPITULATIF =====
 function renderPhase3() {
   const container = document.getElementById('recapGlobal');
@@ -1637,7 +1654,7 @@ function renderPhase3() {
   window.__tableauAuto = tableau;
 
   // TVA
-  const tva = totalGlobalHT * 0.10;
+  const tva = totalGlobalHT * tauxTVA();
   const ttc = totalGlobalHT + tva;
   const a1 = ttc * 0.40;
   const a2 = ttc * 0.30;
@@ -1705,7 +1722,7 @@ function renderPhase3() {
     <div class="recap-grand-total">
       <div class="gt-label">Estimation totale HT</div>
       <div class="gt-ht">${formatEuro(totalGlobalHT)}</div>
-      <div class="gt-tva">TVA 10% (rénovation) : ${formatEuro(tva)}</div>
+      <div class="gt-tva">${labelTVA()} : ${formatEuro(tva)}</div>
       <div class="gt-ttc">Total TTC : ${formatEuro(ttc)}</div>
     </div>
 
@@ -1746,13 +1763,100 @@ function renderPhase3() {
   `;
 }
 
+
+// ===== NOTIFICATIONS (WhatsApp + email automatique vers DS.BAT) =====
+function findPrestLabel(code) {
+  for (const cat of Object.values(PRIX)) {
+    if (!Array.isArray(cat)) continue;
+    const f = cat.find(p => p.code === code);
+    if (f) return f.label;
+  }
+  return code;
+}
+
+function construireRecapTexte(numero, totalHT, tva, ttc, clientData) {
+  const L = [];
+  L.push('🔔 Devis configurateur DS.BAT — N° ' + numero);
+  if (clientData.nom) L.push('👤 ' + clientData.nom + (clientData.tel ? ' — 📞 ' + clientData.tel : '') + (clientData.email ? ' — 📧 ' + clientData.email : ''));
+  if (clientData.adresse) L.push('📍 ' + clientData.adresse);
+  if (chantier && chantier.typeProjet) L.push('🏗️ Projet : ' + chantier.typeProjet + (chantier.surface ? ' — ' + chantier.surface + ' m²' : ''));
+  L.push('');
+  piecesSelectionnees.forEach(p => {
+    const dims = (p.dims.l && p.dims.la) ? ' (' + p.dims.l + '×' + p.dims.la + ' m = ' + (p.dims.l * p.dims.la).toFixed(1) + ' m²)' : '';
+    L.push('• ' + p.nom + dims + ' : ' + formatEuro(p.totalHT || 0));
+  });
+  const _tab = window.__tableauAuto;
+  if (_tab) L.push('• Tableau électrique NF C 15-100 (' + _tab.nbCircuits + ' circuits) : ' + formatEuro(_tab.prixTotalHT));
+  L.push('');
+  L.push('Total HT : ' + formatEuro(totalHT));
+  L.push(labelTVA() + ' : ' + formatEuro(tva));
+  L.push('💰 Total TTC : ' + formatEuro(ttc));
+  return L.join('\n');
+}
+
+function construireDetailTexte() {
+  const out = [];
+  piecesSelectionnees.forEach(p => {
+    out.push('━━━ ' + p.nom + ' ━━━');
+    if (p.surfaces) out.push('Surfaces : sol ' + (p.surfaces.sol||0).toFixed(1) + ' m² · murs ' + (p.surfaces.murs||0).toFixed(1) + ' m² · plafond ' + (p.surfaces.plafond||0).toFixed(1) + ' m²');
+    if (p.elecMethode) out.push('Pose élec : ' + p.elecMethode + ' · gamme : ' + (p.elecGamme || ''));
+    for (const [metier, cfg] of Object.entries(p.config)) {
+      if (metier === 'peinture_auto') { if (cfg > 0) out.push('Peinture (auto) : ' + formatEuro(cfg)); continue; }
+      if (metier === 'sols_auto') { if (cfg > 0) out.push('Sols (auto) : ' + formatEuro(cfg)); continue; }
+      for (const [code, qty] of Object.entries(cfg)) {
+        if (!qty) continue;
+        out.push('  - ' + findPrestLabel(code) + ' × ' + qty + ' = ' + formatEuro(getMoyenPrixFor(code, p) * qty));
+      }
+    }
+    out.push('Total pièce : ' + formatEuro(p.totalHT || 0));
+    out.push('');
+  });
+  return out.join('\n');
+}
+
+function envoyerNotifications(numero, totalHT, tva, ttc, clientData, pdfBlob) {
+  const recap = construireRecapTexte(numero, totalHT, tva, ttc, clientData);
+  const detail = construireDetailTexte();
+
+  // 1) Email automatique à contact@dsbat.fr (FormSubmit — gratuit)
+  const MAIL_URL = 'https://formsubmit.co/ajax/contact@dsbat.fr';
+  try {
+    const fd = new FormData();
+    fd.append('_subject', '🔔 Devis configurateur ' + numero + ' — ' + (clientData.nom || 'client'));
+    fd.append('_template', 'box');
+    fd.append('_captcha', 'false');
+    fd.append('Recapitulatif', recap);
+    fd.append('Detail_complet', detail);
+    if (pdfBlob && pdfBlob.size && pdfBlob.size < 4 * 1024 * 1024) {
+      fd.append('attachment', pdfBlob, 'Devis_DSBAT_' + numero + '.pdf');
+    }
+    fetch(MAIL_URL, { method: 'POST', body: fd })
+      .then(r => { if (!r.ok) throw new Error('multipart refusé'); })
+      .catch(() => {
+        // repli : envoi sans pièce jointe
+        fetch(MAIL_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+          body: JSON.stringify({
+            _subject: '🔔 Devis configurateur ' + numero + ' — ' + (clientData.nom || 'client'),
+            _template: 'box', _captcha: 'false',
+            Recapitulatif: recap, Detail_complet: detail
+          })
+        }).catch(() => {});
+      });
+  } catch(e) {}
+
+  // 2) WhatsApp pré-rempli vers DS.BAT (le client appuie sur Envoyer)
+  window.open('https://wa.me/33629556627?text=' + encodeURIComponent(recap), '_blank');
+}
+
 // ===== PDF =====
 function genererPDFConfig() {
   let totalGlobalHT = 0;
   piecesSelectionnees.forEach(p => totalGlobalHT += p.totalHT || 0);
   const _tab = window.__tableauAuto;
   if (_tab) totalGlobalHT += _tab.prixTotalHT;
-  const tva = totalGlobalHT * 0.10;
+  const tva = totalGlobalHT * tauxTVA();
   const ttc = totalGlobalHT + tva;
   const date = new Date().toLocaleDateString('fr-FR');
   const numero = 'DSBT-' + Date.now().toString().slice(-6);
@@ -1806,7 +1910,7 @@ function genererPDFConfig() {
             <td style="padding:10px;text-align:right;font-weight:700;">${formatEuro(totalGlobalHT)}</td>
           </tr>
           <tr>
-            <td colspan="2" style="padding:10px;">TVA 10%</td>
+            <td colspan="2" style="padding:10px;">${labelTVA()}</td>
             <td style="padding:10px;text-align:right;">${formatEuro(tva)}</td>
           </tr>
           <tr style="background:#1e3a8a;color:white;">
@@ -1839,13 +1943,17 @@ function genererPDFConfig() {
   document.body.appendChild(div);
 
   const loadAndPrint = () => {
-    html2pdf().from(div).set({
+    const worker = html2pdf().from(div).set({
       margin: 10,
       filename: `Devis_DSBAT_${numero}.pdf`,
       image: { type: 'jpeg', quality: 0.95 },
       html2canvas: { scale: 2 },
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-    }).save().then(() => document.body.removeChild(div));
+    });
+    worker.outputPdf('blob')
+      .then(blob => { envoyerNotifications(numero, totalGlobalHT, tva, ttc, clientData, blob); return worker.save(); })
+      .catch(() => { envoyerNotifications(numero, totalGlobalHT, tva, ttc, clientData, null); return worker.save(); })
+      .then(() => { if (div.parentNode) document.body.removeChild(div); });
   };
 
   if (!window.html2pdf) {

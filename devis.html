@@ -1423,5 +1423,19 @@ document.querySelectorAll('[data-phone-base64]').forEach(link => {
 });
 </script>
 
+<script>
+// Si l'utilisateur a tenté d'accéder au configurateur sans coordonnées
+if (new URLSearchParams(location.search).get('configurateur') === '1') {
+  document.addEventListener('DOMContentLoaded', () => {
+    const panel = document.getElementById('panel1');
+    if (panel) {
+      const div = document.createElement('div');
+      div.style.cssText = 'background:#fef9ec;border:2px solid #f59e0b;border-radius:12px;padding:14px 16px;margin-bottom:18px;color:#78350f;font-size:0.92rem;';
+      div.innerHTML = '🔒 <strong>Le configurateur de travaux nécessite vos coordonnées.</strong> Renseignez ce formulaire pour y accéder — votre devis personnalisé vous attend à la fin.';
+      panel.insertBefore(div, panel.firstChild);
+    }
+  });
+}
+</script>
 </body>
 </html>
