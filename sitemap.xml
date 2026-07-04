@@ -3,116 +3,129 @@
 
 <url>
   <loc>https://dsbat.fr/</loc>
-  <lastmod>2026-04-06T00:00:00+00:00</lastmod>
+  <lastmod>2026-07-04T00:00:00+00:00</lastmod>
   <priority>1.00</priority>
 </url>
 
 <url>
   <loc>https://dsbat.fr/services.html</loc>
-  <lastmod>2026-04-06T00:00:00+00:00</lastmod>
+  <lastmod>2026-07-04T00:00:00+00:00</lastmod>
   <priority>0.80</priority>
 </url>
 
 <url>
   <loc>https://dsbat.fr/realisations.html</loc>
-  <lastmod>2026-04-06T00:00:00+00:00</lastmod>
+  <lastmod>2026-07-04T00:00:00+00:00</lastmod>
   <priority>0.80</priority>
 </url>
 
 <url>
   <loc>https://dsbat.fr/zone.html</loc>
-  <lastmod>2026-04-06T00:00:00+00:00</lastmod>
+  <lastmod>2026-07-04T00:00:00+00:00</lastmod>
   <priority>0.80</priority>
 </url>
 
 <url>
   <loc>https://dsbat.fr/prix.html</loc>
-  <lastmod>2026-04-06T00:00:00+00:00</lastmod>
+  <lastmod>2026-07-04T00:00:00+00:00</lastmod>
   <priority>0.80</priority>
 </url>
 
 <url>
   <loc>https://dsbat.fr/devis.html</loc>
-  <lastmod>2026-04-06T00:00:00+00:00</lastmod>
+  <lastmod>2026-07-04T00:00:00+00:00</lastmod>
   <priority>0.80</priority>
 </url>
 
 <url>
   <loc>https://dsbat.fr/contact.html</loc>
-  <lastmod>2026-04-06T00:00:00+00:00</lastmod>
+  <lastmod>2026-07-04T00:00:00+00:00</lastmod>
   <priority>0.80</priority>
 </url>
 
 <url>
   <loc>https://dsbat.fr/avis-client.html</loc>
-  <lastmod>2026-04-06T00:00:00+00:00</lastmod>
+  <lastmod>2026-07-04T00:00:00+00:00</lastmod>
   <priority>0.80</priority>
 </url>
 
 <url>
   <loc>https://dsbat.fr/faq.html</loc>
-  <lastmod>2026-04-06T00:00:00+00:00</lastmod>
+  <lastmod>2026-07-04T00:00:00+00:00</lastmod>
   <priority>0.80</priority>
 </url>
 
 <url>
   <loc>https://dsbat.fr/engagements.html</loc>
-  <lastmod>2026-04-06T00:00:00+00:00</lastmod>
+  <lastmod>2026-07-04T00:00:00+00:00</lastmod>
   <priority>0.80</priority>
 </url>
 
 <url>
   <loc>https://dsbat.fr/mentions-legales.html</loc>
-  <lastmod>2026-04-06T00:00:00+00:00</lastmod>
+  <lastmod>2026-07-04T00:00:00+00:00</lastmod>
   <priority>0.64</priority>
 </url>
 
 <url>
   <loc>https://dsbat.fr/devis-electricite.html</loc>
-  <lastmod>2026-04-06T00:00:00+00:00</lastmod>
+  <lastmod>2026-07-04T00:00:00+00:00</lastmod>
   <priority>0.64</priority>
 </url>
 
 <url>
   <loc>https://dsbat.fr/devis-plomberie.html</loc>
-  <lastmod>2026-04-06T00:00:00+00:00</lastmod>
+  <lastmod>2026-07-04T00:00:00+00:00</lastmod>
   <priority>0.64</priority>
 </url>
 
 <url>
   <loc>https://dsbat.fr/devis-vmc.html</loc>
-  <lastmod>2026-04-06T00:00:00+00:00</lastmod>
+  <lastmod>2026-07-04T00:00:00+00:00</lastmod>
   <priority>0.64</priority>
 </url>
 
 <url>
   <loc>https://dsbat.fr/devis-isolation.html</loc>
-  <lastmod>2026-04-06T00:00:00+00:00</lastmod>
+  <lastmod>2026-07-04T00:00:00+00:00</lastmod>
   <priority>0.64</priority>
 </url>
 
 <url>
   <loc>https://dsbat.fr/devis-peinture.html</loc>
-  <lastmod>2026-04-06T00:00:00+00:00</lastmod>
+  <lastmod>2026-07-04T00:00:00+00:00</lastmod>
   <priority>0.64</priority>
 </url>
 
 <url>
   <loc>https://dsbat.fr/devis-menuiserie.html</loc>
-  <lastmod>2026-04-06T00:00:00+00:00</lastmod>
+  <lastmod>2026-07-04T00:00:00+00:00</lastmod>
   <priority>0.64</priority>
 </url>
 
 <url>
   <loc>https://dsbat.fr/devis-sols.html</loc>
-  <lastmod>2026-04-06T00:00:00+00:00</lastmod>
+  <lastmod>2026-07-04T00:00:00+00:00</lastmod>
   <priority>0.64</priority>
 </url>
 
 <url>
   <loc>https://dsbat.fr/devis-carrelage.html</loc>
-  <lastmod>2026-04-06T00:00:00+00:00</lastmod>
+  <lastmod>2026-07-04T00:00:00+00:00</lastmod>
   <priority>0.64</priority>
+</url>
+
+
+<url>
+  <loc>https://dsbat.fr/devis-configurateur.html</loc>
+  <lastmod>2026-07-04T00:00:00+00:00</lastmod>
+  <priority>0.90</priority>
+</url>
+
+<url>
+  <loc>https://dsbat.fr/scan.html</loc>
+  <lastmod>2026-07-04T00:00:00+00:00</lastmod>
+  <priority>0.60</priority>
 </url>
 
 </urlset>

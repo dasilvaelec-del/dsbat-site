@@ -35,7 +35,11 @@ window.axeptioSettings = {
 <meta name="description" content="Électricien à Villevaudé (77) – DS.BAT : électricité générale, rénovation, dépannage rapide, devis gratuit. Intervention Paris et Nord-Est IDF.">
 <link rel="canonical" href="https://dsbat.fr/"  />
 
+<link rel="preload" as="image" href="image/uploads/chantier-verriere.webp" media="(min-width: 769px)" fetchpriority="high">
+<link rel="preload" as="image" href="image/uploads/chantier-verriere-mobile.webp" media="(max-width: 768px)" fetchpriority="high">
 <!-- Google Fonts Inter -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
 <!-- STYLES COMMUNS -->
@@ -56,6 +60,13 @@ window.axeptioSettings = {
   padding: 20px;
   animation: fadeIn 1.2s ease;
 }
+@media (max-width: 768px) {
+  .hero {
+    background-image: linear-gradient(rgba(10,20,40,.65), rgba(10,20,40,.65)),
+                      url("image/uploads/chantier-verriere-mobile.webp");
+  }
+}
+
 
 .hero h1 {
   font-size: 2.8rem;
@@ -204,7 +215,7 @@ window.axeptioSettings = {
 
 <!-- WHATSAPP FLOTTANT -->
 <a href="https://wa.me/33629556627" target="_blank" rel="noopener noreferrer" class="whatsapp-float" aria-label="Contact WhatsApp">
-  <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" alt="WhatsApp">
+  <img src="image/whatsapp.svg" alt="WhatsApp">
 </a>
 
 <!-- QR CODE -->

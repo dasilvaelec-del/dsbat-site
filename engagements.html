@@ -4,30 +4,37 @@
 <meta charset="UTF-8">
 
 
-<!-- Google Consent Mode Default -->
-<script data-cookieconsent="ignore">
-  window.dataLayer = window.dataLayer || [];
-  function gtag() { dataLayer.push(arguments); }
-  gtag("consent", "default", {
-    ad_storage: "denied",
-    ad_user_data: "denied",
-    ad_personalization: "denied",
-    analytics_storage: "denied",
-    functionality_storage: "denied",
-    personalization_storage: "denied",
-    security_storage: "granted",
-    wait_for_update: 500,
-  });
-  gtag("set", "ads_data_redaction", true);
-  gtag("set", "url_passthrough", true);
+<!-- Axeptio CMP + Google Consent Mode -->
+<script>
+window.axeptioSettings = {
+  clientId: "69d657f15cce55bf536c051d",
+  cookiesVersion: "b94e777b-840f-4b66-a52c-6b798ef52176",
+  googleConsentMode: {
+    default: {
+      analytics_storage: "denied",
+      ad_storage: "denied",
+      ad_user_data: "denied",
+      ad_personalization: "denied",
+      wait_for_update: 500
+    }
+  }
+};
+(function(d, s) {
+  var t = d.getElementsByTagName(s)[0], e = d.createElement(s);
+  e.async = true; e.src = "//static.axept.io/sdk.js";
+  t.parentNode.insertBefore(e, t);
+})(document, "script");
 </script>
 
-<!-- Cookiebot CMP -->
-<script id="Cookiebot" src="https://consent.cookiebot.com/uc.js" data-cbid="4ca5ad59-f0eb-4010-adef-c38cda83db9c" data-blockingmode="auto" type="text/javascript"></script>
+<!-- Script Ahrefs -->
+<script async src="https://analytics.ahrefs.com/analytics.js" data-key="HqHLuU8xskPJDLAthFodeA"></script>
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Nos engagements – DS.BAT</title>
 <meta name="description" content="Découvrez les engagements qualité et conformité de DS.BAT : normes NF C 15-100, DTU applicables, assurances et garanties pour vos travaux d'électricité et rénovation." />
+<link rel="canonical" href="https://dsbat.fr/engagements.html" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
 <script src="config.js"></script>
@@ -70,7 +77,7 @@
 </nav>
 
     <header class="hero">
-        <h1>📜 Nos engagements – Conformité normative</h1>
+        <h1>Nos engagements – Conformité normative</h1>
         <p>DS.BAT réalise tous ses travaux dans le respect des règles de l'art et des normes en vigueur.</p>
     </header>
 
@@ -147,7 +154,7 @@
 
     <!-- WHATSAPP FLOTTANT -->
     <a href="https://wa.me/33629556627" target="_blank" class="whatsapp-float">
-        <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" alt="WhatsApp">
+        <img src="image/whatsapp.svg" alt="WhatsApp">
     </a>
 
     <!-- QR CODE -->
