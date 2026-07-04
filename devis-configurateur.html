@@ -1656,6 +1656,16 @@ function renderPhase3() {
   // TVA
   const tva = totalGlobalHT * tauxTVA();
   const ttc = totalGlobalHT + tva;
+
+  // ===== LEAD : email automatique dès que le client voit le prix (une seule fois) =====
+  if (!__recapEnvoye && totalGlobalHT > 0) {
+    __recapEnvoye = true;
+    const cd = (() => { try { return JSON.parse(sessionStorage.getItem('client') || '{}'); } catch(e) { return {}; } })();
+    const num = 'DSBT-' + Date.now().toString().slice(-6);
+    envoyerEmail('👀 Prix consulté (récap) — ' + (cd.nom || 'client') + ' — ' + formatEuro(ttc) + ' TTC',
+      { Recapitulatif: construireRecapTexte(num, totalGlobalHT, tva, ttc, cd), Detail_complet: construireDetailTexte() });
+  }
+
   const a1 = ttc * 0.40;
   const a2 = ttc * 0.30;
   const a3 = ttc * 0.30;
@@ -1764,6 +1774,31 @@ function renderPhase3() {
 }
 
 
+
+// ===== Envoi email (FormSubmit) =====
+const MAIL_URL = 'https://formsubmit.co/ajax/contact@dsbat.fr';
+let __recapEnvoye = false;
+
+function envoyerEmail(subject, fields, pdfBlob, nomPdf) {
+  try {
+    const fd = new FormData();
+    fd.append('_subject', subject);
+    fd.append('_template', 'box');
+    fd.append('_captcha', 'false');
+    for (const [k, v] of Object.entries(fields)) fd.append(k, v);
+    if (pdfBlob && pdfBlob.size && pdfBlob.size < 4 * 1024 * 1024) fd.append('attachment', pdfBlob, nomPdf);
+    fetch(MAIL_URL, { method: 'POST', body: fd })
+      .then(r => { if (!r.ok) throw new Error('multipart refusé'); })
+      .catch(() => {
+        fetch(MAIL_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+          body: JSON.stringify(Object.assign({ _subject: subject, _template: 'box', _captcha: 'false' }, fields))
+        }).catch(() => {});
+      });
+  } catch(e) {}
+}
+
 // ===== NOTIFICATIONS (WhatsApp + email automatique vers DS.BAT) =====
 function findPrestLabel(code) {
   for (const cat of Object.values(PRIX)) {
@@ -1818,33 +1853,10 @@ function envoyerNotifications(numero, totalHT, tva, ttc, clientData, pdfBlob) {
   const recap = construireRecapTexte(numero, totalHT, tva, ttc, clientData);
   const detail = construireDetailTexte();
 
-  // 1) Email automatique à contact@dsbat.fr (FormSubmit — gratuit)
-  const MAIL_URL = 'https://formsubmit.co/ajax/contact@dsbat.fr';
-  try {
-    const fd = new FormData();
-    fd.append('_subject', '🔔 Devis configurateur ' + numero + ' — ' + (clientData.nom || 'client'));
-    fd.append('_template', 'box');
-    fd.append('_captcha', 'false');
-    fd.append('Recapitulatif', recap);
-    fd.append('Detail_complet', detail);
-    if (pdfBlob && pdfBlob.size && pdfBlob.size < 4 * 1024 * 1024) {
-      fd.append('attachment', pdfBlob, 'Devis_DSBAT_' + numero + '.pdf');
-    }
-    fetch(MAIL_URL, { method: 'POST', body: fd })
-      .then(r => { if (!r.ok) throw new Error('multipart refusé'); })
-      .catch(() => {
-        // repli : envoi sans pièce jointe
-        fetch(MAIL_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-          body: JSON.stringify({
-            _subject: '🔔 Devis configurateur ' + numero + ' — ' + (clientData.nom || 'client'),
-            _template: 'box', _captcha: 'false',
-            Recapitulatif: recap, Detail_complet: detail
-          })
-        }).catch(() => {});
-      });
-  } catch(e) {}
+  // 1) Email automatique avec PDF joint
+  envoyerEmail('📄 PDF généré — devis ' + numero + ' — ' + (clientData.nom || 'client'),
+    { Recapitulatif: recap, Detail_complet: detail },
+    pdfBlob, 'Devis_DSBAT_' + numero + '.pdf');
 
   // 2) WhatsApp pré-rempli vers DS.BAT (le client appuie sur Envoyer)
   window.open('https://wa.me/33629556627?text=' + encodeURIComponent(recap), '_blank');

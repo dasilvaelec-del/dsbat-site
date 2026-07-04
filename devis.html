@@ -1268,6 +1268,25 @@ function envoyerDevis() {
   sessionStorage.setItem('chantier', JSON.stringify(data.chantier));
   sessionStorage.setItem('client', JSON.stringify(data.client));
 
+  // ===== LEAD : email automatique à DS.BAT dès la fin du formulaire =====
+  try {
+    const metiersTxt = data.metiers.map(m => getLabel('metier', m)).join(', ');
+    fetch('https://formsubmit.co/ajax/contact@dsbat.fr', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify({
+        _subject: '🆕 Nouveau lead formulaire devis — ' + data.client.nom,
+        _template: 'box', _captcha: 'false',
+        Client: data.client.nom + ' — ' + data.client.tel + ' — ' + data.client.email,
+        Adresse: data.client.adresse || '',
+        Chantier: getLabel('typeBien', data.chantier.typeBien) + ' — ' + data.chantier.surface + ' m² — ' + data.chantier.pieces + ' pièces — ' + getLabel('typeProjet', data.chantier.typeProjet),
+        Metiers: metiersTxt,
+        Delai: data.client.delai || '',
+        Description: data.description || ''
+      })
+    }).catch(() => {});
+  } catch(e) {}
+
   // Message WhatsApp pour toi
   const metiersStr = data.metiers.map(m => getLabel('metier', m)).join(', ');
   const msgWA = `🔔 *Nouveau devis DS.BAT*\n\n👤 *${data.client.nom}*\n📞 ${data.client.tel}\n📧 ${data.client.email}\n📍 ${data.client.adresse}\n\n🏗️ ${getLabel('typeBien', data.chantier.typeBien)} – ${data.chantier.surface}m² – ${data.chantier.pieces} pièces\n🔨 ${metiersStr}\n⏱️ Délai : ${data.client.delai}\n\n${data.description ? '💬 ' + data.description : ''}`;
