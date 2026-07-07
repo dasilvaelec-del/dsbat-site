@@ -182,4 +182,45 @@ sections.forEach(sec => observer.observe(sec));
 
 window.addEventListener('load', () => {
   sections.forEach(sec => {
-    const
+    const rect = sec.getBoundingClientRect();
+    if (rect.top < window.innerHeight * 0.8) sec.classList.add('visible');
+  });
+});
+
+// Envoi du formulaire de contact via FormSubmit (même service que les devis)
+document.getElementById('contactForm').addEventListener('submit', function (e) {
+  e.preventDefault();
+  const btn = document.getElementById('contactSubmitBtn');
+  const status = document.getElementById('contactStatus');
+  btn.disabled = true;
+  btn.textContent = 'Envoi en cours…';
+
+  const fd = new FormData(this);
+  fd.append('_subject', '📩 Nouveau message de contact – dsbat.fr');
+  fd.append('_template', 'table');
+  fd.append('_captcha', 'false');
+
+  fetch('https://formsubmit.co/ajax/contact@dsbat.fr', {
+    method: 'POST',
+    body: fd,
+    headers: { 'Accept': 'application/json' }
+  })
+    .then(r => r.json())
+    .then(() => {
+      status.style.display = 'block';
+      status.style.color = 'var(--accent)';
+      status.textContent = '✅ Message envoyé ! Nous vous répondons sous 24 h.';
+      this.reset();
+      btn.textContent = 'Message envoyé';
+    })
+    .catch(() => {
+      status.style.display = 'block';
+      status.style.color = '#dc2626';
+      status.textContent = '❌ Une erreur est survenue. Appelez-nous au 06 29 55 66 27 ou écrivez à contact@dsbat.fr.';
+      btn.disabled = false;
+      btn.textContent = 'Envoyer le message';
+    });
+});
+</script>
+</body>
+</html>
