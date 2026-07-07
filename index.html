@@ -266,6 +266,21 @@ window.axeptioSettings = {
   </p>
 </section>
 
+<!-- GUIDE GRATUIT (capture e-mail) -->
+<section class="section" id="guide">
+  <div class="card" style="max-width:640px; margin:0 auto; text-align:center;">
+    <h2 style="margin-bottom:10px;">📗 Guide gratuit</h2>
+    <h3 style="color:var(--primary); margin-bottom:12px;">5 signes que votre installation électrique est dangereuse</h3>
+    <p style="margin-bottom:20px;">Vérifiez votre logement en 10 minutes avec le guide de Lionel, électricien certifié. Recevez-le immédiatement par e-mail.</p>
+    <form id="guideForm" style="display:flex; flex-wrap:wrap; gap:10px; justify-content:center;">
+      <input type="email" name="email" placeholder="Votre e-mail" required style="flex:1; min-width:220px; margin:0;">
+      <button type="submit" class="btn btn-primary" id="guideBtn" style="margin:0;">Recevoir le guide</button>
+    </form>
+    <p id="guideStatus" style="margin-top:15px; font-weight:600; display:none;"></p>
+    <p style="margin-top:12px; font-size:0.8rem; color:var(--text-light);">Votre e-mail ne sera jamais partagé. Pas de spam, promis.</p>
+  </div>
+</section>
+
 <!-- CTA -->
 <section class="cta section">
   <h2>Un projet ? Contactez-nous dès maintenant</h2>
@@ -318,6 +333,43 @@ window.addEventListener('load', () => {
     const rect = sec.getBoundingClientRect();
     if (rect.top < window.innerHeight * 0.8) sec.classList.add('visible');
   });
+});
+
+// Capture e-mail : envoi du guide gratuit
+document.getElementById('guideForm').addEventListener('submit', function (e) {
+  e.preventDefault();
+  const btn = document.getElementById('guideBtn');
+  const status = document.getElementById('guideStatus');
+  btn.disabled = true;
+  btn.textContent = 'Envoi…';
+
+  const fd = new FormData(this);
+  fd.append('_subject', '📗 Nouveau contact guide gratuit – dsbat.fr');
+  fd.append('_template', 'table');
+  fd.append('_captcha', 'false');
+  fd.append('_autoresponse',
+    'Bonjour, voici votre guide DS.BAT « 5 signes que votre installation électrique est dangereuse » : ' +
+    'https://dsbat.fr/guide-securite-electrique.pdf — Un doute après lecture ? Diagnostic gratuit par téléphone au 06 29 55 66 27. À bientôt, Lionel — DS.BAT');
+
+  fetch('https://formsubmit.co/ajax/contact@dsbat.fr', {
+    method: 'POST',
+    body: fd,
+    headers: { 'Accept': 'application/json' }
+  })
+    .then(r => r.json())
+    .then(() => {
+      status.style.display = 'block';
+      status.style.color = 'var(--accent)';
+      status.innerHTML = '✅ C\'est envoyé ! <a href="guide-securite-electrique.pdf" target="_blank" style="color:var(--primary); text-decoration:underline;">Vous pouvez aussi le télécharger ici</a>.';
+      this.reset();
+      btn.textContent = 'Guide envoyé';
+    })
+    .catch(() => {
+      status.style.display = 'block';
+      status.innerHTML = '📗 <a href="guide-securite-electrique.pdf" target="_blank" style="color:var(--primary); text-decoration:underline;">Téléchargez le guide directement ici</a>.';
+      btn.disabled = false;
+      btn.textContent = 'Recevoir le guide';
+    });
 });
 </script>
 </body>
