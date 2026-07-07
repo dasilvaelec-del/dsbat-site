@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Votre avis compte – DS.BAT</title>
+<meta name="description" content="Merci de nous avoir fait confiance. Évaluez notre intervention en quelques secondes.">
+<!-- Page privée envoyée aux clients : ne pas indexer -->
+<meta name="robots" content="noindex, nofollow">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<style>
+.nps-wrap {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 40px 20px 60px;
+  text-align: center;
+}
+.nps-wrap h1 {
+  color: var(--primary);
+  font-size: 1.9rem;
+  margin: 30px 0 10px;
+}
+.nps-wrap .sous-titre {
+  color: var(--text-light);
+  margin-bottom: 35px;
+}
+.nps-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
+  margin: 0 auto 12px;
+  max-width: 420px;
+}
+.nps-note {
+  aspect-ratio: 1;
+  border: 2px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 1.3rem;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  transition: var(--transition);
+}
+.nps-note:hover { border-color: var(--primary-light); transform: translateY(-2px); }
+.nps-note.selected { background: var(--primary); color: #fff; border-color: var(--primary); }
+.nps-legende {
+  display: flex;
+  justify-content: space-between;
+  max-width: 420px;
+  margin: 0 auto 30px;
+  font-size: 0.85rem;
+  color: var(--text-light);
+}
+.nps-etape { display: none; animation: fadeIn .4s ease; }
+.nps-etape.active { display: block; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(15px);} to { opacity: 1; transform: none;} }
+.google-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 20px;
+  font-size: 1.1rem;
+}
+#formPrive textarea, #formPrive input {
+  width: 100%;
+  margin-bottom: 15px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 1rem;
+}
+</style>
+</head>
+<body>
+
+<main class="nps-wrap">
+
+  <!-- ÉTAPE 1 : NOTE -->
+  <section class="nps-etape active" id="etapeNote">
+    <img src="favicon.svg" alt="DS.BAT" width="56" height="56">
+    <h1>Merci de nous avoir fait confiance !</h1>
+    <p class="sous-titre">Votre chantier est terminé. Une dernière chose : comment évaluez-vous notre intervention&nbsp;?</p>
+    <div class="nps-grid" id="npsGrid"></div>
+    <div class="nps-legende"><span>😕 Pas satisfait</span><span>🤩 Excellent</span></div>
+  </section>
+
+  <!-- ÉTAPE 2A : NOTE ≥ 8 → AVIS GOOGLE -->
+  <section class="nps-etape" id="etapeGoogle">
+    <h1>🙏 Merci beaucoup !</h1>
+    <p class="sous-titre">Votre satisfaction est notre meilleure publicité. Pourriez-vous prendre 30&nbsp;secondes pour partager votre expérience sur Google&nbsp;? C'est ce qui aide le plus une petite entreprise comme la nôtre.</p>
+    <a class="btn btn-primary google-btn" id="btnGoogle" href="https://g.page/r/CRR4TERRw3fxEBM/review" target="_blank" rel="noopener">
+      ⭐ Laisser un avis Google
+    </a>
+    <p style="margin-top:25px; font-size:0.9rem; color:var(--text-light);">Votre note et votre commentaire seront visibles publiquement sur notre fiche Google.</p>
+  </section>
+
+  <!-- ÉTAPE 2B : NOTE < 8 → RETOUR PRIVÉ -->
+  <section class="nps-etape" id="etapePrive">
+    <h1>Merci pour votre franchise</h1>
+    <p class="sous-titre">Quelque chose ne vous a pas pleinement satisfait, et nous voulons le savoir. Votre message arrive directement au gérant — il vous répondra personnellement.</p>
+    <form id="formPrive">
+      <input type="text" name="nom" placeholder="Votre nom" required>
+      <input type="tel" name="telephone" placeholder="Votre téléphone (pour vous rappeler)">
+      <textarea name="message" rows="5" placeholder="Dites-nous ce qui n'a pas été..." required></textarea>
+      <button type="submit" class="btn btn-primary" id="btnPrive">Envoyer mon retour</button>
+      <p id="priveStatus" style="margin-top:15px; font-weight:600; display:none;"></p>
+    </form>
+  </section>
+
+</main>
+
+<footer>
+  <p>© 2026 DS.BAT – 58 Grande Rue, 77410 Villevaudé | <a href="index.html">dsbat.fr</a></p>
+</footer>
+
+<script src="config.js"></script>
+<script>
+// Génération des boutons 1 à 10
+const grid = document.getElementById('npsGrid');
+let noteChoisie = null;
+
+for (let i = 1; i <= 10; i++) {
+  const b = document.createElement('button');
+  b.className = 'nps-note';
+  b.textContent = i;
+  b.addEventListener('click', () => choisirNote(i, b));
+  grid.appendChild(b);
+}
+
+function choisirNote(note, btn) {
+  noteChoisie = note;
+  document.querySelectorAll('.nps-note').forEach(x => x.classList.remove('selected'));
+  btn.classList.add('selected');
+
+  // Trace de la note par e-mail (silencieux, best effort)
+  const fd = new FormData();
+  fd.append('_subject', `⭐ Note client : ${note}/10 – dsbat.fr`);
+  fd.append('note', `${note}/10`);
+  fd.append('date', new Date().toLocaleString('fr-FR'));
+  fd.append('_template', 'table');
+  fd.append('_captcha', 'false');
+  fetch('https://formsubmit.co/ajax/contact@dsbat.fr', { method: 'POST', body: fd, headers: { 'Accept': 'application/json' } }).catch(() => {});
+
+  setTimeout(() => {
+    document.getElementById('etapeNote').classList.remove('active');
+    document.getElementById(note >= 8 ? 'etapeGoogle' : 'etapePrive').classList.add('active');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, 350);
+}
+
+// Formulaire retour privé
+document.getElementById('formPrive').addEventListener('submit', function (e) {
+  e.preventDefault();
+  const btn = document.getElementById('btnPrive');
+  const status = document.getElementById('priveStatus');
+  btn.disabled = true;
+  btn.textContent = 'Envoi en cours…';
+
+  const fd = new FormData(this);
+  fd.append('note', noteChoisie ? `${noteChoisie}/10` : 'non précisée');
+  fd.append('_subject', '🔒 Retour client privé – dsbat.fr');
+  fd.append('_template', 'table');
+  fd.append('_captcha', 'false');
+
+  fetch('https://formsubmit.co/ajax/contact@dsbat.fr', {
+    method: 'POST',
+    body: fd,
+    headers: { 'Accept': 'application/json' }
+  })
+    .then(r => r.json())
+    .then(() => {
+      status.style.display = 'block';
+      status.style.color = 'var(--accent)';
+      status.textContent = '✅ Retour envoyé. Le gérant vous recontacte rapidement.';
+      btn.textContent = 'Retour envoyé';
+    })
+    .catch(() => {
+      status.style.display = 'block';
+      status.style.color = '#dc2626';
+      status.textContent = '❌ Erreur d\'envoi. Appelez-nous au 06 29 55 66 27.';
+      btn.disabled = false;
+      btn.textContent = 'Envoyer mon retour';
+    });
+});
+</script>
+</body>
+</html>
