@@ -68,16 +68,50 @@ window.axeptioSettings = {
 }
 
 
-.hero h1 {
-  font-size: 2.8rem;
-  margin-bottom: 15px;
+.hero-promesse {
+  font-size: 3rem;
+  font-weight: 800;
+  line-height: 1.15;
+  margin-bottom: 18px;
   animation: slideUp 1s ease;
+  text-shadow: 0 2px 12px rgba(0,0,0,0.4);
+}
+
+.hero h1 {
+  font-size: 1.15rem;
+  font-weight: 500;
+  opacity: 0.9;
+  margin-bottom: 8px;
+  animation: slideUp 1.1s ease;
 }
 
 .hero p {
   margin-bottom: 25px;
   animation: slideUp 1.2s ease;
 }
+
+.hero-badges {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 28px;
+  animation: slideUp 1.3s ease;
+}
+
+.hero-badges span {
+  background: rgba(255,255,255,0.14);
+  backdrop-filter: blur(6px);
+  border: 1px solid rgba(255,255,255,0.25);
+  border-radius: var(--radius-xl);
+  padding: 7px 16px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.avis-stars { color: #f59e0b; letter-spacing: 2px; }
+.avis-nom { margin-top: 12px; font-weight: 600; color: var(--text); }
 
 @keyframes fadeIn {
   from { opacity: 0; }
@@ -96,13 +130,16 @@ window.axeptioSettings = {
 }
 
 @media(max-width:600px){
-  .hero h1 { font-size: 1.9rem; }
+  .hero-promesse { font-size: 2rem; }
+  .hero h1 { font-size: 1rem; }
   .hero p { font-size: 0.95rem; }
   .btn { width: 100%; max-width: 260px; }
+  .hero-badges span { font-size: 0.8rem; padding: 6px 12px; }
 }
 
 @media(min-width:601px) and (max-width:900px){
-  .hero h1 { font-size: 2.4rem; }
+  .hero-promesse { font-size: 2.5rem; }
+  .hero h1 { font-size: 1.05rem; }
   .hero p { font-size: 1rem; }
 }
 </style>
@@ -160,13 +197,20 @@ window.axeptioSettings = {
   <a href="https://www.facebook.com/profile.php?id=61590265183793" target="_blank">👍 Facebook</a>
 </nav>
 
-<!-- HERO ORIGINAL -->
+<!-- HERO -->
 <section class="hero">
   <div class="hero-content">
+    <p class="hero-promesse">Votre chantier chiffré en 2 minutes.<br>Sans surprise.</p>
     <h1>Électricien à Villevaudé – DS.BAT Électricité & Rénovation</h1>
-    <p>Intervention à Villevaudé, en Seine-et-Marne (77), à Paris et dans le Nord-Est de l’Île-de-France pour tous vos travaux d’électricité et de rénovation.</p>
-    <a class="btn btn-primary" href="devis.html">Demander un devis gratuit</a>
+    <p>Intervention en Seine-et-Marne (77), à Paris et dans le Nord-Est de l’Île-de-France.</p>
+    <a class="btn btn-primary" href="devis.html">Chiffrer mes travaux gratuitement</a>
     <a class="btn btn-phone" href="#" data-phone-base64="MDYyOTU1NjYyNw==">📞 06<!-- -->29<!-- -->55<!-- -->66<!-- -->27</a>
+    <div class="hero-badges">
+      <span>⭐ 4,9/5</span>
+      <span>✔️ Assurance décennale</span>
+      <span>✔️ Devis gratuit</span>
+      <span>✔️ Intervention 6j/7</span>
+    </div>
   </div>
 </section>
 
@@ -195,14 +239,32 @@ window.axeptioSettings = {
   </div>
 </section>
 
-<!-- BADGES -->
-<div class="badges">
-  <span class="badge">✔️ Artisan certifié</span>
-  <span class="badge">✔️ Assurance décennale</span>
-  <span class="badge">✔️ Devis gratuit</span>
-  <span class="badge">✔️ Intervention 6j/7</span>
-  <span class="badge">⭐ 4,9/5</span>
-</div>
+<!-- AVIS CLIENTS -->
+<section class="section">
+  <h2>Ils nous ont fait confiance</h2>
+  <div class="grid">
+    <div class="card">
+      <div class="avis-stars">★★★★★</div>
+      <p>« Merci à Monsieur Da Silva et à toute l'équipe DS.BAT pour la rénovation totale de mon appart' : peinture, électricité, plomberie, parquet. Intervention rapide, devis clair, résultat impeccable. »</p>
+      <p class="avis-nom">Jessica T.</p>
+    </div>
+    <div class="card">
+      <div class="avis-stars">★★★★★</div>
+      <p>« Travail impeccable, sérieux et rapide. Je recommande vivement DS.BAT. »</p>
+      <p class="avis-nom">Jean M.</p>
+    </div>
+    <div class="card">
+      <div class="avis-stars">★★★★☆</div>
+      <p>« Super expérience ! Travaux faits proprement et dans les délais. »</p>
+      <p class="avis-nom">Marc P.</p>
+    </div>
+  </div>
+  <p style="margin-top:25px;">
+    <a href="avis-client.html" style="color:var(--primary); font-weight:600;">Voir tous les avis</a>
+    &nbsp;·&nbsp;
+    <a href="https://g.page/r/CRR4TERRw3fxEBM/review" target="_blank" rel="noopener" style="color:var(--primary); font-weight:600;">Laisser un avis Google ⭐</a>
+  </p>
+</section>
 
 <!-- CTA -->
 <section class="cta section">
