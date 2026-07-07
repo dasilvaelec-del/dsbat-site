@@ -14,9 +14,9 @@ const CONFIG = {
   },
 
   // ----- RÉSEAUX SOCIAUX -----
-  // ⚠️ INSTAGRAM : remplace "votrecompte" par ton vrai handle (ex: "dsbat_renovation")
+  // Instagram : compte officiel DS.BAT
   social: {
-    instagram: "https://www.instagram.com/votrecompte",
+    instagram: "https://www.instagram.com/ds.bat.fr",
     facebook: "https://www.facebook.com/profile.php?id=61590265183793",
     whatsapp: "https://wa.me/33629556627",
   },

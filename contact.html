@@ -60,7 +60,7 @@ window.axeptioSettings = {
   "priceRange": "€€",
   "openingHours": "Mo-Fr 08:00-19:00",
   "sameAs": [
-    "https://www.instagram.com/votrecompte",
+    "https://www.instagram.com/ds.bat.fr",
     "https://www.facebook.com/profile.php?id=61590265183793"
   ]
 }
@@ -87,7 +87,7 @@ window.axeptioSettings = {
   <a href="avis-client.html">⭐ Avis</a>
   <a href="faq.html">❓ FAQ</a>
 <a href="engagements.html">📜 Engagements</a>
-  <a href="https://www.instagram.com/votrecompte" target="_blank">📸 Instagram</a>
+  <a href="https://www.instagram.com/ds.bat.fr" target="_blank">📸 Instagram</a>
   <a href="https://www.facebook.com/profile.php?id=61590265183793" target="_blank">👍 Facebook</a>
 </nav>
 
@@ -111,11 +111,13 @@ window.axeptioSettings = {
 <!-- FORMULAIRE DE CONTACT -->
 <section class="section">
   <h2>Envoyez-nous un message</h2>
-  <form action="https://formspree.io/f/votre-identifiant" method="POST">
+  <form id="contactForm">
     <input type="text" name="nom" placeholder="Votre nom" required>
     <input type="email" name="email" placeholder="Votre email" required>
+    <input type="tel" name="telephone" placeholder="Votre téléphone (facultatif)">
     <textarea name="message" rows="5" placeholder="Votre message..." required></textarea>
-    <button type="submit" class="btn btn-primary">Envoyer le message</button>
+    <button type="submit" class="btn btn-primary" id="contactSubmitBtn">Envoyer le message</button>
+    <p id="contactStatus" style="margin-top:15px; font-weight:600; display:none;"></p>
   </form>
 </section>
 
@@ -180,10 +182,4 @@ sections.forEach(sec => observer.observe(sec));
 
 window.addEventListener('load', () => {
   sections.forEach(sec => {
-    const rect = sec.getBoundingClientRect();
-    if (rect.top < window.innerHeight * 0.8) sec.classList.add('visible');
-  });
-});
-</script>
-</body>
-</html>
+    const
