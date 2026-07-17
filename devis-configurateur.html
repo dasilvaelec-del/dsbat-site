@@ -1646,7 +1646,20 @@ function renderPhase3() {
     });
     b.circuitsVolets = volets > 0 ? Math.max(1, Math.ceil(volets/5)) : 0;
     b.circuitsChauffage = secheServ;
-    if ((b.prises16 + b.pointsLumineux + b.specialises20A) > 0) {
+
+    // ===== Enrichissement depuis le formulaire chantier =====
+    if (chantier.borneVE === 'oui') b.irve = true;                       // borne VE -> circuit IRVE 32A Type A
+    if (chantier.vmc && chantier.vmc !== 'non') b.vmc = true;            // VMC présente/à refaire -> circuit VMC
+    if (chantier.eauChaude === 'ballon') b.chauffeEau = true;            // ballon élec -> circuit + contacteur J/N
+    if (chantier.chauffage === 'electrique') {                           // chauffage élec -> circuits radiateurs
+      const nbP = parseInt(chantier.pieces) || 0;
+      b.circuitsChauffage += Math.max(1, Math.ceil(nbP / 3));
+    }
+    if (chantier.tableauExistant === 'ancien' || chantier.tableauExistant === 'inexistant') b.parafoudre = true;
+
+    // On ne chiffre le tableau que si l'existant n'est pas déjà récent
+    const besoinTableau = (chantier.tableauExistant !== 'recent');
+    if (besoinTableau && (b.prises16 + b.pointsLumineux + b.specialises20A) > 0) {
       tableau = dimensionnementTableau(b);
       totalGlobalHT += tableau.prixTotalHT;
     }
