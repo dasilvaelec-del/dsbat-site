@@ -1611,10 +1611,16 @@ function toggleSection(sid) {
 
 // ===== TVA selon le type de projet (neuf/extension : 20 % — rénovation logement >2 ans : 10 %) =====
 function tauxTVA() {
-  return (chantier && (chantier.typeProjet === 'neuf' || chantier.typeProjet === 'extension')) ? 0.20 : 0.10;
+  const ch = chantier || {};
+  // Locaux non-habitation (commercial / bureau) -> 20 %
+  if (ch.typeBien === 'local') return 0.20;
+  // Construction neuve ou extension/agrandissement -> 20 %
+  if (ch.typeProjet === 'neuf' || ch.typeProjet === 'extension') return 0.20;
+  // Rénovation d'un logement de + de 2 ans -> 10 %
+  return 0.10;
 }
 function labelTVA() {
-  return tauxTVA() === 0.20 ? 'TVA 20 % (neuf / extension)' : 'TVA 10 % (rénovation)';
+  return tauxTVA() === 0.20 ? 'TVA 20 % (neuf / extension / local pro)' : 'TVA 10 % (rénovation logement)';
 }
 
 // ===== PHASE 3 — RÉCAPITULATIF =====
