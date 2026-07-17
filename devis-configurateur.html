@@ -1653,6 +1653,10 @@ function renderPhase3() {
   }
   window.__tableauAuto = tableau;
 
+  // Coefficient de zone selon le code postal du chantier
+  const coefZ = (typeof coefZone === 'function') ? coefZone(chantier.codePostal) : 1;
+  totalGlobalHT = Math.round(totalGlobalHT * coefZ);
+
   // TVA
   const tva = totalGlobalHT * tauxTVA();
   const ttc = totalGlobalHT + tva;
@@ -1730,7 +1734,7 @@ function renderPhase3() {
     </div>
 
     <div class="recap-grand-total">
-      <div class="gt-label">Estimation totale HT</div>
+      <div class="gt-label">Estimation totale HT${coefZ !== 1 ? ' · secteur ×' + coefZ.toFixed(2) : ''}</div>
       <div class="gt-ht">${formatEuro(totalGlobalHT)}</div>
       <div class="gt-tva">${labelTVA()} : ${formatEuro(tva)}</div>
       <div class="gt-ttc">Total TTC : ${formatEuro(ttc)}</div>
@@ -1868,6 +1872,8 @@ function genererPDFConfig() {
   piecesSelectionnees.forEach(p => totalGlobalHT += p.totalHT || 0);
   const _tab = window.__tableauAuto;
   if (_tab) totalGlobalHT += _tab.prixTotalHT;
+  const _coefZ = (typeof coefZone === 'function') ? coefZone(chantier.codePostal) : 1;
+  totalGlobalHT = Math.round(totalGlobalHT * _coefZ);
   const tva = totalGlobalHT * tauxTVA();
   const ttc = totalGlobalHT + tva;
   const date = new Date().toLocaleDateString('fr-FR');

@@ -586,8 +586,20 @@ window.axeptioSettings = {
         </div>
         <div class="form-group">
           <label>Adresse du chantier *</label>
-          <input type="text" id="clientAdresse" placeholder="Ex : 12 rue de la Paix, 77400 Lagny" autocomplete="street-address">
+          <input type="text" id="clientAdresse" placeholder="Ex : 12 rue de la Paix" autocomplete="street-address">
           <span class="error-msg">Ce champ est obligatoire</span>
+        </div>
+        <div class="form-group">
+          <label>Code postal *</label>
+          <input type="text" id="clientCP" inputmode="numeric" maxlength="5" placeholder="Ex : 77400" autocomplete="postal-code" oninput="chargerVilles(this.value)">
+          <span class="error-msg">Code postal invalide</span>
+        </div>
+        <div class="form-group">
+          <label>Ville *</label>
+          <select id="clientVille" onchange="majZone()">
+            <option value="">— saisissez le code postal —</option>
+          </select>
+          <span id="zoneInfo" style="display:block;margin-top:6px;font-size:0.8rem;color:var(--text-light);"></span>
         </div>
       </div>
     </div>
@@ -1226,6 +1238,44 @@ function remplirRecap() {
 }
 
 // ===== COLLECTER TOUTES LES DONNÉES =====
+// ===== Code postal -> villes (API officielle geo.api.gouv.fr) + zone tarifaire =====
+function zoneDepuisCP(cp) {
+  cp = String(cp || '');
+  const Z1 = ['77410','77400','77450','77139','77177','77230','77270','77990'];
+  const Z2 = ['77700','77144','77600','77100','77500','77200'];
+  if (Z2.includes(cp)) return { label: "Zone 2 — Val d'Europe / couronne", coef: 1.13 };
+  if (Z1.includes(cp)) return { label: 'Zone 1 — Local 77 Nord', coef: 1.00 };
+  const p = cp.slice(0, 2);
+  if (['75','92','93','94'].includes(p)) return { label: 'Zone 3 — Paris / petite couronne', coef: 1.22 };
+  return { label: 'Zone 1 (par défaut)', coef: 1.00 };
+}
+
+function chargerVilles(cp) {
+  cp = (cp || '').replace(/\D/g, '').slice(0, 5);
+  const sel = document.getElementById('clientVille');
+  const info = document.getElementById('zoneInfo');
+  if (cp.length !== 5) { sel.innerHTML = '<option value="">— saisissez le code postal —</option>'; if (info) info.textContent = ''; return; }
+  sel.innerHTML = '<option value="">Chargement…</option>';
+  fetch('https://geo.api.gouv.fr/communes?codePostal=' + cp + '&fields=nom&format=json')
+    .then(r => r.json())
+    .then(list => {
+      if (!Array.isArray(list) || list.length === 0) throw new Error('vide');
+      sel.innerHTML = list.map(c => '<option value="' + c.nom + '">' + c.nom + '</option>').join('');
+      majZone();
+    })
+    .catch(() => {
+      sel.innerHTML = '<option value="">Ville non trouvée — précisez dans l\'adresse</option>';
+      majZone();
+    });
+}
+
+function majZone() {
+  const cp = (document.getElementById('clientCP').value || '').replace(/\D/g, '').slice(0, 5);
+  const z = zoneDepuisCP(cp);
+  const info = document.getElementById('zoneInfo');
+  if (info) info.textContent = cp.length === 5 ? ('📍 Secteur : ' + z.label + ' (coefficient ×' + z.coef.toFixed(2) + ')') : '';
+}
+
 function collecterDonnees() {
   const metiers = Array.from(document.querySelectorAll('input[name="metier"]:checked')).map(c => c.value);
   return {
@@ -1238,6 +1288,8 @@ function collecterDonnees() {
       delai: document.getElementById('clientDelai').value
     },
     chantier: {
+      codePostal: document.getElementById('clientCP').value,
+      ville: document.getElementById('clientVille').value,
       typeBien: document.getElementById('typeBien').value,
       typeLogement: document.getElementById('typeLogement').value,
       surface: document.getElementById('surface').value,
