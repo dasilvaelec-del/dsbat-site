@@ -817,6 +817,7 @@ function getElecPourPiece(pieceId) {
   if (['salon','salle_manger'].includes(pieceId)) prests = [...prests, ...salon];
   if (['chambre'].includes(pieceId)) prests = [...prests, { code:'ELEC_TV', label:'Prise TV', unite:'U' }, { code:'ELEC_RJ45', label:'Prise RJ45 cat6', unite:'U' }];
   if (['entree'].includes(pieceId)) prests = [...prests, ...commun];
+  if (chantier && chantier.chauffage === 'electrique' && ['salon','salle_manger','chambre','bureau'].includes(pieceId)) prests = [...prests, { code:'ELEC_SC20_FP', label:'Sortie de câble radiateur (fil pilote)', unite:'U' }];
   return prests;
 }
 
@@ -1225,6 +1226,8 @@ function renderMetierSection(section, pieceIndex) {
 }
 
 function renderPeintureAuto(pieceIndex) {
+  const defMur = ({ bon:'less', moyen:'std', mauvais:'fort' })[(chantier && chantier.etatLieux)] || 'std';
+  const defPlaf = defMur === 'less' ? 'less' : 'std';
   const gammes = [
     { val:'less', label:'Rafraîchissement (2 couches sur bon état)' },
     { val:'std', label:'Standard (égrenage + 2 couches)' },
@@ -1234,14 +1237,14 @@ function renderPeintureAuto(pieceIndex) {
     <div style="margin-bottom:14px;">
       <label style="font-size:0.82rem;font-weight:700;color:var(--text-light);text-transform:uppercase;">Gamme murs</label>
       <select id="peint_mur_${pieceIndex}" onchange="recalcPiece(${pieceIndex})" style="width:100%;margin-top:6px;padding:10px 14px;border-radius:12px;border:1.5px solid var(--border);background:var(--surface);color:var(--text);font-size:0.95rem;">
-        ${gammes.map(g => `<option value="${g.val}">${g.label}</option>`).join('')}
+        ${gammes.map(g => `<option value="${g.val}" ${g.val===defMur?'selected':''}>${g.label}</option>`).join('')}
       </select>
     </div>
     <div style="margin-bottom:14px;">
       <label style="font-size:0.82rem;font-weight:700;color:var(--text-light);text-transform:uppercase;">Gamme plafond</label>
       <select id="peint_plaf_${pieceIndex}" onchange="recalcPiece(${pieceIndex})" style="width:100%;margin-top:6px;padding:10px 14px;border-radius:12px;border:1.5px solid var(--border);background:var(--surface);color:var(--text);font-size:0.95rem;">
-        <option value="less">Rafraîchissement plafond</option>
-        <option value="std" selected>Standard plafond</option>
+        <option value="less" ${defPlaf==='less'?'selected':''}>Rafraîchissement plafond</option>
+        <option value="std" ${defPlaf==='std'?'selected':''}>Standard plafond</option>
       </select>
     </div>
     <div style="margin-bottom:8px;">
@@ -1385,6 +1388,8 @@ function normeMin(pieceId, portes, surface) {
   else if (pieceId === 'wc') { /* éclairage seul */ }
   else if (pieceId === 'entree') { min.ELEC_PRISE10 = 1; min.ELEC_SONETTE = 1; }
   else { min.ELEC_PRISE10 = 1; }
+  // Chauffage électrique -> sortie de câble radiateur (fil pilote) dans les pièces de vie
+  if (chantier && chantier.chauffage === 'electrique' && ['salon','salle_manger','chambre','bureau'].includes(pieceId)) min.ELEC_SC20_FP = 1;
   return min;
 }
 
@@ -1696,6 +1701,25 @@ function renderPhase3() {
   }
   window.__tableauAuto = tableau;
 
+  // Ballon d'eau chaude électrique (si indiqué au formulaire)
+  let ballon = null;
+  if (chantier.eauChaude === 'ballon' && metiersActifs.includes('plomberie') && typeof PRIX !== 'undefined') {
+    const codeB = (parseInt(chantier.pieces) || 0) >= 4 ? 'PLO_BALLON_200' : 'PLO_BALLON_100';
+    const itB = (PRIX.plomberie_divers || []).find(x => x.code === codeB);
+    if (itB) { ballon = { label: itB.label, prix: Math.round((itB.prix.min + itB.prix.max) / 2) }; totalGlobalHT += ballon.prix; }
+  }
+  window.__ballon = ballon;
+
+  // Forfait accessibilité + majoration chantier occupé
+  let forfaitAcces = 0;
+  if (chantier.accessibilite === 'moyen') forfaitAcces += 80;
+  else if (chantier.accessibilite === 'difficile') forfaitAcces += 200;
+  if (chantier.accessSup === 'voisins') forfaitAcces += 50;
+  else if (chantier.accessSup === 'copro') forfaitAcces += 120;
+  if (chantier.accessSup === 'occupé') totalGlobalHT = Math.round(totalGlobalHT * 1.088);
+  totalGlobalHT += forfaitAcces;
+  window.__forfaitAcces = forfaitAcces;
+
   // Coefficient de zone selon le code postal du chantier
   const coefZ = (typeof coefZone === 'function') ? coefZone(chantier.codePostal) : 1;
   totalGlobalHT = Math.round(totalGlobalHT * coefZ);
@@ -1766,10 +1790,18 @@ function renderPhase3() {
       </div>
     </div>` : '';
 
+  const extrasHtml = (ballon || forfaitAcces || chantier.accessSup === 'occupé') ? `
+    <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-md);padding:16px 20px;margin:16px 0;font-size:0.92rem;">
+      ${ballon ? '<div style="display:flex;justify-content:space-between;padding:4px 0;"><span>🔥 ' + ballon.label + '</span><strong>' + formatEuro(ballon.prix) + '</strong></div>' : ''}
+      ${forfaitAcces ? '<div style="display:flex;justify-content:space-between;padding:4px 0;"><span>🚐 Forfait accès chantier</span><strong>' + formatEuro(forfaitAcces) + '</strong></div>' : ''}
+      ${chantier.accessSup === 'occupé' ? '<div style="display:flex;justify-content:space-between;padding:4px 0;color:var(--text-light);"><span>Majoration logement occupé</span><span>+8,8 %</span></div>' : ''}
+    </div>` : '';
+
   container.innerHTML = `
     <h2 style="color:var(--primary);margin-bottom:20px;">📊 Récapitulatif par pièce</h2>
     ${rowsHtml}
     ${tableauHtml}
+    ${extrasHtml}
 
     <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-md);padding:20px;margin:20px 0;">
       <h3 style="color:var(--primary);margin-bottom:14px;font-size:1rem;">📊 Répartition par corps de métier</h3>
@@ -1915,6 +1947,9 @@ function genererPDFConfig() {
   piecesSelectionnees.forEach(p => totalGlobalHT += p.totalHT || 0);
   const _tab = window.__tableauAuto;
   if (_tab) totalGlobalHT += _tab.prixTotalHT;
+  if (window.__ballon) totalGlobalHT += window.__ballon.prix;
+  if (chantier.accessSup === 'occupé') totalGlobalHT = Math.round(totalGlobalHT * 1.088);
+  totalGlobalHT += (window.__forfaitAcces || 0);
   const _coefZ = (typeof coefZone === 'function') ? coefZone(chantier.codePostal) : 1;
   totalGlobalHT = Math.round(totalGlobalHT * _coefZ);
   const tva = totalGlobalHT * tauxTVA();
