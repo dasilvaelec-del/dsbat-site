@@ -629,10 +629,24 @@ window.axeptioSettings = {
       </div>
     </div>
 
+    <div class="form-section">
+      <h3>🛠️ Votre demande</h3>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Type de demande *</label>
+          <select id="typeDemande">
+            <option value="travaux" selected>Travaux (devis complet, pièce par pièce)</option>
+            <option value="depannage">Dépannage (panne, intervention rapide)</option>
+          </select>
+          <span style="display:block;margin-top:6px;font-size:0.8rem;color:var(--text-light);">Le dépannage ouvre un estimateur rapide dédié.</span>
+        </div>
+      </div>
+    </div>
+
     <div class="wizard-nav">
       <span></span>
-      <button class="btn-next" onclick="allerEtape(2)">
-        Suivant — Caractéristiques du chantier <span>→</span>
+      <button class="btn-next" onclick="etape1Suivant()">
+        Suivant <span>→</span>
       </button>
     </div>
   </div>
@@ -641,8 +655,16 @@ window.axeptioSettings = {
   <div class="wizard-panel" id="panel2">
 
     <div class="form-section">
-      <h3>🏠 Type de bien</h3>
+      <h3>🏗️ Votre projet</h3>
       <div class="form-grid">
+        <div class="form-group">
+          <label>Type de projet *</label>
+          <select id="typeProjet">
+            <option value="renov" selected>Rénovation</option>
+            <option value="neuf">Construction neuve</option>
+            <option value="extension">Extension / Agrandissement</option>
+          </select>
+        </div>
         <div class="form-group">
           <label>Type de bien *</label>
           <select id="typeBien" onchange="updateConditionnel()">
@@ -723,14 +745,6 @@ window.axeptioSettings = {
             <option value="bon">Bon état</option>
             <option value="moyen" selected>État moyen</option>
             <option value="mauvais">Mauvais état / À rénover</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label>Type de projet</label>
-          <select id="typeProjet">
-            <option value="renov" selected>Rénovation</option>
-            <option value="neuf">Construction neuve</option>
-            <option value="extension">Extension / Agrandissement</option>
           </select>
         </div>
       </div>
@@ -1274,6 +1288,16 @@ function majZone() {
   const z = zoneDepuisCP(cp);
   const info = document.getElementById('zoneInfo');
   if (info) info.textContent = cp.length === 5 ? ('📍 Secteur : ' + z.label + ' (coefficient ×' + z.coef.toFixed(2) + ')') : '';
+}
+
+function etape1Suivant() {
+  const type = (document.getElementById('typeDemande') || {}).value || 'travaux';
+  if (type === 'depannage') {
+    try { sessionStorage.setItem('depannageCP', (document.getElementById('clientCP') || {}).value || ''); } catch (e) {}
+    window.location.href = 'depannage.html';
+    return;
+  }
+  allerEtape(2);
 }
 
 function collecterDonnees() {

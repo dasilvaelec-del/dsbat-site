@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Estimateur dépannage électrique – DS.BAT (77)</title>
+<meta name="description" content="Estimez votre dépannage électrique à Villevaudé et dans le 77 : disjoncteur qui saute, panne totale, prise HS. Intervention rapide DS.BAT.">
+<link rel="canonical" href="https://dsbat.fr/depannage.html">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="stylesheet" href="styles.css">
+<script src="config.js"></script>
+<style>
+  .dep-wrap { max-width: 720px; margin: 0 auto; padding: 20px; }
+  .dep-card { background: var(--surface, #fff); border: 1px solid var(--border, #e2e8f0); border-radius: 16px; padding: 22px; margin-bottom: 18px; }
+  .dep-field { margin-bottom: 16px; }
+  .dep-field label { display: block; font-weight: 700; margin-bottom: 6px; font-size: 0.95rem; }
+  .dep-field select { width: 100%; padding: 12px 14px; border-radius: 12px; border: 1.5px solid var(--border, #cbd5e1); background: var(--surface, #fff); color: var(--text, #0f172a); font-size: 1rem; }
+  .dep-result { background: #fef9ec; border: 1px solid #f59e0b; border-radius: 14px; padding: 20px; text-align: center; }
+  .dep-price { font-size: 2rem; font-weight: 800; color: #92400e; margin: 6px 0; }
+  .dep-cta { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 16px; }
+  .dep-cta a { display: inline-flex; align-items: center; gap: 8px; padding: 13px 22px; border-radius: 30px; font-weight: 700; text-decoration: none; }
+  .dep-call { background: var(--primary, #1e3a8a); color: #fff; }
+  .dep-wa { background: #25d366; color: #fff; }
+</style>
+</head>
+<body>
+
+<button class="menu-btn" id="menuBtn" aria-label="Ouvrir le menu" aria-expanded="false" aria-controls="menu">☰</button>
+<nav class="menu" id="menu" aria-hidden="true">
+  <a href="index.html">🏠 Accueil</a>
+  <a href="services.html">⚙️ Services</a>
+  <a href="realisations.html">📷 Réalisations</a>
+  <a href="zone.html">📍 Zone</a>
+  <a href="prix.html">💰 Prix</a>
+  <a href="devis.html">📋 Devis</a>
+  <a href="contact.html">📞 Contact</a>
+  <a href="avis-client.html">⭐ Avis</a>
+  <a href="faq.html">❓ FAQ</a>
+</nav>
+
+<section class="hero">
+  <h1>🛠️ Dépannage électrique</h1>
+  <p>Estimation rapide et indicative — DS.BAT, Villevaudé (77) et Nord-Est Île-de-France</p>
+</section>
+
+<main class="dep-wrap">
+
+  <div class="dep-card">
+    <div class="dep-field">
+      <label for="dep_panne">Quel est le problème ?</label>
+      <select id="dep_panne" onchange="calculerDep()">
+        <option value="disj">Un disjoncteur saute / se coupe</option>
+        <option value="priseHS">Une prise / un interrupteur ne marche plus</option>
+        <option value="eclairage">Un éclairage ne fonctionne plus</option>
+        <option value="totale">Panne totale (plus de courant)</option>
+        <option value="courtcircuit">Court-circuit / recherche de panne</option>
+        <option value="tableau">Problème de tableau / fusibles</option>
+        <option value="autre">Autre / je ne sais pas</option>
+      </select>
+    </div>
+
+    <div class="dep-field">
+      <label for="dep_urgence">Urgence de l'intervention</label>
+      <select id="dep_urgence" onchange="calculerDep()">
+        <option value="normal" selected>Sous quelques jours</option>
+        <option value="urgent">Urgent — dans la journée</option>
+        <option value="nuit_we">Nuit / week-end / jour férié</option>
+      </select>
+    </div>
+
+    <div class="dep-field">
+      <label for="dep_cp">Code postal du chantier</label>
+      <select id="dep_cp" onchange="calculerDep()">
+        <option value="local">77 Nord (Villevaudé, Claye-Souilly, Meaux…)</option>
+        <option value="valdeurope">Val d'Europe (Chessy, Serris, Montévrain…)</option>
+        <option value="paris">Paris / petite couronne (75, 92, 93, 94)</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="dep-card dep-result">
+    <p style="margin:0;color:#78350f;">Estimation indicative (déplacement + diagnostic inclus)</p>
+    <div class="dep-price" id="dep_prix">— €</div>
+    <p style="margin:0;font-size:0.85rem;color:#78350f;">Prix TTC indicatif. Le montant exact est confirmé sur place après diagnostic. Fournitures éventuelles en supplément.</p>
+    <div class="dep-cta">
+      <a class="dep-call" href="tel:0629556627">📞 Appeler maintenant</a>
+      <a class="dep-wa" id="dep_wa" href="#" target="_blank">💬 WhatsApp</a>
+    </div>
+  </div>
+
+  <p style="text-align:center;"><a href="devis.html" style="color:var(--primary,#1e3a8a);">← Retour — je veux plutôt un devis travaux complet</a></p>
+
+</main>
+
+<a class="whatsapp-float" href="#" target="_blank" aria-label="WhatsApp"><img src="image/whatsapp.svg" alt="WhatsApp" width="32" height="32"></a>
+
+<script src="menu.js"></script>
+<script>
+  // Forfaits dépannage indicatifs (déplacement + diagnostic inclus), en €
+  const DEP_PANNES = {
+    disj:        { min: 70,  max: 160 },
+    priseHS:     { min: 70,  max: 150 },
+    eclairage:   { min: 70,  max: 160 },
+    totale:      { min: 120, max: 300 },
+    courtcircuit:{ min: 120, max: 350 },
+    tableau:     { min: 180, max: 450 },
+    autre:       { min: 90,  max: 250 }
+  };
+  const DEP_URGENCE = { normal: 1, urgent: 1.15, nuit_we: 1.5 };
+  const DEP_ZONE = { local: 1.0, valdeurope: 1.13, paris: 1.22 };
+
+  function calculerDep() {
+    const p = DEP_PANNES[document.getElementById('dep_panne').value] || DEP_PANNES.autre;
+    const u = DEP_URGENCE[document.getElementById('dep_urgence').value] || 1;
+    const z = DEP_ZONE[document.getElementById('dep_cp').value] || 1;
+    const mn = Math.round(p.min * u * z / 5) * 5;
+    const mx = Math.round(p.max * u * z / 5) * 5;
+    document.getElementById('dep_prix').textContent = mn + ' – ' + mx + ' €';
+    const msg = 'Bonjour, je souhaite un dépannage électrique (' +
+      document.getElementById('dep_panne').selectedOptions[0].text + '). Estimation vue : ' + mn + '–' + mx + ' €. Pouvez-vous me rappeler ?';
+    document.getElementById('dep_wa').href = 'https://wa.me/33629556627?text=' + encodeURIComponent(msg);
+  }
+
+  // Pré-sélection du CP si venu du formulaire
+  (function () {
+    try {
+      const cp = (sessionStorage.getItem('depannageCP') || '').slice(0, 2);
+      const dep2 = (sessionStorage.getItem('depannageCP') || '').slice(0, 5);
+      const Z2 = ['77700','77144','77600','77100','77500','77200'];
+      const sel = document.getElementById('dep_cp');
+      if (['75','92','93','94'].includes(cp)) sel.value = 'paris';
+      else if (Z2.includes(dep2)) sel.value = 'valdeurope';
+    } catch (e) {}
+    calculerDep();
+  })();
+</script>
+</body>
+</html>
