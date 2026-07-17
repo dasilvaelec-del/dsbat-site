@@ -4,3 +4,11 @@ admin/
 # Sauvegardes locales (ne jamais publier)
 *.backup-*.js
 *.backup-*.html
+
+# Documents internes (ne jamais publier sur le site)
+analyse-site-dsbat.md
+kit-relance-devis.md
+prompt-identite-visuelle-skl.md
+sommaire-live-1daytoskl.md
+automatisation-ia/
+reseaux-sociaux/
