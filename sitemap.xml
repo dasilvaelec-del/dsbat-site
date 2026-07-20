@@ -15,8 +15,20 @@
 
 <url>
   <loc>https://dsbat.fr/realisations.html</loc>
-  <lastmod>2026-07-04T00:00:00+00:00</lastmod>
+  <lastmod>2026-07-21T00:00:00+00:00</lastmod>
   <priority>0.80</priority>
+</url>
+
+<url>
+  <loc>https://dsbat.fr/realisation-atelier-paris14.html</loc>
+  <lastmod>2026-07-21T00:00:00+00:00</lastmod>
+  <priority>0.70</priority>
+</url>
+
+<url>
+  <loc>https://dsbat.fr/realisation-maison-villevaude.html</loc>
+  <lastmod>2026-07-21T00:00:00+00:00</lastmod>
+  <priority>0.70</priority>
 </url>
 
 <url>
