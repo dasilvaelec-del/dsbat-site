@@ -201,11 +201,12 @@ window.axeptioSettings = {
 <!-- HERO -->
 <section class="hero">
   <div class="hero-content">
-    <p class="hero-promesse">Votre chantier chiffré en 2 minutes.<br>Sans surprise.</p>
+    <p class="hero-promesse">Votre chantier chiffré en 2 minutes.<br>Prix réel, sans surprise.</p>
     <h1>Électricien à Villevaudé – DS.BAT Électricité & Rénovation</h1>
-    <p>Intervention en Seine-et-Marne (77), à Paris et dans le Nord-Est de l’Île-de-France.</p>
+    <p>Un seul artisan, du diagnostic à la finition. Intervention en Seine-et-Marne (77), à Paris et dans le Nord-Est de l’Île-de-France.</p>
     <a class="btn btn-primary" href="devis.html">Chiffrer mes travaux gratuitement</a>
     <a class="btn btn-phone" href="#" data-phone-base64="MDYyOTU1NjYyNw==">📞 06<!-- -->29<!-- -->55<!-- -->66<!-- -->27</a>
+    <a class="btn" href="https://wa.me/33629556627" target="_blank" rel="noopener noreferrer" style="background:#25D366;color:#fff;">💬 WhatsApp</a>
     <div class="hero-badges">
       <span>⭐ 5/5 Google</span>
       <span>✔️ Assurance décennale</span>
@@ -217,6 +218,13 @@ window.axeptioSettings = {
 
 <main>
 <div class="container">
+
+<!-- BANDEAU CONFIANCE -->
+<div style="text-align:center; margin:24px 0 4px; font-size:1.05rem;">
+  <span style="color:#f59e0b; letter-spacing:2px;">★★★★★</span>
+  <strong>5/5 sur Google</strong> · 4 avis clients ·
+  <a href="avis-client.html" style="color:var(--primary); font-weight:600;">Lire les avis</a>
+</div>
 
 <!-- SERVICES -->
 <section class="section">
@@ -240,18 +248,55 @@ window.axeptioSettings = {
   </div>
 </section>
 
-<!-- RÉALISATION PHARE -->
+<!-- 3 RÉALISATIONS -->
 <section class="section">
-  <h2>Une réalisation dont nous sommes fiers</h2>
-  <div style="max-width:880px;margin:0 auto;">
-    <a href="realisation-atelier-paris14.html" style="text-decoration:none;color:inherit;">
-      <img src="image/uploads/atelier-paris14-verriere-double-hauteur.webp" alt="Atelier d'artiste rénové à Paris 14e : double hauteur et verrière sur mesure, réalisé par DS.BAT" loading="lazy" style="width:100%;border-radius:16px;">
-    </a>
-    <div style="text-align:center;margin-top:18px;">
-      <h3 style="color:var(--primary);">Atelier d'artiste — Paris 14ᵉ</h3>
-      <p>Restructuration sur 4 niveaux : second œuvre complet, escaliers sur mesure, garde-corps et verrière. <strong>La photo de fond de ce site, c'est ce chantier.</strong></p>
-      <a class="btn btn-primary" href="realisation-atelier-paris14.html">Voir le chantier en images</a>
+  <h2>Nos dernières réalisations</h2>
+  <div class="galerie">
+    <div class="projet">
+      <a href="realisation-atelier-paris14.html" style="text-decoration:none;color:inherit;">
+        <img src="image/uploads/atelier-paris14-verriere-double-hauteur.webp" alt="Atelier d'artiste rénové à Paris 14e — verrière et second œuvre par DS.BAT" loading="lazy">
+        <div class="projet-info">
+          <h3>🪟 Atelier d'artiste — Paris 14ᵉ</h3>
+          <p>Restructuration sur 4 niveaux : second œuvre complet et verrière sur mesure. <strong>Voir le détail →</strong></p>
+        </div>
+      </a>
     </div>
+    <div class="projet">
+      <a href="realisation-maison-sevres.html" style="text-decoration:none;color:inherit;">
+        <img src="image/realisations/sevres/sevres-final-sdb-01.webp" alt="Rénovation d'une maison à Sèvres : mur humide traité et WC suspendu, par DS.BAT" loading="lazy">
+        <div class="projet-info">
+          <h3>💧 Rénovation & mur humide — Sèvres</h3>
+          <p>Traitement d'un mur humide, création d'un WC suspendu, sols et finitions. <strong>Voir le détail →</strong></p>
+        </div>
+      </a>
+    </div>
+    <div class="projet">
+      <a href="realisation-maison-villevaude.html" style="text-decoration:none;color:inherit;">
+        <img src="image/uploads/maison-villevaude-lucarne-avant-apres.webp" alt="Avant/après : fenêtre de toit transformée en porte-lucarne à Villevaudé, par DS.BAT" loading="lazy">
+        <div class="projet-info">
+          <h3>🏠 Modification de façade — Villevaudé</h3>
+          <p>Avant / après : une fenêtre de toit transformée en porte-lucarne. <strong>Voir le détail →</strong></p>
+        </div>
+      </a>
+    </div>
+  </div>
+  <p style="text-align:center; margin-top:22px;">
+    <a class="btn btn-primary" href="realisations.html">Voir toutes nos réalisations</a>
+  </p>
+</section>
+
+<!-- GUIDE GRATUIT (capture e-mail) -->
+<section class="section" id="guide">
+  <div class="card" style="max-width:660px; margin:0 auto; text-align:center; border:2px solid var(--primary);">
+    <h2 style="margin-bottom:10px;">📗 Guide gratuit</h2>
+    <h3 style="color:var(--primary); margin-bottom:12px;">5 signes que votre installation électrique est dangereuse</h3>
+    <p style="margin-bottom:20px;">Vérifiez votre logement en 10 minutes avec le guide de Lionel, électricien certifié. Recevez-le immédiatement par e-mail.</p>
+    <form id="guideForm" style="display:flex; flex-wrap:wrap; gap:10px; justify-content:center;">
+      <input type="email" name="email" placeholder="Votre e-mail" required style="flex:1; min-width:220px; margin:0;">
+      <button type="submit" class="btn btn-primary" id="guideBtn" style="margin:0;">Recevoir le guide</button>
+    </form>
+    <p id="guideStatus" style="margin-top:15px; font-weight:600; display:none;"></p>
+    <p style="margin-top:12px; font-size:0.8rem; color:var(--text-light);">Votre e-mail ne sera jamais partagé. Pas de spam, promis.</p>
   </div>
 </section>
 
@@ -282,25 +327,12 @@ window.axeptioSettings = {
   </p>
 </section>
 
-<!-- GUIDE GRATUIT (capture e-mail) -->
-<section class="section" id="guide">
-  <div class="card" style="max-width:640px; margin:0 auto; text-align:center;">
-    <h2 style="margin-bottom:10px;">📗 Guide gratuit</h2>
-    <h3 style="color:var(--primary); margin-bottom:12px;">5 signes que votre installation électrique est dangereuse</h3>
-    <p style="margin-bottom:20px;">Vérifiez votre logement en 10 minutes avec le guide de Lionel, électricien certifié. Recevez-le immédiatement par e-mail.</p>
-    <form id="guideForm" style="display:flex; flex-wrap:wrap; gap:10px; justify-content:center;">
-      <input type="email" name="email" placeholder="Votre e-mail" required style="flex:1; min-width:220px; margin:0;">
-      <button type="submit" class="btn btn-primary" id="guideBtn" style="margin:0;">Recevoir le guide</button>
-    </form>
-    <p id="guideStatus" style="margin-top:15px; font-weight:600; display:none;"></p>
-    <p style="margin-top:12px; font-size:0.8rem; color:var(--text-light);">Votre e-mail ne sera jamais partagé. Pas de spam, promis.</p>
-  </div>
-</section>
-
 <!-- CTA -->
 <section class="cta section">
   <h2>Un projet ? Contactez-nous dès maintenant</h2>
   <a class="btn btn-primary" href="devis.html">Demander un devis</a>
+  <a class="btn btn-phone" href="#" data-phone-base64="MDYyOTU1NjYyNw==">📞 06<!-- -->29<!-- -->55<!-- -->66<!-- -->27</a>
+  <a class="btn" href="https://wa.me/33629556627" target="_blank" rel="noopener noreferrer" style="background:#25D366;color:#fff;">💬 WhatsApp</a>
 </section>
 
 </div>
