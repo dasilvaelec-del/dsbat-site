@@ -91,7 +91,7 @@
 
 <header class="hero">
     <h1>Devis pose de sols</h1>
-    <p>Murs, plafonds, boiseries – préparation et finition</p>
+    <p>Parquet, stratifié, vinyle, sol souple – fourniture et pose</p>
 </header>
 
 <main class="container" id="contenuDevis">
@@ -105,7 +105,7 @@
     </div>
 
     <div class="devis-header">
-        <span class="devis-numero" id="devisNumero">PEINT‑2026‑1001</span>
+        <span class="devis-numero" id="devisNumero">SOLS‑2026‑1001</span>
         <span class="devis-date" id="devisDate"></span>
     </div>
 
@@ -118,7 +118,7 @@
     <!-- Choix de la gamme (une seule, mais on garde deux boutons pour l'uniformité) -->
     <div class="options-globales">
         <div class="radio-group">
-            <label><input type="radio" name="gamme" value="standard" checked onchange="changerGamme()"> 🎨 Standard</label>
+            <label><input type="radio" name="gamme" value="standard" checked onchange="changerGamme()"> 🪵 Standard</label>
             <label><input type="radio" name="gamme" value="standard" disabled> (prix unique)</label>
         </div>
         <button class="btn-norme" onclick="appliquerNorme()">📐 Appliquer les minimas</button>
@@ -167,7 +167,7 @@
 
 <footer>
     <p>© 2026 DS.BAT – 58 Grande Rue, 77410 Villevaudé | <a href="mentions-legales.html">Mentions légales</a></p>
-    <p>Simulateur peinture – Prix unique</p>
+    <p>Simulateur pose de sols – Prix unique</p>
 </footer>
 
 <script>
@@ -179,7 +179,7 @@
     window.addEventListener('load', function() {
         const container = document.querySelector('main.container');
         if (!container) return;
-        const normes = NORMES.peinture;
+        const normes = NORMES.sols;
         let html = `
             <div class="recap" style="margin-top:40px; background:#f8fafc; border:2px solid #1e3a8a; padding:20px; border-radius:20px;">
                 <h3 style="color:#1e3a8a;">📜 Conformité aux normes – ${normes.titre}</h3>

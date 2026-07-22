@@ -31,6 +31,14 @@ const NORMES = {
       { ref: "RE2020 / RT Existant", description: "Confort d'été (albédo des peintures)." }
     ]
   },
+  sols: {
+    titre: "🪵 Revêtements de sol",
+    normes: [
+      { ref: "NF DTU 51.2", description: "Parquets collés – pose et supports admissibles." },
+      { ref: "NF DTU 51.11", description: "Pose flottante des parquets contrecollés et sols stratifiés." },
+      { ref: "NF DTU 53.2", description: "Revêtements de sol PVC (sols souples) collés." }
+    ]
+  },
   carrelage: {
     titre: "🧱 Carrelage / Faïence",
     normes: [
