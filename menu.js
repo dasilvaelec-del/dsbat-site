@@ -59,9 +59,51 @@
     });
   }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initMenu);
-  } else {
+  // Apparition des sections au défilement (fix : sans ça, les .section restent en opacity:0)
+  function revealSections() {
+    const sections = document.querySelectorAll('.section');
+    if (!sections.length) return;
+
+    // Navigateur sans IntersectionObserver : on affiche tout directement
+    if (!('IntersectionObserver' in window)) {
+      sections.forEach(function (s) { s.classList.add('visible'); });
+      return;
+    }
+
+    var obs = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+          obs.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.12 });
+
+    sections.forEach(function (s) { obs.observe(s); });
+
+    // Révèle immédiatement ce qui est déjà à l'écran au chargement
+    requestAnimationFrame(function () {
+      sections.forEach(function (s) {
+        if (s.getBoundingClientRect().top < window.innerHeight * 0.9) {
+          s.classList.add('visible');
+        }
+      });
+    });
+
+    // Filet de sécurité : après 1,2 s, tout est visible quoi qu'il arrive
+    setTimeout(function () {
+      sections.forEach(function (s) { s.classList.add('visible'); });
+    }, 1200);
+  }
+
+  function init() {
     initMenu();
+    revealSections();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
   }
 })();
