@@ -37,6 +37,12 @@
   .rea-galerie img { width: 100%; border-radius: 12px; display: block; }
   .rea-galerie figure { margin: 0; }
   .rea-galerie figcaption { font-size: 0.78rem; color: var(--text-light, #64748b); margin-top: 5px; }
+  .avant-apres { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .avant-apres figure { margin:0; position:relative; }
+  .avant-apres img { width:100%; border-radius:12px; display:block; }
+  .avant-apres figcaption { font-size:0.78rem; color:var(--text-light,#64748b); margin-top:5px; }
+  .avant-apres .lbl { position:absolute; top:10px; left:10px; background:rgba(0,0,0,.72); color:#fff; font-size:0.78rem; font-weight:700; padding:3px 10px; border-radius:6px; }
+  @media(max-width:520px){ .avant-apres{ grid-template-columns:1fr; } }
 </style>
 </head>
 <body>
@@ -74,52 +80,61 @@
   <div class="rea-block">
     <h2>Le projet</h2>
     <p>Chez le même client que la <a href="realisation-terrasse-noisy-le-grand.html">terrasse en bois</a>, le <strong>toit-terrasse</strong> de la maison était vieillissant : un ancien hublot vitré fatigué, une étanchéité en fin de vie et une isolation insuffisante. L'objectif : <strong>rendre le toit étanche et performant</strong>, tout en faisant entrer davantage de lumière à l'intérieur.</p>
-    <p>DS.BAT a repris l'ouvrage <strong>de A à Z</strong> : dépose de l'ancienne étanchéité, mise en œuvre d'une <strong>nouvelle étanchéité</strong> avec relevés, pose de <strong>panneaux d'isolation</strong>, remplacement du <strong>hublot vitré</strong> (puits de lumière) et pose d'une <strong>fenêtre de toit</strong> sur la partie en pente, puis finition en <strong>gravillons</strong>.</p>
+    <p>DS.BAT a repris l'ouvrage <strong>de A à Z</strong> : remplacement du <strong>hublot vitré</strong> (puits de lumière) et pose d'une <strong>fenêtre de toit</strong> sur la partie en pente, mise à nu du toit (retrait des graviers et de l'ancien aluminium), pose de <strong>panneaux d'isolation</strong> puis d'une membrane, <strong>étanchéité bitumineuse soudée au chalumeau</strong> avec relevés, et enfin finition en <strong>gravillons</strong>.</p>
   </div>
 
   <div class="rea-block">
     <h2>Ce que DS.BAT a réalisé</h2>
     <p style="margin-bottom:6px;"><strong>Réalisé par DS.BAT :</strong></p>
     <ul>
-      <li><strong>Dépose</strong> de l'ancienne étanchéité et de l'ancien hublot</li>
-      <li><strong>Isolation</strong> du toit-terrasse (panneaux isolants)</li>
-      <li><strong>Nouvelle étanchéité</strong> avec relevés en périphérie</li>
-      <li><strong>Pose d'un hublot vitré</strong> (puits de lumière) neuf</li>
-      <li><strong>Pose d'une fenêtre de toit</strong> sur la partie en pente</li>
+      <li><strong>Remplacement du hublot vitré</strong> (puits de lumière) et pose d'une <strong>fenêtre de toit</strong> sur la pente</li>
+      <li><strong>Mise à nu</strong> du toit : retrait des graviers et de l'ancien aluminium</li>
+      <li><strong>Isolation</strong> par panneaux, puis membrane par-dessus l'isolation</li>
+      <li><strong>Étanchéité bitumineuse soudée au chalumeau</strong>, avec relevés en périphérie</li>
       <li><strong>Finition gravillonnée</strong> du toit-terrasse</li>
     </ul>
     <p style="font-size:0.9rem;color:var(--text-light);">Un chantier de couverture / étanchéité mené entièrement en interne, du diagnostic à la finition.</p>
   </div>
 
   <div class="rea-block">
-    <h2>Le chantier en images</h2>
+    <h2>Avant / après — le hublot vu de l'intérieur</h2>
+    <div class="avant-apres">
+      <figure><span class="lbl">AVANT</span><img src="image/realisations/noisy-toit-terrasse/toit-avant-interieur.webp" alt="Ancien hublot vu de l'intérieur, terne et sale, Noisy-le-Grand" loading="lazy"><figcaption>L'ancien hublot : terne et sali par le temps</figcaption></figure>
+      <figure><span class="lbl">APRÈS</span><img src="image/realisations/noisy-toit-terrasse/toit-apres-interieur.webp" alt="Nouveau hublot vu de l'intérieur, beaucoup plus de lumière, Noisy-le-Grand" loading="lazy"><figcaption>Le nouveau hublot : beaucoup plus de lumière</figcaption></figure>
+    </div>
+  </div>
 
-    <h3 style="color:var(--primary); margin:6px 0 10px;">1 · Avant — un toit et un hublot fatigués</h3>
+  <div class="rea-block">
+    <h2>La réfection du toit-terrasse, étape par étape</h2>
+
+    <h3 style="color:var(--primary); margin:6px 0 10px;">1 · Mise à nu — retrait des graviers et de l'aluminium</h3>
     <div class="rea-galerie">
-      <figure><img src="image/realisations/noisy-toit-terrasse/toit-avant-interieur.webp" alt="Ancien hublot vitré vu de l'intérieur, sale et vieillissant, Noisy-le-Grand" loading="lazy"><figcaption>L'ancien hublot vu de l'intérieur, terne et sale</figcaption></figure>
-      <figure><img src="image/realisations/noisy-toit-terrasse/toit-avant-01.webp" alt="Ancien hublot vitré sur le toit-terrasse avant réfection, Noisy-le-Grand" loading="lazy"><figcaption>L'ancien hublot en place sur le toit</figcaption></figure>
-      <figure><img src="image/realisations/noisy-toit-terrasse/toit-avant-02.webp" alt="Toit-terrasse avant travaux d'étanchéité, Noisy-le-Grand" loading="lazy"><figcaption>Le toit-terrasse avant travaux</figcaption></figure>
+      <figure><img src="image/realisations/noisy-toit-terrasse/toit-mise-a-nu.webp" alt="Toit-terrasse mis à nu après retrait des graviers et de l'aluminium des côtés, Noisy-le-Grand" loading="lazy"><figcaption>Graviers et aluminium retirés : la surface est mise à nu</figcaption></figure>
     </div>
 
-    <h3 style="color:var(--primary); margin:18px 0 10px;">2 · Étanchéité — dépose &amp; nouvelle membrane</h3>
+    <h3 style="color:var(--primary); margin:18px 0 10px;">2 · Isolation</h3>
     <div class="rea-galerie">
-      <figure><img src="image/realisations/noisy-toit-terrasse/toit-etancheite-01.webp" alt="Dépose de l'ancienne étanchéité du toit-terrasse, Noisy-le-Grand" loading="lazy"><figcaption>Dépose de l'ancienne étanchéité</figcaption></figure>
-      <figure><img src="image/realisations/noisy-toit-terrasse/toit-etancheite-02.webp" alt="Nouvelle étanchéité avec relevés en périphérie du toit-terrasse, Noisy-le-Grand" loading="lazy"><figcaption>Nouvelle étanchéité et relevés en périphérie</figcaption></figure>
+      <figure><img src="image/realisations/noisy-toit-terrasse/toit-isolation-01.webp" alt="Panneaux d'isolation posés sur le toit-terrasse, Noisy-le-Grand" loading="lazy"><figcaption>Pose des panneaux d'isolation</figcaption></figure>
+      <figure><img src="image/realisations/noisy-toit-terrasse/toit-isolation-02.webp" alt="Isolation soignée autour de l'ouverture du hublot, Noisy-le-Grand" loading="lazy"><figcaption>Isolation soignée autour de l'ouverture</figcaption></figure>
     </div>
 
-    <h3 style="color:var(--primary); margin:18px 0 10px;">3 · Isolation &amp; pose du hublot</h3>
+    <h3 style="color:var(--primary); margin:18px 0 10px;">3 · Membrane sur l'isolation</h3>
     <div class="rea-galerie">
-      <figure><img src="image/realisations/noisy-toit-terrasse/toit-isolation-01.webp" alt="Panneaux d'isolation posés sur le toit-terrasse, Noisy-le-Grand" loading="lazy"><figcaption>Panneaux d'isolation mis en œuvre</figcaption></figure>
-      <figure><img src="image/realisations/noisy-toit-terrasse/toit-isolation-02.webp" alt="Isolation posée autour de l'ouverture du hublot, Noisy-le-Grand" loading="lazy"><figcaption>Isolation soignée autour de l'ouverture</figcaption></figure>
-      <figure><img src="image/realisations/noisy-toit-terrasse/toit-pose-01.webp" alt="Pose du nouveau hublot vitré sur le toit-terrasse, Noisy-le-Grand" loading="lazy"><figcaption>Le nouveau hublot en cours de pose</figcaption></figure>
+      <figure><img src="image/realisations/noisy-toit-terrasse/toit-membrane-blanche.webp" alt="Membrane blanche posée par-dessus l'isolation autour du hublot déjà en place, Noisy-le-Grand" loading="lazy"><figcaption>Membrane posée par-dessus l'isolation (le hublot est déjà en place)</figcaption></figure>
     </div>
 
-    <h3 style="color:var(--primary); margin:18px 0 10px;">4 · Le résultat</h3>
+    <h3 style="color:var(--primary); margin:18px 0 10px;">4 · Étanchéité bitumineuse soudée au chalumeau</h3>
+    <div class="rea-galerie">
+      <figure><img src="image/realisations/noisy-toit-terrasse/toit-membrane-bitume.webp" alt="Membrane d'étanchéité bitumineuse soudée au chalumeau sur le toit-terrasse, Noisy-le-Grand" loading="lazy"><figcaption>Étanchéité bitumineuse soudée au chalumeau</figcaption></figure>
+    </div>
+  </div>
+
+  <div class="rea-block">
+    <h2>Le résultat</h2>
     <div class="rea-galerie">
       <figure><img src="image/realisations/noisy-toit-terrasse/toit-resultat-01.webp" alt="Nouveau hublot vitré installé, finition gravillonnée, Noisy-le-Grand" loading="lazy"><figcaption>Le nouveau hublot et la finition gravillonnée</figcaption></figure>
       <figure><img src="image/realisations/noisy-toit-terrasse/toit-resultat-02.webp" alt="Toit-terrasse rénové vu d'ensemble, Noisy-le-Grand" loading="lazy"><figcaption>Le toit-terrasse rénové, vue d'ensemble</figcaption></figure>
       <figure><img src="image/realisations/noisy-toit-terrasse/toit-fenetre-toit.webp" alt="Fenêtre de toit posée sur la partie en pente en tuiles, Noisy-le-Grand" loading="lazy"><figcaption>La fenêtre de toit posée sur la pente</figcaption></figure>
-      <figure><img src="image/realisations/noisy-toit-terrasse/toit-apres-interieur.webp" alt="Nouveau hublot vu de l'intérieur, lumière naturelle, Noisy-le-Grand" loading="lazy"><figcaption>Vu de l'intérieur : bien plus de lumière</figcaption></figure>
     </div>
   </div>
 
