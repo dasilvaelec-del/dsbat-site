@@ -1565,7 +1565,7 @@ function renderMetierSection(section, pieceIndex) {
         <span class="chevron">▼</span>
       </div>
       <div class="metier-section-body">
-        ${section.metier === 'electricite' ? bandeauNorme() + selecteursElec(pieceIndex) : ''}
+        ${section.metier === 'electricite' ? bandeauNorme() + explicationsPieceHtml(pieceIndex) + selecteursElec(pieceIndex) : ''}
         ${section.metier === 'plomberie' ? selecteursPlomberie(pieceIndex) : ''}
         ${section.prests.map(p => renderPrestRow(p, pieceIndex, section.metier)).join('')}
       </div>
@@ -1825,6 +1825,36 @@ function syncElecDOM(index) {
     const pt = document.getElementById(`ptotal_${index}_${pr.code}`);
     if (pt) pt.textContent = formatEuro(getMoyenPrixFor(pr.code, piece) * qty);
   });
+}
+
+// ===== MOTEUR D'EXPLICATION PAR PIÈCE =====
+// Le moteur dit en français comment il a raisonné pour cette pièce.
+function explicationsPiece(piece) {
+  const d = piece.dims || {};
+  const surface = (d.l || 0) * (d.la || 0);
+  const portes = d.portes || 1;
+  const ex = [];
+  if (portes >= 3) ex.push(portes + ' accès → éclairage commandé par télérupteur');
+  else if (portes === 2) ex.push('2 accès → éclairage en va-et-vient');
+  else ex.push('1 accès → simple allumage');
+  if ((piece.id === 'salon' || piece.id === 'salle_manger') && surface > 0) {
+    ex.push('Séjour de ' + surface.toFixed(0) + ' m² → minimum ' + Math.max(5, Math.ceil(surface / 4)) + ' prises (1 prise / 4 m², min. 5 — NF C 15-100)');
+  }
+  if (piece.id === 'cuisine') ex.push('Cuisine → 6 prises minimum dont 4 au plan de travail + circuits spécialisés');
+  if (piece.id === 'sdb') ex.push('Salle de bain → liaison équipotentielle obligatoire');
+  if (chantier && chantier.chauffage === 'electrique' && ['salon','salle_manger','chambre','bureau'].includes(piece.id)) {
+    ex.push('Chauffage électrique → sortie de câble fil pilote incluse');
+  }
+  return ex;
+}
+
+function explicationsPieceHtml(pieceIndex) {
+  const ex = explicationsPiece(piecesSelectionnees[pieceIndex]);
+  if (!ex.length) return '';
+  return `
+    <div style="background:rgba(30,58,138,0.04);border:1px solid var(--border);border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:0.8rem;color:var(--text-light);">
+      🧠 <strong style="color:var(--primary);">Le moteur a raisonné ainsi :</strong> ${ex.join(' · ')}
+    </div>`;
 }
 
 function bandeauNorme() {
@@ -2117,6 +2147,7 @@ function renderPhase3() {
       tableau = dimensionnementTableau(b);
       totalGlobalHT += tableau.prixTotalHT;
     }
+    window.__besoinsTableau = b; // conservé pour le moteur d'explication (écran, PDF, email)
   }
   window.__tableauAuto = tableau;
 
@@ -2197,16 +2228,30 @@ function renderPhase3() {
     </div>
   `).join('');
 
+  const exTableau = (tableau && typeof explicationsTableau === 'function') ? explicationsTableau(window.__besoinsTableau, tableau) : [];
   const tableauHtml = tableau ? `
     <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-md);padding:20px;margin:20px 0;">
       <h3 style="color:var(--primary);margin-bottom:10px;font-size:1rem;">⚡ Tableau électrique — dimensionnement auto (NF C 15-100)</h3>
       <div style="font-size:0.88rem;color:var(--text-light);margin-bottom:10px;">
-        ${tableau.nbCircuits} circuits · ${tableau.differentiels.total} inter. différentiels (dont ${tableau.differentiels.typeA} type A) · coffret ${tableau.rangees} rangée(s) · ${tableau.modulesUtiles} modules
+        ${tableau.nbCircuits} circuits · ${tableau.differentiels.total} inter. différentiels ${tableau.calibreID || 40}A (dont ${tableau.differentiels.typeA} type A) · coffret ${tableau.rangees} rangée(s) · ${tableau.modulesUtiles} modules
       </div>
       <div style="display:flex;justify-content:space-between;font-weight:700;">
         <span>Tableau (fourniture + pose)</span>
         <span>${formatEuro(tableau.prixTotalHT)}</span>
       </div>
+      ${exTableau.length ? `
+      <details style="margin-top:12px;">
+        <summary style="cursor:pointer;color:var(--primary);font-weight:600;font-size:0.88rem;">🧠 Pourquoi ce dimensionnement ?</summary>
+        <ul style="margin:10px 0 12px;padding-left:18px;font-size:0.82rem;color:var(--text-light);">
+          ${exTableau.map(e => '<li style="margin-bottom:4px;">' + e + '</li>').join('')}
+        </ul>
+        <div style="font-size:0.8rem;border-top:1px dashed var(--border);padding-top:10px;">
+          <strong style="color:var(--primary);">Composition du coffret :</strong>
+          ${tableau.composition.map(c => '<div style="display:flex;justify-content:space-between;padding:2px 0;color:var(--text-light);"><span>' + c.libelle + ' × ' + c.qte + '</span><span>' + formatEuro(c.prixUnit * c.qte) + '</span></div>').join('')}
+          <div style="display:flex;justify-content:space-between;padding:4px 0;font-weight:600;color:var(--text);"><span>Fourniture (coffret, peignes, borniers inclus)</span><span>${formatEuro(tableau.prixFournitureHT)}</span></div>
+          <div style="display:flex;justify-content:space-between;padding:2px 0;font-weight:600;color:var(--text);"><span>Main-d'œuvre (câblage, repérage, tests)</span><span>${formatEuro(tableau.prixMainOeuvreHT)}</span></div>
+        </div>
+      </details>` : ''}
     </div>` : '';
 
   const extrasHtml = (ballon || forfaitAcces || chantier.accessSup === 'occupé') ? `
@@ -2355,6 +2400,12 @@ function construireDetailTexte() {
     out.push('Total pièce : ' + formatEuro(p.totalHT || 0));
     out.push('');
   });
+  // Raisonnement du moteur sur le tableau électrique (pour l'email DS.BAT)
+  const _tabEx = window.__tableauAuto;
+  if (_tabEx && typeof explicationsTableau === 'function') {
+    out.push('━━━ Tableau électrique — raisonnement du moteur ━━━');
+    explicationsTableau(window.__besoinsTableau, _tabEx).forEach(e => out.push('• ' + e));
+  }
   return out.join('\n');
 }
 
@@ -2445,6 +2496,17 @@ function genererPDFConfig() {
           </tr>
         </tfoot>
       </table>
+
+      ${(() => {
+        const exP = (_tab && typeof explicationsTableau === 'function') ? explicationsTableau(window.__besoinsTableau, _tab) : [];
+        return exP.length ? `
+        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:16px;margin-bottom:20px;">
+          <p style="font-weight:700;color:#1e3a8a;margin:0 0 8px;">🧠 Pourquoi ces choix — tableau électrique</p>
+          <ul style="margin:0;padding-left:18px;color:#475569;font-size:0.8rem;">
+            ${exP.map(e => '<li style="margin-bottom:3px;">' + e + '</li>').join('')}
+          </ul>
+        </div>` : '';
+      })()}
 
       <div style="background:#fef9ec;border:2px solid #f59e0b;border-radius:12px;padding:16px;margin-bottom:20px;">
         <p style="font-weight:700;color:#92400e;margin:0 0 6px;">⚠️ Estimation indicative — Visite technique obligatoire</p>
