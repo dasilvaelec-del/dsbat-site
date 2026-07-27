@@ -643,6 +643,9 @@ window.axeptioSettings = {
       <p style="color:var(--text-light);">Sélectionnez vos pièces et indiquez le nombre de chaque type</p>
     </div>
 
+    <!-- Bandeau de proposition automatique (rempli par appliquerTypologie) -->
+    <div id="propositionTypologie"></div>
+
     <div class="form-section" style="background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-md); padding:24px; margin-bottom:20px;">
       <h3 style="color:var(--primary); margin-bottom:16px;">🏠 Pièces de vie</h3>
       <div class="pieces-grid" id="gridVie"></div>
@@ -816,6 +819,7 @@ function getElecPourPiece(pieceId) {
   if (['sdb','sde'].includes(pieceId)) prests = [...prests, ...sdb];
   if (['salon','salle_manger'].includes(pieceId)) prests = [...prests, ...salon];
   if (['chambre'].includes(pieceId)) prests = [...prests, { code:'ELEC_TV', label:'Prise TV', unite:'U' }, { code:'ELEC_RJ45', label:'Prise RJ45 cat6', unite:'U' }];
+  if (['bureau'].includes(pieceId)) prests = [...prests, { code:'ELEC_RJ45', label:'Prise RJ45 cat6', unite:'U' }];
   if (['entree'].includes(pieceId)) prests = [...prests, ...commun];
   if (chantier && chantier.chauffage === 'electrique' && ['salon','salle_manger','chambre','bureau'].includes(pieceId)) prests = [...prests, { code:'ELEC_SC20_FP', label:'Sortie de câble radiateur (fil pilote)', unite:'U' }];
   return prests;
@@ -922,6 +926,49 @@ let chantier = {}; // infos du formulaire (typeProjet, etatLieux, qualiteMateria
 let phaseActuelle = 1;
 let pieceActiveIndex = 0;
 
+// ===== PERSISTANCE (un refresh ne doit plus perdre la saisie) =====
+const ETAT_KEY = 'configEtatV1';
+
+function saveEtat() {
+  try {
+    sessionStorage.setItem(ETAT_KEY, JSON.stringify({
+      compteurs: compteurs,
+      dimsParType: dimsParType,
+      pieces: piecesSelectionnees
+    }));
+  } catch(e) {}
+}
+
+// Restaure l'état sauvegardé et re-synchronise l'UI de la phase 1.
+// Retourne true si des pièces étaient sélectionnées (dans ce cas on ne
+// ré-applique pas la typologie pour ne pas écraser les choix du client).
+function restaurerEtat() {
+  let etat = null;
+  try { etat = JSON.parse(sessionStorage.getItem(ETAT_KEY) || 'null'); } catch(e) {}
+  if (!etat || !etat.compteurs) return false;
+
+  Object.assign(compteurs, etat.compteurs);
+  Object.assign(dimsParType, etat.dimsParType || {});
+  piecesSelectionnees = Array.isArray(etat.pieces) ? etat.pieces : [];
+
+  Object.keys(compteurs).forEach(id => {
+    const nb = compteurs[id] || 0;
+    const el = document.getElementById('count_' + id);
+    if (el) el.textContent = nb;
+    const card = document.getElementById('card_' + id);
+    if (card) card.classList.toggle('selected', nb > 0);
+    const dims = document.getElementById('pdims_' + id);
+    if (dims) dims.style.display = nb > 0 ? 'block' : 'none';
+    const d = dimsParType[id];
+    if (d) {
+      const set = (suf, val) => { const inp = document.getElementById('pdim_' + suf + '_' + id); if (inp && val) inp.value = val; };
+      set('l', d.l); set('la', d.la); set('h', d.h); set('fen', d.fenetres); set('por', d.portes);
+    }
+  });
+
+  return Object.keys(compteurs).some(id => (compteurs[id] || 0) > 0);
+}
+
 // ===== INIT =====
 window.addEventListener('DOMContentLoaded', () => {
   // ===== Coordonnées obligatoires : accès uniquement via le formulaire devis =====
@@ -948,7 +995,10 @@ window.addEventListener('DOMContentLoaded', () => {
   try { chantier = JSON.parse(chantierData) || {}; } catch(e) { chantier = {}; }
 
   renderPiecesSelection();
-  appliquerTypologie();
+  // La typologie ne s'applique que si aucun état n'a été restauré
+  // (sinon on écraserait les ajustements déjà faits par le client)
+  const etatRestaure = restaurerEtat();
+  if (!etatRestaure) appliquerTypologie();
 });
 
 // ===== RENDU SÉLECTION PIÈCES =====
@@ -996,10 +1046,16 @@ function setDimType(id, field, value) {
   const d = ensureDims(id);
   const v = parseFloat(value);
   d[field] = isNaN(v) ? (field === 'h' ? 2.5 : 0) : v;
+  saveEtat();
 }
 
-// Pré-remplit les pièces selon la typologie (nombre de pièces principales) saisie au formulaire
-function appliquerTypologie() {
+// ===== GÉNÉRATION AUTOMATIQUE DES PIÈCES (typologie + surface) =====
+// Propose une composition complète du logement selon la typologie saisie
+// au formulaire (T1–T6) et la surface déclarée. Le client garde la main :
+// il peut ajouter / retirer / ajuster chaque pièce via les compteurs.
+// Les DIMENSIONS restent volontairement vides : c'est le client qui saisit
+// les cotes réelles — aucune surface approximative n'entre dans les calculs.
+function compositionTypologie(nbPieces, surface) {
   const map = {
     '1': { salon:1, cuisine:1, sdb:1, wc:1, entree:1 },
     '2': { salon:1, chambre:1, cuisine:1, sdb:1, wc:1, entree:1 },
@@ -1008,17 +1064,75 @@ function appliquerTypologie() {
     '5': { salon:1, chambre:4, cuisine:1, sdb:1, wc:1, entree:1, couloir:1 },
     '6': { salon:1, chambre:5, cuisine:1, sdb:1, wc:1, entree:1, couloir:1 }
   };
-  const compo = map[String((chantier && chantier.pieces) || '').trim()];
-  if (!compo) return;
-  Object.keys(compo).forEach(id => {
-    compteurs[id] = compo[id];
+  const base = map[String(nbPieces || '').trim()];
+  if (!base) return null;
+
+  const compo = Object.assign({}, base);
+  const raisons = [];
+  const n = parseInt(nbPieces) || 0;
+
+  raisons.push('Composition type d\'un T' + n + (surface ? ' de ' + surface + ' m²' : ''));
+  if (base.couloir) raisons.push('Couloir ajouté : à partir du T4, les chambres sont desservies par un dégagement');
+
+  // Enrichissement selon la surface déclarée (règles volontairement prudentes)
+  if (surface >= 110 && n >= 5 && !compo.sde) {
+    compo.sde = 1;
+    raisons.push('2e point d\'eau (salle d\'eau) suggéré : logement de ' + surface + ' m² avec ' + (n - 1) + ' chambres');
+  }
+  if (surface >= 120 && n >= 5 && (compo.wc || 0) < 2) {
+    compo.wc = 2;
+    raisons.push('2e WC suggéré : usage courant au-delà de 120 m²');
+  }
+
+  return { compo, raisons };
+}
+
+function appliquerTypologie() {
+  const surface = parseFloat(chantier && chantier.surface) || 0;
+  const res = compositionTypologie(chantier && chantier.pieces, surface);
+  if (!res) return;
+
+  Object.keys(res.compo).forEach(id => {
+    compteurs[id] = res.compo[id];
     const el = document.getElementById('count_' + id);
-    if (el) el.textContent = compo[id];
+    if (el) el.textContent = res.compo[id];
     const card = document.getElementById('card_' + id);
     if (card) card.classList.add('selected');
     const dims = document.getElementById('pdims_' + id);
     if (dims) { ensureDims(id); dims.style.display = 'block'; }
   });
+
+  afficherPropositionTypologie(res.compo, res.raisons);
+  saveEtat();
+}
+
+// Bandeau pédagogique : le moteur explique CE qu'il a proposé et POURQUOI,
+// et rappelle que tout reste modifiable (moteur d'explication — 1re brique)
+function afficherPropositionTypologie(compo, raisons) {
+  const zone = document.getElementById('propositionTypologie');
+  if (!zone) return;
+  const allDefs = [...PIECES_DEF.vie, ...PIECES_DEF.sanitaires, ...PIECES_DEF.circulations, ...PIECES_DEF.exterieur];
+  const items = Object.entries(compo).map(([id, nb]) => {
+    const def = allDefs.find(p => p.id === id);
+    return def ? (nb > 1 ? nb + '× ' : '') + def.icon + ' ' + def.nom : id;
+  });
+  zone.innerHTML = `
+    <div style="background:rgba(30,58,138,0.05);border:1.5px solid var(--primary-light);border-radius:var(--radius-md);padding:18px 22px;margin-bottom:20px;">
+      <div style="display:flex;align-items:flex-start;gap:12px;">
+        <span style="font-size:1.5rem;">🤖</span>
+        <div style="flex:1;">
+          <strong style="color:var(--primary);">Composition proposée automatiquement</strong>
+          <p style="margin:6px 0 8px;font-size:0.9rem;color:var(--text);">${items.join(' · ')}</p>
+          <ul style="margin:0 0 10px;padding-left:18px;font-size:0.82rem;color:var(--text-light);">
+            ${raisons.map(r => '<li>' + r + '</li>').join('')}
+          </ul>
+          <p style="margin:0;font-size:0.82rem;color:var(--text-light);">
+            ✏️ Ajustez librement avec les compteurs ci-dessous, puis <strong>saisissez les dimensions réelles</strong> de chaque pièce : ce sont vos cotes qui font le calcul, jamais des valeurs par défaut.
+          </p>
+        </div>
+        <button onclick="document.getElementById('propositionTypologie').innerHTML=''" aria-label="Fermer" style="background:none;border:none;font-size:1.1rem;cursor:pointer;color:var(--text-light);">✕</button>
+      </div>
+    </div>`;
 }
 
 // ===== Pré-sélection depuis le formulaire chantier =====
@@ -1056,30 +1170,44 @@ function changerCompteur(id, delta) {
   if (card) card.classList.toggle('selected', newVal > 0);
   const dims = document.getElementById('pdims_' + id);
   if (dims) { if (newVal > 0) ensureDims(id); dims.style.display = newVal > 0 ? 'block' : 'none'; }
+  saveEtat();
 }
 
 // ===== VALIDER PIÈCES =====
+// FUSION (et non reconstruction) : un retour en phase 1 puis re-validation
+// ne doit JAMAIS effacer la configuration déjà saisie en phase 2.
+// Les pièces existantes sont retrouvées par (id + numero) et conservées
+// avec leur config, leur normeMin et leurs choix de pose/gamme.
 function validerPieces() {
-  // Construire la liste des pièces sélectionnées
-  piecesSelectionnees = [];
   const allPieces = [...PIECES_DEF.vie, ...PIECES_DEF.sanitaires, ...PIECES_DEF.circulations, ...PIECES_DEF.exterieur];
+  const nouvelles = [];
 
   allPieces.forEach(p => {
     const nb = compteurs[p.id] || 0;
     for (let i = 1; i <= nb; i++) {
-      piecesSelectionnees.push({
-        id: p.id,
-        nom: nb > 1 ? `${p.nom} ${i}` : p.nom,
-        icon: p.icon,
-        numero: i,
-        dims: Object.assign({ l: 0, la: 0, h: 2.5, fenetres: 1, portes: 1 }, dimsParType[p.id] || {}),
-        config: {},
-        elecMethode: poseParDefaut(chantier),
-        elecGamme: gammeElecParDefaut(chantier),
-        ploGamme: gammePloParDefaut(chantier)
-      });
+      const existante = piecesSelectionnees.find(x => x.id === p.id && x.numero === i);
+      if (existante) {
+        // Pièce déjà configurée : on met à jour nom + dimensions, on garde le reste
+        existante.nom = nb > 1 ? `${p.nom} ${i}` : p.nom;
+        existante.dims = Object.assign({ l: 0, la: 0, h: 2.5, fenetres: 1, portes: 1 }, existante.dims, dimsParType[p.id] || {});
+        nouvelles.push(existante);
+      } else {
+        nouvelles.push({
+          id: p.id,
+          nom: nb > 1 ? `${p.nom} ${i}` : p.nom,
+          icon: p.icon,
+          numero: i,
+          dims: Object.assign({ l: 0, la: 0, h: 2.5, fenetres: 1, portes: 1 }, dimsParType[p.id] || {}),
+          config: {},
+          elecMethode: poseParDefaut(chantier),
+          elecGamme: gammeElecParDefaut(chantier),
+          ploGamme: gammePloParDefaut(chantier)
+        });
+      }
     }
   });
+
+  piecesSelectionnees = nouvelles;
 
   if (piecesSelectionnees.length === 0) {
     document.getElementById('erreur-pieces').style.display = 'block';
@@ -1087,6 +1215,7 @@ function validerPieces() {
   }
   document.getElementById('erreur-pieces').style.display = 'none';
 
+  saveEtat();
   allerPhase(2);
 }
 
@@ -1393,6 +1522,34 @@ function normeMin(pieceId, portes, surface) {
   return min;
 }
 
+// ===== CONSEILS DS.BAT — recommandations métier AU-DESSUS de la norme =====
+// Symétrique de normeMin() : fonction pure, retourne { code: { qte, raison } }.
+// Affiché en badge 💡 « Conseil DS.BAT » avec sa justification.
+// IMPORTANT : jamais pré-ajouté aux quantités — le pré-remplissage arrivera
+// avec le mode projet (mise aux normes / standard / confort).
+function recoDSBAT(pieceId, dims, ch) {
+  dims = dims || {};
+  const surface = (dims.l || 0) * (dims.la || 0);
+  const reco = {};
+  if ((pieceId === 'salon' || pieceId === 'salle_manger') && surface >= 20) {
+    reco.ELEC_PL_SA = { qte: 1, raison: 'Séjour de ' + surface.toFixed(0) + ' m² : un 2e point lumineux permet de zoner l\'éclairage' };
+  }
+  if (pieceId === 'salon' && (dims.fenetres || 0) >= 2) {
+    reco.ELEC_VOLET = { qte: dims.fenetres, raison: dims.fenetres + ' fenêtres : commandes de volets roulants recommandées' };
+  }
+  if (pieceId === 'chambre') {
+    reco.ELEC_PRISED = { qte: 1, raison: 'Prise double supplémentaire côté lit (chevets, chargeurs)' };
+  }
+  if (pieceId === 'bureau') {
+    reco.ELEC_PRISE10 = { qte: 2, raison: 'Télétravail : 2 prises supplémentaires au poste de travail' };
+    reco.ELEC_RJ45 = { qte: 1, raison: 'Télétravail : liaison réseau filaire, plus stable que le Wi-Fi' };
+  }
+  if (pieceId === 'cuisine') {
+    reco.ELEC_PRISED = { qte: 1, raison: 'Prise double supplémentaire sur le plan de travail (petit électroménager)' };
+  }
+  return reco;
+}
+
 // Applique/actualise le minimum réglementaire (jamais en dessous), gère le changement de portes
 function appliquerNorme(index) {
   const piece = piecesSelectionnees[index];
@@ -1446,11 +1603,32 @@ function renderPrestRow(prest, pieceIndex, metier) {
   const prixLabel = prixData ? `${prixData.min}–${prixData.max} €/${prest.unite}` : '';
   const qty = (piece.config[metier] && piece.config[metier][prest.code]) || 0;
   const lineTotal = getMoyenPrixFor(prest.code, piece) * qty;
+
+  // Badges Norme / Conseil DS.BAT / Option — électricité uniquement
+  // (seul métier disposant d'un minimum normatif dans le moteur).
+  // Calculés à la volée via les fonctions pures : pas de désynchronisation possible.
+  let badge = '', raison = '';
+  if (metier === 'electricite') {
+    const d = piece.dims || {};
+    const min = normeMin(piece.id, d.portes || 1, (d.l || 0) * (d.la || 0));
+    const reco = recoDSBAT(piece.id, d, chantier);
+    if (min[prest.code]) {
+      badge = '<span style="background:#fef3c7;color:#92400e;border:1px solid #f59e0b;border-radius:20px;padding:1px 8px;font-size:0.68rem;font-weight:700;white-space:nowrap;">🔒 Norme</span>';
+      raison = 'Minimum NF C 15-100 : ' + min[prest.code] + ' — inclus d\'office, non réductible';
+    } else if (reco[prest.code]) {
+      badge = '<span style="background:rgba(30,58,138,0.08);color:var(--primary);border:1px solid var(--primary-light);border-radius:20px;padding:1px 8px;font-size:0.68rem;font-weight:700;white-space:nowrap;">💡 Conseil DS.BAT</span>';
+      raison = reco[prest.code].raison;
+    } else {
+      badge = '<span style="background:var(--surface-2);color:var(--text-light);border:1px solid var(--border);border-radius:20px;padding:1px 8px;font-size:0.68rem;font-weight:600;white-space:nowrap;">Option</span>';
+    }
+  }
+
   return `
     <div class="prestation-row" id="row_${pieceIndex}_${prest.code}">
       <div class="prestation-info">
-        <div class="prest-label">${prest.label}</div>
+        <div class="prest-label" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">${prest.label} ${badge}</div>
         <div class="prest-prix" id="pprix_${pieceIndex}_${prest.code}">${prixLabel}</div>
+        ${raison ? `<div style="font-size:0.72rem;color:var(--text-light);margin-top:2px;">${raison}</div>` : ''}
       </div>
       <div class="prestation-qty">
         <button class="qty-btn" onclick="changerQty('${pieceIndex}','${prest.code}','${metier}',-1)">−</button>
@@ -1550,12 +1728,8 @@ function recalcPiece(index) {
     if (papier === 'oui') pPapier = 8 * surfMursNette;
 
     const totalPeinture = pMur + pPlaf + pPapier;
-    const secId = `sec_${index}_peinture_total`;
-    const secEl = document.getElementById(`sec_${index}_peinture_total`);
-    if (secEl) secEl.textContent = formatEuro(totalPeinture);
-    // Update section total
     const secTot = document.getElementById(`sec_${index}_peinture_total`);
-    if(secTot) secTot.textContent = formatEuro(totalPeinture);
+    if (secTot) secTot.textContent = formatEuro(totalPeinture);
     totalPiece += totalPeinture;
     piece.config['peinture_auto'] = totalPeinture;
   }
@@ -1596,6 +1770,10 @@ function recalcPiece(index) {
   if (tab && totalPiece > 0) {
     tab.querySelector('.tab-check').style.display = 'flex';
   }
+
+  // Persistance : recalcPiece est appelé après chaque modification
+  // (quantités, pose, gamme, peinture, sols) — un seul point de sauvegarde suffit
+  saveEtat();
 }
 
 function updateSectionTotals(index, piece) {
