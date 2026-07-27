@@ -582,6 +582,39 @@ window.axeptioSettings = {
   margin-top: 24px;
 }
 
+/* Mode projet */
+.objectif-bar {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.objectif-card {
+  border: 2px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  padding: 14px 12px;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.2s;
+  user-select: none;
+}
+
+.objectif-card:hover { border-color: var(--primary-light); }
+
+.objectif-card.active {
+  border-color: var(--primary);
+  background: rgba(30,58,138,0.06);
+}
+
+.objectif-card .obj-icon { font-size: 1.6rem; display: block; margin-bottom: 6px; }
+.objectif-card .obj-titre { font-weight: 700; font-size: 0.9rem; color: var(--text); display: block; }
+.objectif-card .obj-desc { font-size: 0.72rem; color: var(--text-light); display: block; margin-top: 4px; line-height: 1.35; }
+
+@media (max-width: 600px) {
+  .objectif-bar { grid-template-columns: 1fr; }
+}
+
 @keyframes fadeInUp {
   from { opacity: 0; transform: translateY(16px); }
   to { opacity: 1; transform: translateY(0); }
@@ -643,8 +676,34 @@ window.axeptioSettings = {
       <p style="color:var(--text-light);">Sélectionnez vos pièces et indiquez le nombre de chaque type</p>
     </div>
 
+    <!-- MODE PROJET : détermine ce qui est pré-ajouté au-dessus de la norme -->
+    <div class="form-section" style="background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-md); padding:24px; margin-bottom:20px;">
+      <h3 style="color:var(--primary); margin-bottom:14px;">🎯 Objectif du projet</h3>
+      <div class="objectif-bar">
+        <div class="objectif-card" id="obj_normes" onclick="setObjectif('normes')">
+          <span class="obj-icon">🛡️</span>
+          <span class="obj-titre">Mise aux normes</span>
+          <span class="obj-desc">Le minimum réglementaire NF C 15-100, rien de plus</span>
+        </div>
+        <div class="objectif-card active" id="obj_standard" onclick="setObjectif('standard')">
+          <span class="obj-icon">⚖️</span>
+          <span class="obj-titre">Rénovation standard</span>
+          <span class="obj-desc">Norme + conseils DS.BAT utiles, retirables librement</span>
+        </div>
+        <div class="objectif-card" id="obj_confort" onclick="setObjectif('confort')">
+          <span class="obj-icon">✨</span>
+          <span class="obj-titre">Confort & évolutivité</span>
+          <span class="obj-desc">Norme + conseils + équipements d'usage et d'avenir</span>
+        </div>
+      </div>
+      <p id="objectifExplication" style="font-size:0.82rem;color:var(--text-light);margin:12px 0 0;"></p>
+    </div>
+
     <!-- Bandeau de proposition automatique (rempli par appliquerTypologie) -->
     <div id="propositionTypologie"></div>
+
+    <!-- Panneau de cohérence (rempli par afficherCoherence, non bloquant) -->
+    <div id="coherencePanel"></div>
 
     <div class="form-section" style="background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-md); padding:24px; margin-bottom:20px;">
       <h3 style="color:var(--primary); margin-bottom:16px;">🏠 Pièces de vie</h3>
@@ -818,8 +877,8 @@ function getElecPourPiece(pieceId) {
   if (['cuisine'].includes(pieceId)) prests = [...prests, ...cuisine];
   if (['sdb','sde'].includes(pieceId)) prests = [...prests, ...sdb];
   if (['salon','salle_manger'].includes(pieceId)) prests = [...prests, ...salon];
-  if (['chambre'].includes(pieceId)) prests = [...prests, { code:'ELEC_TV', label:'Prise TV', unite:'U' }, { code:'ELEC_RJ45', label:'Prise RJ45 cat6', unite:'U' }];
-  if (['bureau'].includes(pieceId)) prests = [...prests, { code:'ELEC_RJ45', label:'Prise RJ45 cat6', unite:'U' }];
+  if (['chambre'].includes(pieceId)) prests = [...prests, { code:'ELEC_TV', label:'Prise TV', unite:'U' }, { code:'ELEC_RJ45', label:'Prise RJ45 cat6', unite:'U' }, { code:'ELEC_VOLET', label:'Commande volet roulant', unite:'U' }];
+  if (['bureau'].includes(pieceId)) prests = [...prests, { code:'ELEC_RJ45', label:'Prise RJ45 cat6', unite:'U' }, { code:'ELEC_VOLET', label:'Commande volet roulant', unite:'U' }];
   if (['entree'].includes(pieceId)) prests = [...prests, ...commun];
   if (chantier && chantier.chauffage === 'electrique' && ['salon','salle_manger','chambre','bureau'].includes(pieceId)) prests = [...prests, { code:'ELEC_SC20_FP', label:'Sortie de câble radiateur (fil pilote)', unite:'U' }];
   return prests;
@@ -926,6 +985,62 @@ let chantier = {}; // infos du formulaire (typeProjet, etatLieux, qualiteMateria
 let phaseActuelle = 1;
 let pieceActiveIndex = 0;
 
+// ===== MODE PROJET =====
+// 'normes'   : minimum réglementaire seul (aucun conseil pré-ajouté)
+// 'standard' : norme + conseils DS.BAT pré-ajoutés, retirables jusqu'à la norme
+// 'confort'  : standard + équipements d'usage et d'évolutivité
+let objectifProjet = 'standard';
+
+const OBJECTIF_EXPLICATIONS = {
+  normes:   '🛡️ Seul le minimum réglementaire NF C 15-100 est inclus. Les conseils DS.BAT restent visibles en badge mais ne sont pas ajoutés.',
+  standard: '⚖️ Le minimum réglementaire est inclus, plus les conseils DS.BAT issus du terrain. Chaque conseil est retirable — impossible en revanche de descendre sous la norme.',
+  confort:  '✨ Norme + conseils + équipements de confort (prises supplémentaires, volets motorisés, réseau). Tout ce qui dépasse la norme reste retirable.'
+};
+
+function setObjectif(mode) {
+  objectifProjet = mode;
+  majObjectifUI();
+  // Ré-application propre sur les pièces déjà validées
+  piecesSelectionnees.forEach((p, i) => { appliquerNorme(i); appliquerObjectif(p); });
+  if (phaseActuelle === 2) renderPhase2();
+  if (phaseActuelle === 3) renderPhase3();
+  saveEtat();
+}
+
+function majObjectifUI() {
+  ['normes','standard','confort'].forEach(m => {
+    const el = document.getElementById('obj_' + m);
+    if (el) el.classList.toggle('active', m === objectifProjet);
+  });
+  const ex = document.getElementById('objectifExplication');
+  if (ex) ex.textContent = OBJECTIF_EXPLICATIONS[objectifProjet] || '';
+}
+
+// Applique le mode projet à une pièce. La pièce mémorise dans _recoApplique
+// ce que le MODE a ajouté automatiquement : au changement de mode on retire
+// exactement cela — les ajouts manuels du client sont préservés.
+function appliquerObjectif(piece) {
+  if (!piece.config.electricite) piece.config.electricite = {};
+  const cfg = piece.config.electricite;
+  const min = piece.normeMin || {};
+
+  // 1) Retirer ce que le mode précédent avait ajouté (plancher : la norme)
+  const ancien = piece._recoApplique || {};
+  for (const code in ancien) {
+    cfg[code] = Math.max(min[code] || 0, (cfg[code] || 0) - ancien[code]);
+  }
+  piece._recoApplique = {};
+
+  // 2) Appliquer le nouveau mode
+  if (objectifProjet === 'normes') return;
+  const niveau = objectifProjet === 'confort' ? 'confort' : 'standard';
+  const reco = recoDSBAT(piece.id, piece.dims, chantier, niveau);
+  for (const code in reco) {
+    cfg[code] = (cfg[code] || 0) + reco[code].qte;
+    piece._recoApplique[code] = reco[code].qte;
+  }
+}
+
 // ===== PERSISTANCE (un refresh ne doit plus perdre la saisie) =====
 const ETAT_KEY = 'configEtatV1';
 
@@ -934,7 +1049,8 @@ function saveEtat() {
     sessionStorage.setItem(ETAT_KEY, JSON.stringify({
       compteurs: compteurs,
       dimsParType: dimsParType,
-      pieces: piecesSelectionnees
+      pieces: piecesSelectionnees,
+      objectif: objectifProjet
     }));
   } catch(e) {}
 }
@@ -950,6 +1066,8 @@ function restaurerEtat() {
   Object.assign(compteurs, etat.compteurs);
   Object.assign(dimsParType, etat.dimsParType || {});
   piecesSelectionnees = Array.isArray(etat.pieces) ? etat.pieces : [];
+  if (etat.objectif) objectifProjet = etat.objectif;
+  majObjectifUI();
 
   Object.keys(compteurs).forEach(id => {
     const nb = compteurs[id] || 0;
@@ -999,6 +1117,7 @@ window.addEventListener('DOMContentLoaded', () => {
   // (sinon on écraserait les ajustements déjà faits par le client)
   const etatRestaure = restaurerEtat();
   if (!etatRestaure) appliquerTypologie();
+  majObjectifUI();
 });
 
 // ===== RENDU SÉLECTION PIÈCES =====
@@ -1046,6 +1165,7 @@ function setDimType(id, field, value) {
   const d = ensureDims(id);
   const v = parseFloat(value);
   d[field] = isNaN(v) ? (field === 'h' ? 2.5 : 0) : v;
+  __coherenceAcquittee = false; // nouvelle saisie -> les contrôles se réarment
   saveEtat();
 }
 
@@ -1170,7 +1290,95 @@ function changerCompteur(id, delta) {
   if (card) card.classList.toggle('selected', newVal > 0);
   const dims = document.getElementById('pdims_' + id);
   if (dims) { if (newVal > 0) ensureDims(id); dims.style.display = newVal > 0 ? 'block' : 'none'; }
+  __coherenceAcquittee = false; // la composition change -> les contrôles se réarment
   saveEtat();
+}
+
+// ===== MOTEUR DE COHÉRENCE (non bloquant) =====
+// Seuils regroupés ici : ajustables en une ligne.
+// Repères : décret décence (pièce principale >= 9 m², hauteur >= 2,20 m).
+const SEUILS_COHERENCE = {
+  surfaceMin: { salon:9, salle_manger:7, chambre:7, cuisine:4, bureau:5, sdb:3, sde:2, wc:0.8, entree:1.5 },
+  hauteurMin: 2.2,
+  hauteurMax: 3.2,
+  portesMax: 4,
+  fenetresMax: 5,
+  ratioAllonge: 5,           // longueur / largeur au-delà duquel on doute
+  ecartSurfaceGlobal: 0.25,  // ±25 % entre surfaces saisies et surface déclarée
+  grandeSurface: 150,        // m² à partir desquels on questionne un faible nb de chambres
+  chambresMinGrandeSurface: 3
+};
+
+// Fonction pure : retourne [{ niveau:'attention'|'info', texte }]
+function controlesCoherence(pieces, ch) {
+  const S = SEUILS_COHERENCE;
+  const alertes = [];
+
+  pieces.forEach(p => {
+    const d = p.dims || {};
+    if (!d.l || !d.la) {
+      alertes.push({ niveau:'attention', texte: p.nom + ' : dimensions non renseignées — peinture, sols et surfaces seront comptés à 0 € pour cette pièce.' });
+      return; // sans cotes, les autres contrôles n'ont pas de sens
+    }
+    const surf = d.l * d.la;
+    const smin = S.surfaceMin[p.id];
+    if (smin && surf < smin) {
+      alertes.push({ niveau:'attention', texte: p.nom + ' : ' + surf.toFixed(1) + ' m² — inhabituel pour ce type de pièce (généralement ≥ ' + smin + ' m²). Vérifiez longueur et largeur.' });
+    }
+    if (d.h && (d.h < S.hauteurMin || d.h > S.hauteurMax)) {
+      alertes.push({ niveau:'info', texte: p.nom + ' : hauteur de ' + d.h + ' m — atypique (habituellement entre ' + S.hauteurMin + ' et ' + S.hauteurMax + ' m).' });
+    }
+    if ((d.portes || 0) > S.portesMax) {
+      alertes.push({ niveau:'info', texte: p.nom + ' : ' + d.portes + ' portes — nombre élevé, il conditionne le type de commande d\'éclairage (va-et-vient, télérupteur).' });
+    }
+    if ((d.fenetres || 0) > S.fenetresMax) {
+      alertes.push({ niveau:'info', texte: p.nom + ' : ' + d.fenetres + ' fenêtres — vérifiez la saisie.' });
+    }
+    const ratio = Math.max(d.l, d.la) / Math.max(0.1, Math.min(d.l, d.la));
+    if (ratio > S.ratioAllonge && p.id !== 'couloir') {
+      alertes.push({ niveau:'info', texte: p.nom + ' : pièce très allongée (' + d.l + ' × ' + d.la + ' m) — longueur et largeur ne sont-elles pas inversées avec autre chose ?' });
+    }
+  });
+
+  // Contrôles globaux
+  const surfDeclaree = parseFloat(ch && ch.surface) || 0;
+  const surfSaisie = pieces.reduce((s, p) => s + (((p.dims || {}).l || 0) * ((p.dims || {}).la || 0)), 0);
+  if (surfDeclaree > 0 && surfSaisie > 0) {
+    const ecart = (surfSaisie - surfDeclaree) / surfDeclaree;
+    if (Math.abs(ecart) > S.ecartSurfaceGlobal) {
+      alertes.push({ niveau:'attention', texte: 'Surface totale des pièces saisies (' + surfSaisie.toFixed(0) + ' m²) très éloignée de la surface déclarée au formulaire (' + surfDeclaree + ' m²). Pièce oubliée ou cote erronée ?' });
+    }
+  }
+  const nbChambres = pieces.filter(p => p.id === 'chambre').length;
+  if (surfDeclaree >= S.grandeSurface && nbChambres > 0 && nbChambres < S.chambresMinGrandeSurface) {
+    alertes.push({ niveau:'info', texte: surfDeclaree + ' m² avec seulement ' + nbChambres + ' chambre(s) : composition inhabituelle, confirmez-la.' });
+  }
+
+  return alertes;
+}
+
+let __coherenceAcquittee = false;
+
+function afficherCoherence(alertes) {
+  const panel = document.getElementById('coherencePanel');
+  if (!panel) return;
+  panel.innerHTML = `
+    <div style="background:#fef9ec;border:2px solid #f59e0b;border-radius:var(--radius-md);padding:20px 22px;margin-bottom:20px;">
+      <h3 style="color:#92400e;margin:0 0 10px;font-size:1rem;">🔎 Contrôles de cohérence — rien n'est bloqué, on vérifie ensemble</h3>
+      <ul style="margin:0 0 14px;padding-left:20px;font-size:0.88rem;color:#78350f;">
+        ${alertes.map(a => '<li style="margin-bottom:6px;">' + (a.niveau === 'attention' ? '⚠️ ' : 'ℹ️ ') + a.texte + '</li>').join('')}
+      </ul>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;">
+        <button onclick="masquerCoherence()" style="background:var(--primary);color:white;border:none;padding:12px 22px;border-radius:var(--radius-xl);font-weight:700;cursor:pointer;">✏️ Corriger mes saisies</button>
+        <button onclick="__coherenceAcquittee = true; validerPieces();" style="background:var(--surface);color:var(--text);border:2px solid var(--border);padding:12px 22px;border-radius:var(--radius-xl);font-weight:700;cursor:pointer;">Continuer quand même →</button>
+      </div>
+    </div>`;
+  panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function masquerCoherence() {
+  const panel = document.getElementById('coherencePanel');
+  if (panel) panel.innerHTML = '';
 }
 
 // ===== VALIDER PIÈCES =====
@@ -1214,6 +1422,17 @@ function validerPieces() {
     return;
   }
   document.getElementById('erreur-pieces').style.display = 'none';
+
+  // Moteur de cohérence : non bloquant, mais on montre les doutes AVANT de configurer
+  const alertes = controlesCoherence(piecesSelectionnees, chantier);
+  if (alertes.length > 0 && !__coherenceAcquittee) {
+    afficherCoherence(alertes);
+    return;
+  }
+  masquerCoherence();
+
+  // Norme (verrouillée) puis mode projet (conseils retirables) avant le rendu
+  piecesSelectionnees.forEach((p, i) => { appliquerNorme(i); appliquerObjectif(p); });
 
   saveEtat();
   allerPhase(2);
@@ -1527,10 +1746,13 @@ function normeMin(pieceId, portes, surface) {
 // Affiché en badge 💡 « Conseil DS.BAT » avec sa justification.
 // IMPORTANT : jamais pré-ajouté aux quantités — le pré-remplissage arrivera
 // avec le mode projet (mise aux normes / standard / confort).
-function recoDSBAT(pieceId, dims, ch) {
+function recoDSBAT(pieceId, dims, ch, niveau) {
   dims = dims || {};
+  niveau = niveau || 'standard';
   const surface = (dims.l || 0) * (dims.la || 0);
   const reco = {};
+
+  // --- Conseils standard (expérience terrain) ---
   if ((pieceId === 'salon' || pieceId === 'salle_manger') && surface >= 20) {
     reco.ELEC_PL_SA = { qte: 1, raison: 'Séjour de ' + surface.toFixed(0) + ' m² : un 2e point lumineux permet de zoner l\'éclairage' };
   }
@@ -1547,6 +1769,25 @@ function recoDSBAT(pieceId, dims, ch) {
   if (pieceId === 'cuisine') {
     reco.ELEC_PRISED = { qte: 1, raison: 'Prise double supplémentaire sur le plan de travail (petit électroménager)' };
   }
+
+  // --- Niveau confort : équipements d'usage et d'évolutivité ---
+  if (niveau === 'confort') {
+    const piecesDeVie = ['salon','salle_manger','chambre','bureau'];
+    if (piecesDeVie.includes(pieceId)) {
+      const cur = reco.ELEC_PRISED ? reco.ELEC_PRISED.qte : 0;
+      reco.ELEC_PRISED = { qte: cur + 1, raison: (reco.ELEC_PRISED ? reco.ELEC_PRISED.raison + ' · ' : '') + 'Confort : prise double supplémentaire (évolutivité des usages)' };
+    }
+    if (piecesDeVie.includes(pieceId) && (dims.fenetres || 0) >= 1 && !reco.ELEC_VOLET) {
+      reco.ELEC_VOLET = { qte: dims.fenetres, raison: 'Confort : motorisation des volets (' + dims.fenetres + ' fenêtre(s))' };
+    }
+    if (pieceId === 'salon') {
+      reco.ELEC_RJ45 = { qte: 1, raison: 'Confort : RJ45 supplémentaire (TV connectée, box, console)' };
+      if (ch && ch.chauffage === 'electrique') {
+        reco.ELEC_THERMO = { qte: 1, raison: 'Confort : thermostat d\'ambiance pour piloter le chauffage électrique' };
+      }
+    }
+  }
+
   return reco;
 }
 
@@ -1611,7 +1852,7 @@ function renderPrestRow(prest, pieceIndex, metier) {
   if (metier === 'electricite') {
     const d = piece.dims || {};
     const min = normeMin(piece.id, d.portes || 1, (d.l || 0) * (d.la || 0));
-    const reco = recoDSBAT(piece.id, d, chantier);
+    const reco = recoDSBAT(piece.id, d, chantier, objectifProjet === 'confort' ? 'confort' : 'standard');
     if (min[prest.code]) {
       badge = '<span style="background:#fef3c7;color:#92400e;border:1px solid #f59e0b;border-radius:20px;padding:1px 8px;font-size:0.68rem;font-weight:700;white-space:nowrap;">🔒 Norme</span>';
       raison = 'Minimum NF C 15-100 : ' + min[prest.code] + ' — inclus d\'office, non réductible';
@@ -1975,9 +2216,20 @@ function renderPhase3() {
       ${chantier.accessSup === 'occupé' ? '<div style="display:flex;justify-content:space-between;padding:4px 0;color:var(--text-light);"><span>Majoration logement occupé</span><span>+8,8 %</span></div>' : ''}
     </div>` : '';
 
+  // Rappel des contrôles de cohérence non corrigés (informationnel)
+  const alertesRecap = controlesCoherence(piecesSelectionnees, chantier);
+  const alertesHtml = alertesRecap.length ? `
+    <div style="background:#fef9ec;border:1px solid #f59e0b;border-radius:var(--radius-md);padding:14px 18px;margin:16px 0;font-size:0.85rem;color:#78350f;">
+      <strong>🔎 Points à confirmer lors de la visite technique :</strong>
+      <ul style="margin:6px 0 0;padding-left:18px;">
+        ${alertesRecap.map(a => '<li>' + a.texte + '</li>').join('')}
+      </ul>
+    </div>` : '';
+
   container.innerHTML = `
     <h2 style="color:var(--primary);margin-bottom:20px;">📊 Récapitulatif par pièce</h2>
     ${rowsHtml}
+    ${alertesHtml}
     ${tableauHtml}
     ${extrasHtml}
 
