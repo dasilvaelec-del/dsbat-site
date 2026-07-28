@@ -1066,6 +1066,7 @@ function restaurerEtat() {
   Object.assign(compteurs, etat.compteurs);
   Object.assign(dimsParType, etat.dimsParType || {});
   piecesSelectionnees = Array.isArray(etat.pieces) ? etat.pieces : [];
+  normaliserGammesIP44(); // migration des sessions sauvegardées avant la règle IP44
   if (etat.objectif) objectifProjet = etat.objectif;
   majObjectifUI();
 
@@ -1264,6 +1265,11 @@ function poseParDefaut(ch) {
   if (ch.etatLieux === 'mauvais') return 'saignee';
   return 'goulotte_enc';
 }
+// Pièces extérieures + garage : gamme unique étanche IP44, imposée (pas de choix dooxie/mosaic/celiane)
+const PIECES_IP44 = ['terrasse','jardin','facade','carport','garage'];
+function normaliserGammesIP44() {
+  piecesSelectionnees.forEach(p => { if (PIECES_IP44.includes(p.id)) p.elecGamme = 'etanche'; });
+}
 // Gamme selon qualité des matériaux (éco / standard / premium)
 function gammeElecParDefaut(ch) {
   const q = (ch && ch.qualiteMateriaux) || 'standard';
@@ -1416,6 +1422,7 @@ function validerPieces() {
   });
 
   piecesSelectionnees = nouvelles;
+  normaliserGammesIP44(); // extérieur + garage -> gamme étanche IP44 imposée
 
   if (piecesSelectionnees.length === 0) {
     document.getElementById('erreur-pieces').style.display = 'block';
@@ -1640,6 +1647,28 @@ function selecteursElec(pieceIndex) {
   const piece = piecesSelectionnees[pieceIndex];
   const m = piece.elecMethode || 'saignee';
   const g = piece.elecGamme || 'dooxie';
+  if (PIECES_IP44.includes(piece.id)) {
+    // Extérieur / garage : gamme unique étanche IP44, non modifiable
+    return `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;padding:12px;background:var(--surface-2);border-radius:12px;">
+      <div>
+        <label style="${_SEL_LS}">Méthode de pose</label>
+        <select id="elecmethode_${pieceIndex}" onchange="setElecMethode(${pieceIndex}, this.value)" style="${_SEL_SS}">
+          <option value="saillie" ${m==='saillie'?'selected':''}>Apparent / goulotte (saillie)</option>
+          <option value="goulotte_enc" ${m==='goulotte_enc'?'selected':''}>Goulotte + encastré</option>
+          <option value="placo" ${m==='placo'?'selected':''}>Encastré sous placo (neuf)</option>
+          <option value="saignee" ${m==='saignee'?'selected':''}>Encastré scellé (saignée)</option>
+        </select>
+      </div>
+      <div>
+        <label style="${_SEL_LS}">Gamme appareillage</label>
+        <select id="elecgamme_${pieceIndex}" disabled style="${_SEL_SS}">
+          <option value="etanche" selected>Étanche IP44 (extérieur / garage)</option>
+        </select>
+        <span style="display:block;margin-top:4px;font-size:0.72rem;color:var(--text-light);">💧 Gamme unique imposée en extérieur et garage : appareillage étanche IP44.</span>
+      </div>
+    </div>`;
+  }
   return `
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;padding:12px;background:var(--surface-2);border-radius:12px;">
       <div>
@@ -1679,7 +1708,7 @@ function selecteursPlomberie(pieceIndex) {
 function setElecMethode(i, v) {
   piecesSelectionnees[i].elecMethode = v;
   const g = document.getElementById('elecgamme_' + i);
-  if (g) g.disabled = (v === 'saillie');
+  if (g) g.disabled = (v === 'saillie') || PIECES_IP44.includes(piecesSelectionnees[i].id);
   majPrixMetier(i, 'electricite');
 }
 function setElecGamme(i, v) { piecesSelectionnees[i].elecGamme = v; majPrixMetier(i, 'electricite'); }
