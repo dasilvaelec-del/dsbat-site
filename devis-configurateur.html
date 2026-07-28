@@ -1755,7 +1755,12 @@ function getMoyenPrixFor(code, piece) {
 function normeMin(pieceId, portes, surface) {
   portes = portes || 1;
   surface = surface || 0;
-  const light = portes >= 3 ? 'ELEC_PL_3BP' : (portes === 2 ? 'ELEC_PL_VV' : 'ELEC_PL_SA');
+  // Commande d'éclairage : nb de portes = nb d'accès (approximation).
+  // Pièces de passage (couloir, escalier) : minimum va-et-vient — on commande
+  // aux deux extrémités même si une seule « porte » est saisie (escalier = haut + bas).
+  const passage = (pieceId === 'couloir' || pieceId === 'escalier');
+  const acces = Math.max(portes, passage ? 2 : 1);
+  const light = acces >= 3 ? 'ELEC_PL_3BP' : (acces === 2 ? 'ELEC_PL_VV' : 'ELEC_PL_SA');
   const min = {};
   min[light] = 1;
   if (pieceId === 'cuisine') { min.ELEC_PRISE10 = 6; min.ELEC_PRISE32 = 1; min.ELEC_PRISE20 = 2; }
@@ -1869,8 +1874,10 @@ function explicationsPiece(piece) {
   const surface = (d.l || 0) * (d.la || 0);
   const portes = d.portes || 1;
   const ex = [];
-  if (portes >= 3) ex.push(portes + ' accès → éclairage commandé par télérupteur');
-  else if (portes === 2) ex.push('2 accès → éclairage en va-et-vient');
+  const passage = (piece.id === 'couloir' || piece.id === 'escalier');
+  const acces = Math.max(portes, passage ? 2 : 1);
+  if (acces >= 3) ex.push(acces + ' accès → éclairage commandé par télérupteur');
+  else if (acces === 2) ex.push(passage ? 'Pièce de passage → commande aux deux extrémités (va-et-vient)' : '2 accès → éclairage en va-et-vient');
   else ex.push('1 accès → simple allumage');
   if ((piece.id === 'salon' || piece.id === 'salle_manger') && surface > 0) {
     ex.push('Séjour de ' + surface.toFixed(0) + ' m² → minimum ' + (surface > 28 ? 7 : 5) + ' prises (5 socles jusqu\'à 28 m², 7 au-delà — NF C 15-100 A5)');
