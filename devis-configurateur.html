@@ -859,6 +859,7 @@ function getElecPourPiece(pieceId) {
     { code:'ELEC_SC20', label:'Sortie de câble 20A (hotte)', unite:'U' },
   ];
   const sdb = [
+    { code:'ELEC_PL_APP', label:'Applique au-dessus du lavabo (éclairage miroir)', unite:'U' },
     { code:'ELEC_SECH_SERV', label:'Sèche-serviette', unite:'U' },
     { code:'ELEC_LIAISON_EQUI', label:'Liaison équipotentielle SDB', unite:'U' },
   ];
@@ -1800,6 +1801,9 @@ function recoDSBAT(pieceId, dims, ch, niveau) {
   if (pieceId === 'cuisine') {
     reco.ELEC_PRISED = { qte: 1, raison: 'Prise double supplémentaire sur le plan de travail (petit électroménager)' };
   }
+  if (pieceId === 'sdb' || pieceId === 'sde') {
+    reco.ELEC_PL_APP = { qte: 1, raison: 'Double allumage conseillé : plafonnier (norme) + applique au-dessus du lavabo pour l\'éclairage du miroir' };
+  }
 
   // --- Niveau confort : équipements d'usage et d'évolutivité ---
   if (niveau === 'confort') {
@@ -2151,7 +2155,7 @@ function renderPhase3() {
       const e = p.config.electricite || {};
       // Socles comptés pour les circuits 16A : double = 2, triple = 3, prise commandée = 1 (postes catalogue, comptés même si non proposés aujourd'hui)
       b.prises16 += (e.ELEC_PRISE10||0) + (e.ELEC_PRISED||0)*2 + (e.ELEC_PRISET||0)*3 + (e.ELEC_PRISECMD||0);
-      b.pointsLumineux += (e.ELEC_PL_SA||0) + (e.ELEC_PL_VV||0) + (e.ELEC_PL_3BP||0);
+      b.pointsLumineux += (e.ELEC_PL_SA||0) + (e.ELEC_PL_VV||0) + (e.ELEC_PL_3BP||0) + (e.ELEC_PL_APP||0) + (e.ELEC_PL_APV||0) + (e.ELEC_PL_DBL||0)*2 + (e.ELEC_PL_SUP||0);
       b.telerupteurs += (e.ELEC_PL_3BP||0);
       b.specialises20A += (e.ELEC_PRISE20||0) + (e.ELEC_SC20||0);
       b.cuisson += (e.ELEC_PRISE32||0);                 // 1 circuit 32A dédié PAR prise 32A (2 cuisines = 2 circuits)
