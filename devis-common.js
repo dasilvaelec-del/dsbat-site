@@ -60,7 +60,7 @@ function genererPDF(elementId, filenamePrefix) {
 function envoyerWhatsApp(totalTTC, messagePrefix) {
   const total = document.getElementById(totalTTC)?.innerText || '0 €';
   const message = `*${messagePrefix}*%0A%0ATotal TTC : ${total}%0A%0APouvez-vous me rappeler ?`;
-  window.open(`https://wa.me/${CONFIG.telephone}?text=${encodeURIComponent(message)}`);
+  window.open(`${CONFIG.social.whatsapp}?text=${encodeURIComponent(message)}`);
 }
 
 // Initialisation commune pour les pages de devis

@@ -985,7 +985,6 @@ let piecesSelectionnees = []; // [{id, nom, icon, numero, dims:{l,la,h,fenetres,
 let metiersActifs = [];
 let chantier = {}; // infos du formulaire (typeProjet, etatLieux, qualiteMateriaux, ...)
 let phaseActuelle = 1;
-let pieceActiveIndex = 0;
 
 // ===== MODE PROJET =====
 // 'normes'   : minimum réglementaire seul (aucun conseil pré-ajouté)
@@ -1483,7 +1482,6 @@ function renderPhase2() {
 
   piecesSelectionnees.forEach((p, i) => recalcPiece(i));
 
-  pieceActiveIndex = 0;
 }
 
 function renderPieceConfig(piece, index) {
@@ -1974,27 +1972,6 @@ function renderPrestRow(prest, pieceIndex, metier) {
   `;
 }
 
-function getPrixPrest(code) {
-  for (const cat of Object.values(PRIX)) {
-    const found = cat.find(p => p.code === code);
-    if (found) {
-      if (found.renov) return found.renov;
-      if (found.prix) return found.prix;
-      // v2 : élec à appareillage (pose + gamme) -> défaut saignée + Dooxie (= ancien prix réno)
-      if (found.pose && found.app && typeof prixElec === 'function') return prixElec(found, 'saignee', 'dooxie');
-      // v2 : plomberie sanitaire (pose + fourniture) -> défaut gamme standard
-      if (found.pose && found.four && typeof prixPlomberie === 'function') return prixPlomberie(found, 'standard');
-    }
-  }
-  return null;
-}
-
-function getMoyenPrix(code) {
-  const p = getPrixPrest(code);
-  if (!p) return 0;
-  return (p.min + p.max) / 2;
-}
-
 // ===== QUANTITÉS =====
 function changerQty(pieceIndex, code, metier, delta) {
   const p = piecesSelectionnees[pieceIndex];
@@ -2140,7 +2117,6 @@ function allerPiece(index) {
   document.querySelectorAll('.piece-tab').forEach((el, i) => {
     el.classList.toggle('active', i === index);
   });
-  pieceActiveIndex = index;
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -2220,8 +2196,14 @@ function renderPhase3() {
   window.__tableauAuto = tableau;
 
   // Ballon d'eau chaude électrique (si indiqué au formulaire)
+  // Garde anti-double facturation : si un ballon est déjà configuré manuellement
+  // dans une pièce (plomberie), on n'ajoute pas le ballon automatique du formulaire.
+  const ballonDejaConfigure = piecesSelectionnees.some(p => {
+    const pl = p.config.plomberie || {};
+    return ((pl.PLO_BALLON_100||0) + (pl.PLO_BALLON_200||0) + (pl.PLO_BALLON_50||0)) > 0;
+  });
   let ballon = null;
-  if (chantier.eauChaude === 'ballon' && metiersActifs.includes('plomberie') && typeof PRIX !== 'undefined') {
+  if (!ballonDejaConfigure && chantier.eauChaude === 'ballon' && metiersActifs.includes('plomberie') && typeof PRIX !== 'undefined') {
     const codeB = (parseInt(chantier.pieces) || 0) >= 4 ? 'PLO_BALLON_200' : 'PLO_BALLON_100';
     const itB = (PRIX.plomberie_divers || []).find(x => x.code === codeB);
     if (itB) { ballon = { label: itB.label, prix: Math.round((itB.prix.min + itB.prix.max) / 2) }; totalGlobalHT += ballon.prix; }

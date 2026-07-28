@@ -34,21 +34,10 @@ const CONFIG = {
     acomptes: [0.4, 0.3, 0.3],  // 40%, 30%, 30%
   },
 
-  // ----- PRIX (à compléter avec tes tarifs) -----
-  prix: {
-    electricite: {
-      priseSimple: 83.97,
-      interrupteur: 89.20,
-      tableau: 1210.10,
-      // Ajoute ici toutes les autres prestations électricité
-    },
-    plomberie: {
-      evier: 300,
-      wc: 250,
-      // etc.
-    },
-    // ... autres corps de métier
-  }
+  // ----- PRIX -----
+  // ⚠️ OBSOLÈTE : les tarifs vivent exclusivement dans prix.js (catalogue PRIX).
+  // Ce bloc, jamais lu par le configurateur, est supprimé pour éviter toute
+  // confusion avec d'anciens montants contradictoires.
 };
 
 // ===== APPLICATION AUTOMATIQUE DE LA CONFIG =====
