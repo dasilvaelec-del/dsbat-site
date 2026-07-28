@@ -850,6 +850,7 @@ function getElecPourPiece(pieceId) {
     { code:'ELEC_PL_SA', label:'Point lumineux simple', unite:'U' },
     { code:'ELEC_PL_VV', label:'Point lumineux va-et-vient (2 accès)', unite:'U' },
     { code:'ELEC_PL_3BP', label:'Point lumineux télérupteur (3+ accès)', unite:'U' },
+    { code:'ELEC_PL_SUP', label:'Point lumineux supplémentaire (même interrupteur)', unite:'U' },
     { code:'ELEC_PRISE10', label:'Prise 2P+T simple', unite:'U' },
     { code:'ELEC_PRISED', label:'Prise double 2P+T', unite:'U' },
   ];
@@ -1762,7 +1763,10 @@ function normeMin(pieceId, portes, surface) {
   const acces = Math.max(portes, passage ? 2 : 1);
   const light = acces >= 3 ? 'ELEC_PL_3BP' : (acces === 2 ? 'ELEC_PL_VV' : 'ELEC_PL_SA');
   const min = {};
-  min[light] = 1;
+  // 1 point lumineux minimum par pièce (NF C 15-100) — sauf jardin/allée :
+  // aucun éclairage imposé par la norme en pleine parcelle (proposé en conseil, retirable).
+  // Terrasse, façade, carport conservent leur point (éclairage des accès du bâti).
+  if (pieceId !== 'jardin') min[light] = 1;
   if (pieceId === 'cuisine') { min.ELEC_PRISE10 = 6; min.ELEC_PRISE32 = 1; min.ELEC_PRISE20 = 2; }
   else if (pieceId === 'salon' || pieceId === 'salle_manger') { min.ELEC_PRISE10 = surface > 28 ? 7 : 5; min.ELEC_RJ45 = 1; min.ELEC_TV = 1; } // NF C 15-100 (A5) : 5 socles si séjour ≤ 28 m², 7 au-delà
   else if (pieceId === 'chambre') { min.ELEC_PRISE10 = 3; min.ELEC_RJ45 = 1; min.ELEC_TV = 1; }
@@ -1791,7 +1795,24 @@ function recoDSBAT(pieceId, dims, ch, niveau) {
 
   // --- Conseils standard (expérience terrain) ---
   if ((pieceId === 'salon' || pieceId === 'salle_manger') && surface >= 20) {
-    reco.ELEC_PL_SA = { qte: 1, raison: 'Séjour de ' + surface.toFixed(0) + ' m² : un 2e point lumineux permet de zoner l\'éclairage' };
+    const nSup = surface >= 40 ? 2 : 1;
+    reco.ELEC_PL_SA = { qte: nSup, raison: 'Séjour de ' + surface.toFixed(0) + ' m² : ' + (nSup > 1 ? nSup + ' points lumineux supplémentaires permettent' : 'un 2e point lumineux permet') + ' de zoner l\'éclairage' };
+  }
+  if (pieceId === 'cuisine' && surface >= 15) {
+    reco.ELEC_PL_SUP = { qte: 1, raison: 'Grande cuisine / cuisine ouverte de ' + surface.toFixed(0) + ' m² : second point lumineux (zone repas ou plan de travail) sur la même commande' };
+  }
+  if (pieceId === 'couloir') {
+    const longueur = Math.max(dims.l || 0, dims.la || 0);
+    if (longueur >= 5) {
+      const nSup = Math.min(3, Math.floor(longueur / 5));
+      reco.ELEC_PL_SUP = { qte: nSup, raison: 'Couloir de ' + longueur + ' m : ' + nSup + ' point(s) lumineux supplémentaire(s) sur la même commande (un point tous les ~5 m)' };
+    }
+  }
+  if (pieceId === 'escalier') {
+    reco.ELEC_PL_SUP = { qte: 1, raison: 'Escalier : second point lumineux pour éclairer le haut et le bas sur la même commande' };
+  }
+  if (pieceId === 'jardin') {
+    reco.ELEC_PL_SA = { qte: 1, raison: 'Éclairage de l\'allée / du jardin conseillé (non imposé par la norme)' };
   }
   if (pieceId === 'salon' && (dims.fenetres || 0) >= 2) {
     reco.ELEC_VOLET = { qte: dims.fenetres, raison: dims.fenetres + ' fenêtres : commandes de volets roulants recommandées' };
