@@ -2144,18 +2144,21 @@ function renderPhase3() {
   // ===== TABLEAU ÉLECTRIQUE AUTO (NF C 15-100) =====
   let tableau = null;
   if (metiersActifs.includes('electricite') && typeof dimensionnementTableau === 'function') {
-    const b = { prises16:0, pointsLumineux:0, specialises20A:0, cuisson:false, chauffeEau:false, vmc:metiersActifs.includes('vmc'), circuitsVolets:0, circuitsChauffage:0, sonnerie:false, telerupteurs:0 };
-    let volets = 0, secheServ = 0;
+    const b = { prises16:0, pointsLumineux:0, specialises20A:0, cuisson:0, chauffeEau:false, vmc:metiersActifs.includes('vmc'), circuitsVolets:0, circuitsChauffage:0, sonnerie:false, telerupteurs:0,
+                surfaceLogement: parseFloat(chantier.surface) || 0 }; // pour la règle A5 : 2 circuits d'éclairage min > 35 m²
+    let volets = 0, secheServ = 0, filPilote = 0;
     piecesSelectionnees.forEach(p => {
       const e = p.config.electricite || {};
-      b.prises16 += (e.ELEC_PRISE10||0) + (e.ELEC_PRISED||0)*2;
+      // Socles comptés pour les circuits 16A : double = 2, triple = 3, prise commandée = 1 (postes catalogue, comptés même si non proposés aujourd'hui)
+      b.prises16 += (e.ELEC_PRISE10||0) + (e.ELEC_PRISED||0)*2 + (e.ELEC_PRISET||0)*3 + (e.ELEC_PRISECMD||0);
       b.pointsLumineux += (e.ELEC_PL_SA||0) + (e.ELEC_PL_VV||0) + (e.ELEC_PL_3BP||0);
       b.telerupteurs += (e.ELEC_PL_3BP||0);
       b.specialises20A += (e.ELEC_PRISE20||0) + (e.ELEC_SC20||0);
-      if ((e.ELEC_PRISE32||0) > 0) b.cuisson = true;
+      b.cuisson += (e.ELEC_PRISE32||0);                 // 1 circuit 32A dédié PAR prise 32A (2 cuisines = 2 circuits)
       if ((e.ELEC_SONETTE||0) > 0) b.sonnerie = true;
       volets += (e.ELEC_VOLET||0);
       secheServ += (e.ELEC_SECH_SERV||0);
+      filPilote += (e.ELEC_SC20_FP||0) + (e.ELEC_SC10_FP||0); // sorties radiateur réellement configurées
       const pl = p.config.plomberie || {};
       if (((pl.PLO_BALLON_100||0) + (pl.PLO_BALLON_200||0)) > 0) b.chauffeEau = true;
     });
@@ -2167,8 +2170,10 @@ function renderPhase3() {
     if (chantier.vmc && chantier.vmc !== 'non') b.vmc = true;            // VMC présente/à refaire -> circuit VMC
     if (chantier.eauChaude === 'ballon') b.chauffeEau = true;            // ballon élec -> circuit + contacteur J/N
     if (chantier.chauffage === 'electrique') {                           // chauffage élec -> circuits radiateurs
+      // Priorité aux sorties fil pilote réellement configurées (3 radiateurs max / circuit 20A ≈ 4500 W) ;
+      // repli sur l'heuristique nb de pièces si aucune sortie saisie
       const nbP = parseInt(chantier.pieces) || 0;
-      b.circuitsChauffage += Math.max(1, Math.ceil(nbP / 3));
+      b.circuitsChauffage += filPilote > 0 ? Math.ceil(filPilote / 3) : Math.max(1, Math.ceil(nbP / 3));
     }
     if (chantier.tableauExistant === 'ancien' || chantier.tableauExistant === 'inexistant') b.parafoudre = true;
 
