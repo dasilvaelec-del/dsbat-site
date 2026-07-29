@@ -874,9 +874,15 @@ function getElecPourPiece(pieceId) {
     { code:'ELEC_SONETTE', label:'Sonnette / Interphone', unite:'U' },
     { code:'ELEC_VOLET', label:'Commande volet roulant', unite:'U' },
   ];
+  // Buanderie / cave / garage : circuits spécialisés gros électroménager (NF C 15-100 : 1 circuit dédié par appareil)
+  const buanderie = [
+    { code:'ELEC_PRISE20', label:'Prise spécialisée 20A (lave-linge)', unite:'U' },
+    { code:'ELEC_SC20', label:'Sortie de câble 20A (sèche-linge)', unite:'U' },
+  ];
 
   let prests = [...base];
   if (['cuisine'].includes(pieceId)) prests = [...prests, ...cuisine];
+  if (['cave','garage'].includes(pieceId)) prests = [...prests, ...buanderie];
   if (['sdb','sde'].includes(pieceId)) prests = [...prests, ...sdb];
   if (['salon','salle_manger'].includes(pieceId)) prests = [...prests, ...salon];
   if (['chambre'].includes(pieceId)) prests = [...prests, { code:'ELEC_TV', label:'Prise TV', unite:'U' }, { code:'ELEC_RJ45', label:'Prise RJ45 cat6', unite:'U' }, { code:'ELEC_VOLET', label:'Commande volet roulant', unite:'U' }];
@@ -2008,10 +2014,10 @@ function normeMin(pieceId, portes, surface) {
   if (pieceId === 'cuisine') { min.ELEC_PRISE10 = 6; min.ELEC_PRISE32 = 1; min.ELEC_PRISE20 = 2; }
   else if (pieceId === 'salon' || pieceId === 'salle_manger') { min.ELEC_PRISE10 = surface > 28 ? 7 : 5; min.ELEC_RJ45 = 1; min.ELEC_TV = 1; } // NF C 15-100 (A5) : 5 socles si séjour ≤ 28 m², 7 au-delà
   else if (pieceId === 'chambre') { min.ELEC_PRISE10 = 3; min.ELEC_RJ45 = 1; min.ELEC_TV = 1; }
-  else if (pieceId === 'sdb') { min.ELEC_PRISE10 = 1; min.ELEC_LIAISON_EQUI = 1; min.ELEC_SECH_SERV = 1; }
+  else if (pieceId === 'sdb') { min.ELEC_PRISE10 = 1; min.ELEC_LIAISON_EQUI = 1; } // sèche-serviette = conseil DS.BAT (non exigé par la norme)
   else if (pieceId === 'sde') { min.ELEC_PRISE10 = 1; }
   else if (pieceId === 'wc') { /* éclairage seul */ }
-  else if (pieceId === 'entree') { min.ELEC_PRISE10 = 1; min.ELEC_SONETTE = 1; }
+  else if (pieceId === 'entree') { min.ELEC_PRISE10 = 1; } // sonnette = conseil DS.BAT (non exigé par la norme)
   else if (pieceId === 'bureau') { min.ELEC_PRISE10 = 3; } // usage pièce principale : aligné sur la chambre (3 socles)
   else if (pieceId === 'terrasse' || pieceId === 'jardin' || pieceId === 'facade' || pieceId === 'carport') { /* extérieur : aucun socle imposé par la NF C 15-100 — prise étanche en option, jamais verrouillée */ }
   else { min.ELEC_PRISE10 = 1; } // autres locaux intérieurs (couloir, escalier, cave/buanderie, garage, dressing, véranda) : 1 socle
@@ -2064,6 +2070,12 @@ function recoDSBAT(pieceId, dims, ch, niveau) {
   }
   if (pieceId === 'cuisine') {
     reco.ELEC_PRISED = { qte: 1, raison: 'Prise double supplémentaire sur le plan de travail (petit électroménager)' };
+  }
+  if (pieceId === 'sdb') {
+    reco.ELEC_SECH_SERV = { qte: 1, raison: 'Sèche-serviette recommandé (confort salle de bain — non imposé par la norme)' };
+  }
+  if (pieceId === 'entree') {
+    reco.ELEC_SONETTE = { qte: 1, raison: 'Sonnette / interphone recommandé à l\'entrée (non imposé par la norme)' };
   }
   if (pieceId === 'sdb' || pieceId === 'sde') {
     reco.ELEC_PL_APP = { qte: 1, raison: 'Double allumage conseillé : plafonnier (norme) + applique au-dessus du lavabo pour l\'éclairage du miroir' };
