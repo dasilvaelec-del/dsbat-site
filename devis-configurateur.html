@@ -1601,6 +1601,50 @@ function detectionSousCouche(piece, ch, surfMurs, surfPlaf) {
   return null;
 }
 
+// ===== MOTEUR D'ÉVALUATION DES SUPPORTS (aide à la décision peinture) =====
+// Fonction pure : croise les informations DÉJÀ connues du devis pour déduire
+// un niveau de préparation conseillé et détecter une incohérence avec le choix
+// du client. Ne modifie jamais le choix — renvoie seulement une recommandation.
+//   niveau : 'less' (rafraîchissement) | 'std' (standard) | 'fort' (importante)
+const NIVEAU_PEINT_LABEL = { less: 'simple rafraîchissement', std: 'préparation standard', fort: 'préparation importante' };
+const NIVEAU_PEINT_RANG = { less: 0, std: 1, fort: 2 };
+
+function evaluationSupport(piece, ch) {
+  ch = ch || {};
+  piece = piece || {};
+  const raisons = [];
+  let rang = 0; // on retient le niveau le plus exigeant justifié
+
+  // Support neuf (BA13 posé dans la pièce ou projet neuf/extension) -> standard suffit (plâtre sain)
+  const iso = (piece.config && piece.config.isolation) || {};
+  const placoNeuf = ((iso.PLA_BA13_MUR_COL||0)+(iso.PLA_BA13_MUR_OSS||0)+(iso.PLA_CLOISON_BA13||0)+(iso.PLA_BA13_PLAF_OSS||0)+(iso.ISO_LV_200_COMPLEX||0)) > 0;
+  const projetNeuf = (ch.typeProjet === 'neuf' || ch.typeProjet === 'extension');
+  if (placoNeuf || projetNeuf) {
+    rang = Math.max(rang, 1);
+    raisons.push(placoNeuf ? 'placo neuf dans la pièce (support sain, mais impression + finition soignée nécessaires)' : 'construction neuve / extension (supports neufs à préparer)');
+  }
+
+  // État déclaré des lieux
+  if (ch.etatLieux === 'bon') raisons.push('état déclaré : bon');
+  else if (ch.etatLieux === 'moyen') { rang = Math.max(rang, 1); raisons.push('état déclaré : moyen'); }
+  else if (ch.etatLieux === 'mauvais') { rang = Math.max(rang, 2); raisons.push('état déclaré : mauvais / à rénover'); }
+
+  // Âge du bâti : ancien / très ancien -> supports souvent dégradés
+  if (ch.ageBati === 'ancien') { rang = Math.max(rang, 1); raisons.push('bâtiment ancien (30–50 ans)'); }
+  else if (ch.ageBati === 'tres_ancien') { rang = Math.max(rang, 2); raisons.push('bâtiment très ancien (+ de 50 ans)'); }
+
+  // Papier peint présent -> au minimum préparation standard après décollage
+  if (piece.peintPapier === 'oui') { rang = Math.max(rang, 1); raisons.push('papier peint à décoller (support à reprendre)'); }
+
+  // Bien locatif / préparation à la vente -> le rafraîchissement suffit souvent (usage locatif)
+  if ((ch.typeLogement === 'locatif' || ch.typeLogement === 'vente') && rang < 2) {
+    raisons.push('usage ' + (ch.typeLogement === 'locatif' ? 'locatif' : 'mise en vente') + ' (rafraîchissement souvent suffisant)');
+  }
+
+  const niveau = ['less','std','fort'][rang];
+  return { niveau, raisons };
+}
+
 function renderPeintureAuto(pieceIndex) {
   // Persistance : mêmes principes que l'électricité (elecMethode/elecGamme) —
   // les choix mémorisés sur la pièce priment sur les défauts issus de l'état des lieux.
@@ -1635,7 +1679,25 @@ function renderPeintureAuto(pieceIndex) {
       </select>
     </div>
     <div id="souscouche_info_${pieceIndex}" style="font-size:0.8rem;color:var(--accent);margin-top:8px;"></div>
+    <div id="reco_support_${pieceIndex}" style="margin-top:10px;"></div>
   `;
+}
+
+// Construit le bandeau de recommandation support (chaîne HTML, vide si le choix est cohérent).
+function recoSupportHtml(piece) {
+  const ev = evaluationSupport(piece, chantier);
+  const choix = piece.peintMur || 'std';
+  // On alerte seulement si le client a choisi MOINS que le niveau conseillé.
+  if (NIVEAU_PEINT_RANG[choix] >= NIVEAU_PEINT_RANG[ev.niveau]) return '';
+  const contexte = ev.raisons.length ? ' (' + ev.raisons.join(', ') + ')' : '';
+  return `
+    <div style="display:flex;gap:10px;align-items:flex-start;background:#fef9ec;border:1px solid #f59e0b;border-radius:12px;padding:12px;">
+      <span style="font-size:1.1rem;">💡</span>
+      <div style="font-size:0.82rem;color:#78350f;">
+        <strong>Recommandation DS.BAT :</strong> une <strong>${NIVEAU_PEINT_LABEL[ev.niveau]}</strong> est généralement conseillée pour cette pièce${contexte}.
+        Vous avez choisi « ${NIVEAU_PEINT_LABEL[choix]} » — vous restez libre de conserver ce choix.
+      </div>
+    </div>`;
 }
 
 function renderSolsAuto(pieceIndex) {
@@ -2079,6 +2141,10 @@ function recalcPiece(index) {
     if (scInfo) scInfo.innerHTML = sc
       ? '🖌️ <strong>Sous-couche d\'impression ajoutée automatiquement</strong> (' + sc.surf.toFixed(1) + ' m² · ' + formatEuro(pSousCouche) + ') : ' + sc.raison + '.'
       : '';
+
+    // Recommandation support (aide à la décision, non imposée)
+    const recoEl = document.getElementById(`reco_support_${index}`);
+    if (recoEl) recoEl.innerHTML = recoSupportHtml(piece);
 
     // Quantités de peinture (informatif — devis technique uniquement, aucun impact prix)
     piece.peintureQuantites = (typeof quantitesPeinture === 'function' && (surfMursNette > 0 || surfPlaf > 0))
