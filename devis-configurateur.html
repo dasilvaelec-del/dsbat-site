@@ -3073,6 +3073,96 @@ function genererPDFConfig() {
       <td style="padding:8px;border-bottom:1px solid #e2e8f0;text-align:right;font-weight:700;">${formatEuro(_tab.prixTotalHT)}</td>
     </tr>` : '');
 
+  // ===== MISSION 022 — Sections de présentation (aucun montant, aucun calcul modifié) =====
+  const LBL_BIEN = { maison:'Maison', appartement:'Appartement', local:'Local commercial', autre:'Logement' };
+  const LBL_PROJET = { renov:'Rénovation', neuf:'Construction neuve', extension:'Extension' };
+  const LBL_METIER = { electricite:'Électricité', plomberie:'Plomberie', peinture:'Peinture', sols:'Revêtements de sols', carrelage:'Carrelage', isolation:'Isolation', menuiserie:'Menuiserie', vmc:'VMC' };
+  const resumeBien = LBL_BIEN[chantier.typeBien] || 'Logement';
+  const resumeProjet = LBL_PROJET[chantier.typeProjet] || 'Rénovation';
+  const resumeSurface = chantier.surface ? chantier.surface + ' m²' : '—';
+  const resumePieces = piecesSelectionnees.length;
+  const metiersListe = (metiersActifs || []).map(m => LBL_METIER[m] || m);
+  const tempsTotalH = Math.round(piecesSelectionnees.reduce((s, p) => s + (p.tempsChantier || 0), 0) * 10) / 10;
+  const hj = (typeof TEMPS_PARAMS !== 'undefined' && TEMPS_PARAMS.heuresParJour) ? TEMPS_PARAMS.heuresParJour : 7;
+  const tempsJours = tempsTotalH > 0 ? Math.round(tempsTotalH / hj * 10) / 10 : 0;
+
+  const CARD = 'background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:16px 18px;margin-bottom:18px;';
+  const H = 'font-weight:700;color:#1e3a8a;margin:0 0 10px;font-size:1rem;';
+  const LI = 'margin-bottom:6px;';
+
+  // 1) Résumé du projet
+  const resumeProjetHtml = `
+    <div style="${CARD}">
+      <p style="${H}">📋 Résumé de votre projet</p>
+      <div style="display:flex;flex-wrap:wrap;gap:8px 28px;font-size:0.9rem;color:#334155;">
+        <div><span style="color:#64748b;">Type de logement :</span> <strong>${resumeBien}</strong></div>
+        <div><span style="color:#64748b;">Nature du projet :</span> <strong>${resumeProjet}</strong></div>
+        <div><span style="color:#64748b;">Surface :</span> <strong>${resumeSurface}</strong></div>
+        <div><span style="color:#64748b;">Nombre de pièces :</span> <strong>${resumePieces}</strong></div>
+      </div>
+      <div style="margin-top:10px;font-size:0.9rem;color:#334155;">
+        <span style="color:#64748b;">Corps de métier concernés :</span> <strong>${metiersListe.length ? metiersListe.join(' · ') : '—'}</strong>
+      </div>
+    </div>`;
+
+  // 3) Éléments calculés automatiquement (dynamiques selon la configuration)
+  const autoItems = [];
+  autoItems.push('📐 <strong>Surfaces</strong> (sol, murs, plafond) calculées d\'après vos dimensions, déduction faite des portes et fenêtres.');
+  autoItems.push('🔢 <strong>Quantités</strong> de fournitures et de main-d\'œuvre estimées poste par poste.');
+  if ((metiersActifs || []).includes('electricite')) autoItems.push('⚡ <strong>Normes électriques NF C 15-100</strong> : équipement minimum par pièce appliqué automatiquement (prises, points lumineux, circuits).');
+  if (_tab) autoItems.push('🔌 <strong>Tableau électrique</strong> dimensionné automatiquement : ' + _tab.nbCircuits + ' circuits, ' + _tab.differentiels.total + ' interrupteur(s) différentiel(s).');
+  if (tempsTotalH > 0) autoItems.push('⏱️ <strong>Temps de chantier estimé</strong> : ' + tempsTotalH + ' h ≈ ' + tempsJours + ' jour(s)-homme (indicatif, hors imprévus).');
+
+  // Sections 2 à 6 regroupées
+  const sectionsConfianceHtml = `
+    <div style="${CARD}">
+      <p style="${H}">✅ Ce que comprend votre devis</p>
+      <p style="margin:0;font-size:0.9rem;color:#334155;line-height:1.5;">
+        Ce devis couvre la <strong>fourniture des matériels et équipements</strong> ainsi que la <strong>main-d'œuvre de pose</strong> pour l'ensemble des prestations décrites ci-dessus, dans le respect des normes en vigueur (dont la NF C 15-100 en électricité). Chaque pièce est chiffrée en détail — éclairages, prises, points d'eau, revêtements, isolation — selon la configuration que vous avez renseignée.
+      </p>
+    </div>
+
+    <div style="${CARD}">
+      <p style="${H}">🤖 Ce qui a été calculé automatiquement</p>
+      <ul style="margin:0;padding-left:18px;font-size:0.88rem;color:#334155;">
+        ${autoItems.map(t => '<li style="' + LI + '">' + t + '</li>').join('')}
+      </ul>
+    </div>
+
+    <div style="${CARD}">
+      <p style="${H}">📐 Les hypothèses utilisées</p>
+      <ul style="margin:0;padding-left:18px;font-size:0.88rem;color:#334155;">
+        <li style="${LI}">Dimensions et informations <strong>déclaratives</strong>, renseignées par vos soins.</li>
+        <li style="${LI}">Hauteur sous plafond de <strong>2,50 m</strong> retenue par défaut lorsqu'elle n'est pas précisée.</li>
+        <li style="${LI}">Déduction des ouvertures : <strong>1,5 m² par fenêtre</strong> et <strong>2 m² par porte</strong>.</li>
+        <li style="${LI}">Prix issus du catalogue DS.BAT, retenus à la <strong>moyenne de la fourchette</strong> (mini–maxi).</li>
+        <li style="${LI}">Gamme d'appareillage et méthode de pose selon vos choix (ou valeurs standard par défaut).</li>
+        <li style="${LI}"><strong>${labelTVA()}</strong> appliquée selon la nature du projet.</li>
+      </ul>
+    </div>
+
+    <div style="${CARD}">
+      <p style="${H}">🔎 À confirmer lors de la visite technique</p>
+      <ul style="margin:0;padding-left:18px;font-size:0.88rem;color:#334155;">
+        <li style="${LI}">Métrés réels des pièces et hauteurs sous plafond.</li>
+        <li style="${LI}">État des supports (murs, sols) et travaux préparatoires éventuels.</li>
+        <li style="${LI}">Faisabilité des passages de câbles et méthode de pose définitive.</li>
+        <li style="${LI}">État et emplacement du tableau électrique existant.</li>
+        <li style="${LI}">Contraintes d'accès au chantier.</li>
+        <li style="${LI}">Choix définitifs des gammes, matériaux et finitions.</li>
+      </ul>
+    </div>
+
+    <div style="background:#ecfdf5;border:1px solid #6ee7b7;border-radius:12px;padding:16px 18px;margin-bottom:18px;">
+      <p style="font-weight:700;color:#065f46;margin:0 0 10px;font-size:1rem;">🛡️ Les garanties de ce devis</p>
+      <ul style="margin:0;padding-left:18px;font-size:0.88rem;color:#065f46;">
+        <li style="${LI}"><strong>Calcul automatisé</strong> fondé sur les normes et un catalogue de prix cohérent.</li>
+        <li style="${LI}"><strong>Vérification par un artisan qualifié</strong> avant tout démarrage des travaux.</li>
+        <li style="${LI}"><strong>Ajustement si nécessaire</strong> après la visite technique gratuite.</li>
+        <li style="${LI}">Assurance décennale et devis <strong>sans engagement</strong>.</li>
+      </ul>
+    </div>`;
+
   const html = `
     <div style="font-family:Arial,sans-serif;max-width:700px;margin:0 auto;padding:30px;color:#0f172a;">
       <div style="text-align:center;border-bottom:3px solid #1e3a8a;padding-bottom:20px;margin-bottom:24px;">
@@ -3091,6 +3181,8 @@ function genererPDFConfig() {
           <p style="color:#64748b;margin:2px 0;">${clientData.adresse || ''}</p>
         </div>` : ''}
       </div>
+
+      ${resumeProjetHtml}
 
       <table style="width:100%;border-collapse:collapse;margin-bottom:20px;">
         <thead>
@@ -3127,6 +3219,8 @@ function genererPDFConfig() {
           </ul>
         </div>` : '';
       })()}
+
+      ${sectionsConfianceHtml}
 
       <div style="background:#fef9ec;border:2px solid #f59e0b;border-radius:12px;padding:16px;margin-bottom:20px;">
         <p style="font-weight:700;color:#92400e;margin:0 0 6px;">⚠️ Estimation indicative — Visite technique obligatoire</p>
