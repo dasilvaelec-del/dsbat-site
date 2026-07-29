@@ -968,6 +968,129 @@ function getCarrelagePourPiece(pieceId) {
   return base;
 }
 
+// ===== ÉVALUATION DU SUPPORT (carrelage) — aide à la décision, jamais imposée =====
+// Symétrique de la peinture et des sols. Recommande étanchéité (pièces humides,
+// obligatoire sous douche — DTU 52.2) et ragréage (support inégal), déjà ajoutables
+// via les lignes existantes « Étanchéité » et « Ragréage ».
+function evaluationSupportCarr(piece, ch) {
+  ch = ch || {}; piece = piece || {};
+  const carr = (piece.config && piece.config.carrelage) || {};
+  const reco = [];
+  // Étanchéité en pièce humide si non prévue
+  if (['sdb','sde'].includes(piece.id) && !(carr.CAR_ETANCHEITE > 0)) {
+    reco.push({ code: 'CAR_ETANCHEITE', texte: 'étanchéité sous carrelage (SPEC) obligatoire sous la douche / en pièce humide — ligne « Étanchéité » ci-dessus' });
+  }
+  // Ragréage si support probablement inégal et non prévu
+  const supportIrregulier = (ch.typeProjet === 'neuf' || ch.typeProjet === 'extension' || ch.etatLieux === 'mauvais' || ch.ageBati === 'ancien' || ch.ageBati === 'tres_ancien');
+  const solCarrele = (carr.CAR_POSE_SOL > 0) || (carr.CAR_POSE_SOL_GRAND > 0);
+  if (supportIrregulier && solCarrele && !(carr.CAR_RAGREAGE > 0)) {
+    reco.push({ code: 'CAR_RAGREAGE', texte: 'ragréage conseillé pour un support plan avant pose (chantier neuf / support ancien) — ligne « Ragréage » ci-dessus' });
+  }
+  return reco;
+}
+
+function recoSupportCarrHtml(piece) {
+  const reco = evaluationSupportCarr(piece, chantier);
+  if (!reco.length) return '';
+  return `
+    <div style="display:flex;gap:10px;align-items:flex-start;background:#fef9ec;border:1px solid #f59e0b;border-radius:12px;padding:12px;margin-bottom:12px;">
+      <span style="font-size:1.1rem;">💡</span>
+      <div style="font-size:0.82rem;color:#78350f;">
+        <strong>Recommandation DS.BAT :</strong> ${reco.map(r => r.texte).join(' · ')}.
+        Vous restez libre de les ajouter ou non.
+      </div>
+    </div>`;
+}
+
+// ===== CONTRÔLE DES OUBLIS COURANTS (carrelage) — suggestions non imposées =====
+// Compléments de finition qui ne figurent pas déjà comme lignes de la section.
+function controlesOublisCarr(piece) {
+  const d = piece.dims || {};
+  const carr = (piece.config && piece.config.carrelage) || {};
+  const ign = piece._oublisIgnoresCarr || {};
+  const list = [];
+  const solCarrele = (carr.CAR_POSE_SOL || 0) + (carr.CAR_POSE_SOL_GRAND || 0);
+  const murCarrele = (carr.CAR_POSE_MUR || 0) + (carr.CAR_POSE_MUR_PETIT || 0);
+  if (solCarrele + murCarrele <= 0) return list; // rien tant qu'aucune pose n'est saisie
+  const add = (code, qty, question, unite) => {
+    qty = Math.round((qty || 0) * 10) / 10;
+    if (qty <= 0 || carr[code] || ign[code]) return;
+    list.push({ code, qty, question, unite });
+  };
+  // Fourniture carreau si seule la pose est prévue
+  if (solCarrele > 0 && !(carr.CAR_FOURN_CARREAU > 0)) {
+    add('CAR_FOURN_CARREAU', solCarrele, 'Fourniture du carreau non prévue (' + solCarrele + ' m² de pose sol) — l\'ajouter ?', 'm²');
+  }
+  // Fourniture faïence si seule la pose murale est prévue
+  if (murCarrele > 0 && !(carr.CAR_FOURN_FAIENCE > 0)) {
+    add('CAR_FOURN_FAIENCE', murCarrele, 'Fourniture de la faïence non prévue (' + murCarrele + ' m² de pose murale) — l\'ajouter ?', 'm²');
+  }
+  // Primaire d'accrochage sur la surface carrelée
+  add('CAR_PRIMAIRE', solCarrele + murCarrele, 'Primaire d\'accrochage non prévu (' + (solCarrele + murCarrele) + ' m²) — l\'ajouter ?', 'm²');
+  // Plinthes carrelage (périmètre moins passages de portes) si sol carrelé
+  if (solCarrele > 0 && d.l && d.la) {
+    const per = 2 * (d.l + d.la) - 0.8 * (d.portes || 0);
+    add('CAR_PLINTHE', Math.max(0, per), 'Plinthes carrelage non prévues (~' + Math.round(per) + ' ml) — les ajouter ?', 'ml');
+  }
+  // Seuils de transition aux passages de porte
+  if (solCarrele > 0) {
+    add('CAR_SEUIL', Math.round(0.8 * (d.portes || 0) * 10) / 10, 'Seuils de transition aux ' + (d.portes || 0) + ' passage(s) de porte non prévus — les ajouter ?', 'ml');
+  }
+  return list;
+}
+
+function oublisCarrHtml(index) {
+  const piece = piecesSelectionnees[index];
+  if (!piece) return '';
+  const suggestions = controlesOublisCarr(piece);
+  const carr = (piece.config && piece.config.carrelage) || {};
+  const OUBLI = ['CAR_FOURN_CARREAU','CAR_FOURN_FAIENCE','CAR_PRIMAIRE','CAR_PLINTHE','CAR_SEUIL'];
+  const ajoutes = Object.entries(carr).filter(([c, q]) => q > 0 && OUBLI.includes(c));
+  if (!suggestions.length && !ajoutes.length) return '';
+
+  const sugHtml = suggestions.map(s => `
+    <div style="display:flex;gap:8px;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px dashed var(--border);">
+      <span style="font-size:0.82rem;color:#78350f;flex:1;">${s.question} <span style="color:var(--text-light);">(${s.qty} ${s.unite} · ${formatEuro(getMoyenPrixFor(s.code, piece) * s.qty)})</span></span>
+      <span style="display:flex;gap:6px;flex-shrink:0;">
+        <button onclick="ajouterOubliCarr(${index},'${s.code}',${s.qty})" style="background:var(--accent);color:#fff;border:none;border-radius:16px;padding:4px 12px;font-size:0.78rem;font-weight:700;cursor:pointer;">Oui, ajouter</button>
+        <button onclick="ignorerOubliCarr(${index},'${s.code}')" style="background:var(--surface);color:var(--text-light);border:1px solid var(--border);border-radius:16px;padding:4px 12px;font-size:0.78rem;cursor:pointer;">Non</button>
+      </span>
+    </div>`).join('');
+
+  const ajHtml = ajoutes.map(([code, qty]) => `
+    <div style="display:flex;gap:8px;align-items:center;justify-content:space-between;padding:6px 0;">
+      <span style="font-size:0.82rem;color:var(--accent);flex:1;">✓ ${findPrestLabel(code)} × ${qty} — ${formatEuro(getMoyenPrixFor(code, piece) * qty)}</span>
+      <button onclick="retirerOubliCarr(${index},'${code}')" style="background:none;border:none;color:var(--text-light);font-size:0.78rem;cursor:pointer;text-decoration:underline;">Retirer</button>
+    </div>`).join('');
+
+  return `
+    <div style="margin-top:12px;background:#fef9ec;border:1px solid #f59e0b;border-radius:12px;padding:12px;">
+      <strong style="font-size:0.84rem;color:#92400e;">🔎 Contrôle qualité — compléments fréquents</strong>
+      ${sugHtml}
+      ${ajHtml ? '<div style="margin-top:6px;border-top:1px solid var(--border);padding-top:6px;">' + ajHtml + '</div>' : ''}
+    </div>`;
+}
+
+function ajouterOubliCarr(index, code, qty) {
+  const piece = piecesSelectionnees[index];
+  if (!piece.config.carrelage) piece.config.carrelage = {};
+  piece.config.carrelage[code] = qty;
+  recalcPiece(index);
+}
+function ignorerOubliCarr(index, code) {
+  const piece = piecesSelectionnees[index];
+  if (!piece._oublisIgnoresCarr) piece._oublisIgnoresCarr = {};
+  piece._oublisIgnoresCarr[code] = true;
+  const el = document.getElementById(`oublis_carr_${index}`);
+  if (el) el.innerHTML = oublisCarrHtml(index);
+  saveEtat();
+}
+function retirerOubliCarr(index, code) {
+  const piece = piecesSelectionnees[index];
+  if (piece.config.carrelage) delete piece.config.carrelage[code];
+  recalcPiece(index);
+}
+
 function getIsolationPourPiece(pieceId) {
   const base = [
     { code:'PLA_BA13_MUR_COL', label:'BA13 mur collé', unite:'m²' },
@@ -1691,7 +1814,9 @@ function renderMetierSection(section, pieceIndex) {
       <div class="metier-section-body">
         ${section.metier === 'electricite' ? bandeauNorme() + explicationsPieceHtml(pieceIndex) + selecteursElec(pieceIndex) : ''}
         ${section.metier === 'plomberie' ? selecteursPlomberie(pieceIndex) : ''}
+        ${section.metier === 'carrelage' ? `<div id="reco_support_carr_${pieceIndex}"></div>` : ''}
         ${section.prests.map(p => renderPrestRow(p, pieceIndex, section.metier)).join('')}
+        ${section.metier === 'carrelage' ? `<div id="oublis_carr_${pieceIndex}"></div>` : ''}
       </div>
     </div>
   `;
@@ -2578,6 +2703,14 @@ function recalcPiece(index) {
       totalPiece += getMoyenPrixFor(code, piece) * qty;
       addTemps(metier, tempsUnitaire(code) * qty);
     }
+  }
+
+  // Recommandation support + contrôle des oublis carrelage (aide à la décision, non imposés)
+  if (metiersActifs.includes('carrelage')) {
+    const recoCarrEl = document.getElementById(`reco_support_carr_${index}`);
+    if (recoCarrEl) recoCarrEl.innerHTML = recoSupportCarrHtml(piece);
+    const oublisCarrEl = document.getElementById(`oublis_carr_${index}`);
+    if (oublisCarrEl) oublisCarrEl.innerHTML = oublisCarrHtml(index);
   }
 
   // Temps de chantier de la pièce (heures, arrondi 0,1) — persisté avec le devis
