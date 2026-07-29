@@ -2028,15 +2028,13 @@ function recalcPiece(index) {
     const plafGamme = document.getElementById(`peint_plaf_${index}`)?.value;
     const papier = document.getElementById(`peint_papier_${index}`)?.value;
 
-    let pMur = 0, pPlaf = 0, pPapier = 0;
-    if (murGamme === 'less') pMur = 20 * surfMursNette;
-    else if (murGamme === 'std') pMur = 30 * surfMursNette;
-    else if (murGamme === 'fort') pMur = 40 * surfMursNette;
-
-    if (plafGamme === 'less') pPlaf = 47 * surfPlaf;
-    else if (plafGamme === 'std') pPlaf = 57 * surfPlaf;
-
-    if (papier === 'oui') pPapier = 8 * surfMursNette;
+    // Prix exclusivement depuis le catalogue PRIX.peinture (moyenne min-max,
+    // comme partout dans le moteur) — plus aucun tarif en dur.
+    const CODES_PEINT_MUR = { less: 'PEINT_MUR_LESS', std: 'PEINT_MUR_STD', fort: 'PEINT_MUR_FORT' };
+    const CODES_PEINT_PLAF = { less: 'PEINT_PLAF_LESS', std: 'PEINT_PLAF_STD' };
+    const pMur = CODES_PEINT_MUR[murGamme] ? getMoyenPrixFor(CODES_PEINT_MUR[murGamme], piece) * surfMursNette : 0;
+    const pPlaf = CODES_PEINT_PLAF[plafGamme] ? getMoyenPrixFor(CODES_PEINT_PLAF[plafGamme], piece) * surfPlaf : 0;
+    const pPapier = papier === 'oui' ? getMoyenPrixFor('PREP_DCOL_PAP', piece) * surfMursNette : 0;
 
     const totalPeinture = pMur + pPlaf + pPapier;
     const secTot = document.getElementById(`sec_${index}_peinture_total`);
