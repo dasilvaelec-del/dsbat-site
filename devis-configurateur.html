@@ -1347,6 +1347,51 @@ function controlesCoherence(pieces, ch) {
     }
   });
 
+  // ===== Contrôles de configuration (prises, éclairage, points d'eau, portes) =====
+  // Ne s'exécutent que sur des pièces configurées (config.electricite initialisée
+  // = norme appliquée) pour ne pas générer de faux positifs en phase 1.
+  const EXT = ['terrasse','jardin','facade','carport'];
+  pieces.forEach(p => {
+    const d = p.dims || {};
+    const cfg = p.config || {};
+    const configuree = !!cfg.electricite;
+
+    // Pièce avec 0 porte (hors extérieur) — conditionne la commande d'éclairage
+    if ((d.portes || 0) === 0 && !EXT.includes(p.id)) {
+      alertes.push({ niveau:'info', texte: p.nom + ' : aucune porte indiquée — vérifiez la saisie (le nombre d\'accès détermine simple allumage / va-et-vient / télérupteur).' });
+    }
+
+    if (configuree && typeof metiersActifs !== 'undefined' && metiersActifs.includes('electricite')) {
+      const e = cfg.electricite || {};
+      const nbEcl = (e.ELEC_PL_SA||0)+(e.ELEC_PL_VV||0)+(e.ELEC_PL_3BP||0)+(e.ELEC_PL_APP||0)+(e.ELEC_PL_APV||0)+(e.ELEC_PL_DBL||0)+(e.ELEC_PL_SUP||0);
+      const nbPrises = (e.ELEC_PRISE10||0)+(e.ELEC_PRISED||0)+(e.ELEC_PRISET||0)+(e.ELEC_PRISE20||0)+(e.ELEC_PRISE32||0)+(e.ELEC_PRISECMD||0);
+      if (nbEcl === 0 && !EXT.includes(p.id)) {
+        alertes.push({ niveau:'attention', texte: p.nom + ' : aucun point d\'éclairage prévu — inhabituel pour cette pièce.' });
+      }
+      // « Pièce sans prise » : uniquement là où une prise est attendue (le WC et l'extérieur en sont normalement dépourvus)
+      if (nbPrises === 0 && ['salon','salle_manger','chambre','cuisine','bureau','sdb','sde','entree'].includes(p.id)) {
+        alertes.push({ niveau:'attention', texte: p.nom + ' : aucune prise prévue — est-ce volontaire ?' });
+      }
+    }
+
+    if (configuree && typeof metiersActifs !== 'undefined' && metiersActifs.includes('plomberie')) {
+      const pl = cfg.plomberie || {};
+      const points = Object.values(pl).reduce((s, q) => s + (q || 0), 0);
+      if (p.id === 'cuisine' && points === 0) {
+        alertes.push({ niveau:'info', texte: 'Cuisine : aucun point d\'eau (évier) prévu — est-ce volontaire ?' });
+      }
+      if ((p.id === 'sdb' || p.id === 'sde') && points === 0) {
+        alertes.push({ niveau:'info', texte: p.nom + ' : aucun point d\'eau prévu (douche, baignoire, vasque) — est-ce volontaire ?' });
+      }
+    }
+
+    // Peinture prévue sur une pièce sans dimensions exploitables (surfaces = 0)
+    const aPeinture = !!cfg.peinture_auto || (cfg.peinture && Object.keys(cfg.peinture).length > 0);
+    if (typeof metiersActifs !== 'undefined' && metiersActifs.includes('peinture') && aPeinture && !(d.l && d.la)) {
+      alertes.push({ niveau:'attention', texte: p.nom + ' : peinture prévue mais dimensions manquantes — les surfaces seront comptées à 0 €.' });
+    }
+  });
+
   // Contrôles globaux
   const surfDeclaree = parseFloat(ch && ch.surface) || 0;
   const surfSaisie = pieces.reduce((s, p) => s + (((p.dims || {}).l || 0) * ((p.dims || {}).la || 0)), 0);
@@ -2557,7 +2602,7 @@ function renderPhase3() {
   const alertesRecap = controlesCoherence(piecesSelectionnees, chantier);
   const alertesHtml = alertesRecap.length ? `
     <div style="background:#fef9ec;border:1px solid #f59e0b;border-radius:var(--radius-md);padding:14px 18px;margin:16px 0;font-size:0.85rem;color:#78350f;">
-      <strong>🔎 Points à confirmer lors de la visite technique :</strong>
+      <strong>🔎 Nous avons détecté quelques points à vérifier avant de générer votre devis :</strong>
       <ul style="margin:6px 0 0;padding-left:18px;">
         ${alertesRecap.map(a => '<li>' + a.texte + '</li>').join('')}
       </ul>
