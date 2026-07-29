@@ -1887,7 +1887,141 @@ function renderSolsAuto(pieceIndex) {
         <option value="liege" ${defSC==='liege'?'selected':''}>Liège</option>
       </select>
     </div>
+    <div id="reco_support_sol_${pieceIndex}" style="margin-top:10px;"></div>
+    <div id="oublis_sols_${pieceIndex}"></div>
   `;
+}
+
+// ===== ÉVALUATION DU SUPPORT (sols) — aide à la décision, jamais imposée =====
+// Symétrique de evaluationSupport() côté peinture. Déduit si un ragréage est
+// conseillé à partir des données déjà connues (projet, état, âge, revêtement choisi).
+function evaluationSupportSol(piece, ch) {
+  ch = ch || {}; piece = piece || {};
+  const raisons = [];
+  if (ch.typeProjet === 'neuf' || ch.typeProjet === 'extension') raisons.push('construction neuve / extension (chape à dresser avant pose)');
+  if (ch.etatLieux === 'mauvais') raisons.push('état déclaré : mauvais (sol probablement irrégulier)');
+  if (ch.ageBati === 'ancien' || ch.ageBati === 'tres_ancien') raisons.push('bâtiment ancien (support souvent inégal)');
+  const type = piece.solType;
+  if (type === 'pvc' || type === 'lino') raisons.push('revêtement souple (PVC / lino) : exige un support parfaitement lisse');
+  else if (type === 'parq_flot' || type === 'stratifie') raisons.push('pose flottante : tolère mal les défauts de planéité');
+  return { ragreageConseille: raisons.length > 0, raisons };
+}
+
+// Bandeau de recommandation (vide si non pertinent ou ragréage déjà ajouté)
+function recoSupportSolHtml(piece) {
+  if (!piece.solType) return '';
+  const ev = evaluationSupportSol(piece, chantier);
+  const dejaRagreage = piece.config && piece.config.sols && piece.config.sols.SOL_RAGREAGE > 0;
+  if (!ev.ragreageConseille || dejaRagreage) return '';
+  return `
+    <div style="display:flex;gap:10px;align-items:flex-start;background:#fef9ec;border:1px solid #f59e0b;border-radius:12px;padding:12px;margin-top:10px;">
+      <span style="font-size:1.1rem;">💡</span>
+      <div style="font-size:0.82rem;color:#78350f;">
+        <strong>Recommandation DS.BAT :</strong> un <strong>ragréage</strong> est généralement conseillé pour un support plan (${ev.raisons.join(', ')}).
+        Vous restez libre de l'ajouter ou non ci-dessous.
+      </div>
+    </div>`;
+}
+
+// ===== CONTRÔLE DES OUBLIS COURANTS (sols) — suggestions non imposées =====
+function controlesOublisSol(piece) {
+  const d = piece.dims || {};
+  const cfg = (piece.config && piece.config.sols) || {};
+  const ign = piece._oublisIgnoresSol || {};
+  const type = piece.solType;
+  const list = [];
+  if (!type) return list; // rien à suggérer tant qu'aucun revêtement n'est choisi
+  const add = (code, qty, question, unite) => {
+    qty = Math.round((qty || 0) * 10) / 10;
+    if (qty <= 0 || cfg[code] || ign[code]) return;
+    list.push({ code, qty, question, unite });
+  };
+  // Plinthes assorties au revêtement — périmètre moins les passages de portes
+  if (d.l && d.la) {
+    const per = 2 * (d.l + d.la) - 0.8 * (d.portes || 0);
+    const codePlinthe = (type === 'parq_flot') ? 'SOL_PLINT_BOIS' : 'SOL_PLINT_STR';
+    add(codePlinthe, Math.max(0, per),
+        'Vous n\'avez pas prévu de plinthes (~' + Math.round(per) + ' ml). Souhaitez-vous les ajouter ?', 'ml');
+  }
+  // Barres de seuil — une par passage de porte
+  add('SOL_SEUIL', d.portes || 0,
+      'Barres de seuil aux ' + (d.portes || 0) + ' passage(s) de porte non prévues. Les ajouter ?', 'U');
+  // Ragréage — si le support le justifie
+  const ev = evaluationSupportSol(piece, chantier);
+  if (ev.ragreageConseille && d.l && d.la) {
+    add('SOL_RAGREAGE', d.l * d.la,
+        'Ragréage du sol non prévu (support plan avant pose). L\'ajouter ?', 'm²');
+  }
+  // Joint à froid pour lino
+  if (type === 'lino' && d.l && d.la) {
+    add('SOL_JOINT_LINO', Math.max(d.l, d.la),
+        'Joint à froid pour lino non prévu (~' + Math.round(Math.max(d.l, d.la)) + ' ml). L\'ajouter ?', 'ml');
+  }
+  return list;
+}
+
+// Contrôle informatif : revêtement choisi mais sol non chiffré (dimensions manquantes)
+function controlesInfoSol(piece) {
+  const out = [];
+  if (piece.solType && !((piece.surfaces || {}).sol > 0)) {
+    out.push('Un revêtement est choisi mais le sol n\'est pas chiffré (dimensions manquantes). Est-ce volontaire ?');
+  }
+  return out;
+}
+
+function oublisSolHtml(index) {
+  const piece = piecesSelectionnees[index];
+  if (!piece) return '';
+  const suggestions = controlesOublisSol(piece);
+  const infos = controlesInfoSol(piece);
+  const cfg = (piece.config && piece.config.sols) || {};
+  const ajoutes = Object.entries(cfg).filter(([, q]) => q > 0);
+  if (!suggestions.length && !infos.length && !ajoutes.length) return '';
+
+  const sugHtml = suggestions.map(s => `
+    <div style="display:flex;gap:8px;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px dashed var(--border);">
+      <span style="font-size:0.82rem;color:#78350f;flex:1;">${s.question} <span style="color:var(--text-light);">(${s.qty} ${s.unite} · ${formatEuro(getMoyenPrixFor(s.code, piece) * s.qty)})</span></span>
+      <span style="display:flex;gap:6px;flex-shrink:0;">
+        <button onclick="ajouterOubliSol(${index},'${s.code}',${s.qty})" style="background:var(--accent);color:#fff;border:none;border-radius:16px;padding:4px 12px;font-size:0.78rem;font-weight:700;cursor:pointer;">Oui, ajouter</button>
+        <button onclick="ignorerOubliSol(${index},'${s.code}')" style="background:var(--surface);color:var(--text-light);border:1px solid var(--border);border-radius:16px;padding:4px 12px;font-size:0.78rem;cursor:pointer;">Non</button>
+      </span>
+    </div>`).join('');
+
+  const ajHtml = ajoutes.map(([code, qty]) => `
+    <div style="display:flex;gap:8px;align-items:center;justify-content:space-between;padding:6px 0;">
+      <span style="font-size:0.82rem;color:var(--accent);flex:1;">✓ ${findPrestLabel(code)} × ${qty} — ${formatEuro(getMoyenPrixFor(code, piece) * qty)}</span>
+      <button onclick="retirerOubliSol(${index},'${code}')" style="background:none;border:none;color:var(--text-light);font-size:0.78rem;cursor:pointer;text-decoration:underline;">Retirer</button>
+    </div>`).join('');
+
+  const infoHtml = infos.map(i => `<div style="font-size:0.8rem;color:#92400e;padding:4px 0;">⚠️ ${i}</div>`).join('');
+
+  return `
+    <div style="margin-top:12px;background:#fef9ec;border:1px solid #f59e0b;border-radius:12px;padding:12px;">
+      <strong style="font-size:0.84rem;color:#92400e;">🔎 Contrôle qualité — compléments fréquents</strong>
+      ${infoHtml}
+      ${sugHtml}
+      ${ajHtml ? '<div style="margin-top:6px;border-top:1px solid var(--border);padding-top:6px;">' + ajHtml + '</div>' : ''}
+    </div>`;
+}
+
+function ajouterOubliSol(index, code, qty) {
+  const piece = piecesSelectionnees[index];
+  if (!piece.config.sols) piece.config.sols = {};
+  piece.config.sols[code] = qty;
+  recalcPiece(index);
+}
+function ignorerOubliSol(index, code) {
+  const piece = piecesSelectionnees[index];
+  if (!piece._oublisIgnoresSol) piece._oublisIgnoresSol = {};
+  piece._oublisIgnoresSol[code] = true;
+  const el = document.getElementById(`oublis_sols_${index}`);
+  if (el) el.innerHTML = oublisSolHtml(index);
+  saveEtat();
+}
+function retirerOubliSol(index, code) {
+  const piece = piecesSelectionnees[index];
+  if (piece.config.sols) delete piece.config.sols[code];
+  recalcPiece(index);
 }
 
 // ===== SÉLECTEURS POSE / GAMME (par pièce) =====
@@ -2363,6 +2497,12 @@ function recalcPiece(index) {
     addTemps('sols',
       (codeSol ? tempsUnitaire(codeSol) * surfSol : 0)
       + (codeSC ? tempsUnitaire(codeSC) * surfSol : 0));
+
+    // Recommandation support + contrôle des oublis (aide à la décision, non imposés)
+    const recoSolEl = document.getElementById(`reco_support_sol_${index}`);
+    if (recoSolEl) recoSolEl.innerHTML = recoSupportSolHtml(piece);
+    const oublisSolEl = document.getElementById(`oublis_sols_${index}`);
+    if (oublisSolEl) oublisSolEl.innerHTML = oublisSolHtml(index);
   }
 
   // Calcul prestations manuelles
@@ -2407,9 +2547,9 @@ function updateSectionTotals(index, piece) {
     if (s.auto) {
       const key = s.autoType + '_auto';
       let v = piece.config[key] || 0;
-      // Compléments manuels ajoutés via le contrôle des oublis (peinture)
-      if (s.autoType === 'peinture') {
-        const extras = piece.config.peinture || {};
+      // Compléments manuels ajoutés via le contrôle des oublis (peinture / sols)
+      if (s.autoType === 'peinture' || s.autoType === 'sols') {
+        const extras = piece.config[s.autoType] || {};
         for (const [code, qty] of Object.entries(extras)) v += getMoyenPrixFor(code, piece) * qty;
       }
       totalEl.textContent = formatEuro(v);
@@ -2650,8 +2790,8 @@ function renderPhase3() {
     }
   });
 
-  const METIER_ICONS = { electricite:'⚡', plomberie:'🚿', peinture_auto:'🎨', peinture:'🎨', sols_auto:'🪵', carrelage:'🔲', isolation:'🧱', menuiserie:'🚪', vmc:'💨' };
-  const METIER_LABELS = { electricite:'Électricité', plomberie:'Plomberie', peinture_auto:'Peinture', peinture:'Peinture (compléments)', sols_auto:'Revêtement sols', carrelage:'Carrelage', isolation:'Isolation', menuiserie:'Menuiserie', vmc:'VMC' };
+  const METIER_ICONS = { electricite:'⚡', plomberie:'🚿', peinture_auto:'🎨', peinture:'🎨', sols_auto:'🪵', sols:'🪵', carrelage:'🔲', isolation:'🧱', menuiserie:'🚪', vmc:'💨' };
+  const METIER_LABELS = { electricite:'Électricité', plomberie:'Plomberie', peinture_auto:'Peinture', peinture:'Peinture (compléments)', sols_auto:'Revêtement sols', sols:'Revêtement sols (compléments)', carrelage:'Carrelage', isolation:'Isolation', menuiserie:'Menuiserie', vmc:'VMC' };
 
   const metierRowsHtml = Object.entries(metierTotaux).filter(([,v]) => v > 0).map(([k, v]) => `
     <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px dashed var(--border);">
