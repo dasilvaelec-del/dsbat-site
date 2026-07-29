@@ -1580,6 +1580,27 @@ function renderMetierSection(section, pieceIndex) {
   `;
 }
 
+// ===== SOUS-COUCHE AUTOMATIQUE (peinture) =====
+// Fonction pure : détecte si une impression est réellement nécessaire, à partir
+// des informations déjà présentes dans le devis (aucune question supplémentaire).
+//  - BA13 / placo posé dans la pièce (métier isolation) -> impression sur ces m²
+//  - projet neuf / extension -> supports neufs, impression murs + plafond
+//  - rénovation sur support déjà peint -> aucune sous-couche automatique
+function detectionSousCouche(piece, ch, surfMurs, surfPlaf) {
+  const iso = (piece.config && piece.config.isolation) || {};
+  const m2Murs = (iso.PLA_BA13_MUR_COL||0) + (iso.PLA_BA13_MUR_OSS||0) + (iso.PLA_CLOISON_BA13||0) + (iso.ISO_LV_200_COMPLEX||0);
+  const m2Plaf = (iso.PLA_BA13_PLAF_OSS||0);
+  if (m2Murs + m2Plaf > 0) {
+    const surf = Math.min(m2Murs, surfMurs || m2Murs) + Math.min(m2Plaf, surfPlaf || m2Plaf);
+    return { surf, raison: 'du BA13 / placo neuf est posé dans cette pièce (' + (m2Murs + m2Plaf).toFixed(0) + ' m²) — le plâtre nu boit la peinture, une impression est indispensable pour la finition' };
+  }
+  if (ch && (ch.typeProjet === 'neuf' || ch.typeProjet === 'extension')) {
+    const surf = (surfMurs || 0) + (surfPlaf || 0);
+    if (surf > 0) return { surf, raison: 'construction neuve / extension : supports neufs jamais peints, sous-couche d\'impression nécessaire sur murs et plafond' };
+  }
+  return null;
+}
+
 function renderPeintureAuto(pieceIndex) {
   // Persistance : mêmes principes que l'électricité (elecMethode/elecGamme) —
   // les choix mémorisés sur la pièce priment sur les défauts issus de l'état des lieux.
@@ -1613,6 +1634,7 @@ function renderPeintureAuto(pieceIndex) {
         <option value="oui" ${defPap==='oui'?'selected':''}>Oui</option>
       </select>
     </div>
+    <div id="souscouche_info_${pieceIndex}" style="font-size:0.8rem;color:var(--accent);margin-top:8px;"></div>
   `;
 }
 
@@ -2046,7 +2068,15 @@ function recalcPiece(index) {
     const pPlaf = CODES_PEINT_PLAF[plafGamme] ? getMoyenPrixFor(CODES_PEINT_PLAF[plafGamme], piece) * surfPlaf : 0;
     const pPapier = papier === 'oui' ? getMoyenPrixFor('PREP_DCOL_PAP', piece) * surfMursNette : 0;
 
-    const totalPeinture = pMur + pPlaf + pPapier;
+    // Sous-couche automatique (support neuf / BA13) — ajoutée et expliquée au client
+    const sc = detectionSousCouche(piece, chantier, surfMursNette, surfPlaf);
+    const pSousCouche = sc ? getMoyenPrixFor('PEINT_SOUS_COUCHE', piece) * sc.surf : 0;
+    const scInfo = document.getElementById(`souscouche_info_${index}`);
+    if (scInfo) scInfo.innerHTML = sc
+      ? '🖌️ <strong>Sous-couche d\'impression ajoutée automatiquement</strong> (' + sc.surf.toFixed(1) + ' m² · ' + formatEuro(pSousCouche) + ') : ' + sc.raison + '.'
+      : '';
+
+    const totalPeinture = pMur + pPlaf + pPapier + pSousCouche;
     const secTot = document.getElementById(`sec_${index}_peinture_total`);
     if (secTot) secTot.textContent = formatEuro(totalPeinture);
     totalPiece += totalPeinture;
