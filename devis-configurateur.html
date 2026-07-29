@@ -2924,6 +2924,25 @@ function calculerDevis() {
   }
   window.__ballon = ballon;
 
+  // ----- VMC : dimensionnement auto de la centrale (caisson + gaines + rejet toiture) -----
+  // Les bouches / entrées d'air sont déjà chiffrées par pièce ; on ajoute ici les
+  // éléments centraux manquants, comme le tableau électrique côté élec.
+  let vmc = null;
+  if (metiersActifs.includes('vmc') && typeof dimensionnementVMC === 'function') {
+    let bouches = 0, entreesAir = 0;
+    piecesSelectionnees.forEach(p => {
+      const v = p.config.vmc || {};
+      bouches += (v.VMC_BOUCHE || 0);
+      entreesAir += (v.VMC_ENTREE_AIR || 0);
+    });
+    if (bouches > 0) {
+      vmc = dimensionnementVMC({ bouches, entreesAir });
+      totalGlobalHT += vmc.prixTotalHT;
+    }
+    window.__besoinsVMC = { bouches, entreesAir };
+  }
+  window.__vmcAuto = vmc;
+
   // ----- Forfait accès + majoration logement occupé + coefficient de zone -----
   let forfaitAcces = 0;
   if (chantier.accessibilite === 'moyen') forfaitAcces += 80;
@@ -2944,8 +2963,9 @@ function calculerDevis() {
 
   return {
     totalHT: totalGlobalHT, taux, tva, ttc,
-    tableau, ballon, forfaitAcces, coefZ,
+    tableau, ballon, vmc, forfaitAcces, coefZ,
     besoinsTableau: window.__besoinsTableau,
+    besoinsVMC: window.__besoinsVMC,
     acomptes: { a1: ttc * 0.40, a2: ttc * 0.30, a3: ttc * 0.30 }
   };
 }
@@ -3041,6 +3061,31 @@ function renderPhase3() {
       </details>` : ''}
     </div>` : '';
 
+  const vmc = D.vmc;
+  const exVMC = (vmc && typeof explicationsVMC === 'function') ? explicationsVMC(window.__besoinsVMC, vmc) : [];
+  const vmcHtml = vmc ? `
+    <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-md);padding:20px;margin:20px 0;">
+      <h3 style="color:var(--primary);margin-bottom:10px;font-size:1rem;">💨 VMC — centrale (dimensionnement auto)</h3>
+      <div style="font-size:0.88rem;color:var(--text-light);margin-bottom:10px;">
+        Caisson ${vmc.type} · ${vmc.bouches} bouche(s) raccordée(s) · gaines + chapeau de toit
+      </div>
+      <div style="display:flex;justify-content:space-between;font-weight:700;">
+        <span>Centrale VMC (caisson, gaines, rejet toiture)</span>
+        <span>${formatEuro(vmc.prixTotalHT)}</span>
+      </div>
+      ${exVMC.length ? `
+      <details style="margin-top:12px;">
+        <summary style="cursor:pointer;color:var(--primary);font-weight:600;font-size:0.88rem;">🧠 Pourquoi ce dimensionnement ?</summary>
+        <ul style="margin:10px 0 12px;padding-left:18px;font-size:0.82rem;color:var(--text-light);">
+          ${exVMC.map(e => '<li style="margin-bottom:4px;">' + e + '</li>').join('')}
+        </ul>
+        <div style="font-size:0.8rem;border-top:1px dashed var(--border);padding-top:10px;">
+          <strong style="color:var(--primary);">Composition de la centrale :</strong>
+          ${vmc.composition.map(c => '<div style="display:flex;justify-content:space-between;padding:2px 0;color:var(--text-light);"><span>' + c.libelle + ' × ' + c.qte + '</span><span>' + formatEuro(c.prixUnit * c.qte) + '</span></div>').join('')}
+        </div>
+      </details>` : ''}
+    </div>` : '';
+
   const extrasHtml = (ballon || forfaitAcces || chantier.accessSup === 'occupé') ? `
     <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-md);padding:16px 20px;margin:16px 0;font-size:0.92rem;">
       ${ballon ? '<div style="display:flex;justify-content:space-between;padding:4px 0;"><span>🔥 ' + ballon.label + '</span><strong>' + formatEuro(ballon.prix) + '</strong></div>' : ''}
@@ -3064,6 +3109,7 @@ function renderPhase3() {
     ${rowsHtml}
     ${alertesHtml}
     ${tableauHtml}
+    ${vmcHtml}
     ${extrasHtml}
 
     <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-md);padding:20px;margin:20px 0;">
@@ -3174,6 +3220,8 @@ function construireRecapTexte(numero, totalHT, tva, ttc, clientData) {
   });
   const _tab = window.__tableauAuto;
   if (_tab) L.push('• Tableau électrique NF C 15-100 (' + _tab.nbCircuits + ' circuits) : ' + formatEuro(_tab.prixTotalHT));
+  const _vmc = window.__vmcAuto;
+  if (_vmc) L.push('• Centrale VMC ' + _vmc.type + ' (' + _vmc.bouches + ' bouches) : ' + formatEuro(_vmc.prixTotalHT));
   L.push('');
   L.push('Total HT : ' + formatEuro(totalHT));
   L.push(labelTVA() + ' : ' + formatEuro(tva));
@@ -3220,7 +3268,7 @@ function construireDetailTexte() {
   const tempsTotal = Math.round(piecesSelectionnees.reduce((s, p) => s + (p.tempsChantier || 0), 0) * 10) / 10;
   if (tempsTotal > 0) {
     const hj = (typeof TEMPS_PARAMS !== 'undefined' && TEMPS_PARAMS.heuresParJour) || 7;
-    out.push('⏱ TEMPS DE CHANTIER TOTAL ESTIMÉ : ' + tempsTotal + ' h ≈ ' + (Math.round(tempsTotal / hj * 10) / 10) + ' jour(s)-homme (base ' + hj + ' h/jour) — hors tableau électrique.');
+    out.push('⏱ TEMPS DE CHANTIER TOTAL ESTIMÉ : ' + tempsTotal + ' h ≈ ' + (Math.round(tempsTotal / hj * 10) / 10) + ' jour(s)-homme (base ' + hj + ' h/jour) — hors tableau électrique et centrale VMC.');
     out.push('');
   }
   // Raisonnement du moteur sur le tableau électrique (pour l'email DS.BAT)
@@ -3228,6 +3276,14 @@ function construireDetailTexte() {
   if (_tabEx && typeof explicationsTableau === 'function') {
     out.push('━━━ Tableau électrique — raisonnement du moteur ━━━');
     explicationsTableau(window.__besoinsTableau, _tabEx).forEach(e => out.push('• ' + e));
+  }
+  // Raisonnement du moteur sur la centrale VMC
+  const _vmcEx = window.__vmcAuto;
+  if (_vmcEx && typeof explicationsVMC === 'function') {
+    out.push('');
+    out.push('━━━ VMC — dimensionnement de la centrale ━━━');
+    explicationsVMC(window.__besoinsVMC, _vmcEx).forEach(e => out.push('• ' + e));
+    _vmcEx.composition.forEach(c => out.push('  - ' + c.libelle + ' × ' + c.qte + ' = ' + formatEuro(c.prixUnit * c.qte)));
   }
   return out.join('\n');
 }
