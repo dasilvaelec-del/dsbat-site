@@ -1259,6 +1259,128 @@ function getMenuiseriePourPiece(pieceId) {
   return base;
 }
 
+// ===== ÉVALUATION / COMPLÉTUDE (menuiserie) — aide à la décision, jamais imposée =====
+// Menuiserie = métier manuel. Quantités lues depuis la config de la pièce.
+function _menQtes(piece) {
+  const men = (piece.config && piece.config.menuiserie) || {};
+  const portesInt = men.MEN_PORTE_INT || 0;
+  const portesEntree = (men.MEN_PORTE_ENTREE_PVC || 0) + (men.MEN_PORTE_ENTREE_BOIS || 0) + (men.MEN_PORTE_BLINDEE || 0);
+  const fenetres = (men.MEN_FEN_ALU_BAIE || 0) + (men.MEN_FEN_BOIS_STD || 0) + (men.MEN_FEN_ALU_STD || 0) + (men.MEN_FEN_TOIT || 0);
+  const occultation = (men.MEN_VOLET_ROULANT || 0) + (men.MEN_STORE || 0);
+  const escalier = men.MEN_ESCALIER_BOIS || 0;
+  const gardeCorps = (men.MEN_GARDE_CORPS || 0) + (men.MEN_BALUSTRADE || 0);
+  return { men, portesInt, portesEntree, fenetres, occultation, escalier, gardeCorps };
+}
+
+function evaluationSupportMen(piece, ch) {
+  const q = _menQtes(piece);
+  const reco = [];
+  // Escalier sans garde-corps -> sécurité
+  if (q.escalier > 0 && q.gardeCorps <= 0) {
+    reco.push('un garde-corps est obligatoire le long d\'un escalier (sécurité, hauteur de chute)');
+  }
+  // Fenêtre / baie sans occultation -> confort
+  if (q.fenetres > 0 && q.occultation <= 0) {
+    reco.push('pensez à l\'occultation des ' + q.fenetres + ' fenêtre(s) / baie(s) (volet roulant ou store)');
+  }
+  return reco;
+}
+
+function recoSupportMenHtml(piece) {
+  const reco = evaluationSupportMen(piece, chantier);
+  if (!reco.length) return '';
+  return `
+    <div style="display:flex;gap:10px;align-items:flex-start;background:#fef9ec;border:1px solid #f59e0b;border-radius:12px;padding:12px;margin-bottom:12px;">
+      <span style="font-size:1.1rem;">💡</span>
+      <div style="font-size:0.82rem;color:#78350f;">
+        <strong>Recommandation DS.BAT :</strong> ${reco.join(' · ')}.
+        Vous restez libre de suivre ces conseils ou non.
+      </div>
+    </div>`;
+}
+
+// ===== CONTRÔLE DES OUBLIS COURANTS (menuiserie) — suggestions non imposées =====
+function controlesOublisMen(piece) {
+  const q = _menQtes(piece);
+  const ign = piece._oublisIgnoresMen || {};
+  const list = [];
+  if (q.portesInt + q.portesEntree + q.fenetres + q.escalier <= 0) return list; // rien tant qu'aucune pose
+  const add = (code, qty, question, unite) => {
+    qty = Math.round((qty || 0) * 10) / 10;
+    if (qty <= 0 || q.men[code] || ign[code]) return;
+    list.push({ code, qty, question, unite });
+  };
+  // Habillage champlat pour les portes intérieures (finition du bâti)
+  if (q.portesInt > 0) {
+    add('MEN_HABILLAGE_CHAMPLAT', q.portesInt, 'Habillage / champlat des ' + q.portesInt + ' porte(s) intérieure(s) non prévu — l\'ajouter ?', 'U');
+  }
+  // Garde-corps si escalier sans garde-corps
+  if (q.escalier > 0 && q.gardeCorps <= 0) {
+    add('MEN_GARDE_CORPS', 3, 'Garde-corps d\'escalier non prévu (~3 ml, sécurité) — l\'ajouter ?', 'ml');
+  }
+  // Occultation si fenêtre / baie sans volet ni store
+  if (q.fenetres > 0 && q.occultation <= 0) {
+    add('MEN_VOLET_ROULANT', q.fenetres, 'Occultation des ' + q.fenetres + ' fenêtre(s) non prévue — ajouter un volet roulant par fenêtre ?', 'U');
+  }
+  // Serrure / verrou supplémentaire pour les portes d'entrée
+  if (q.portesEntree > 0) {
+    add('MEN_SERRURE', q.portesEntree, 'Serrure / verrou supplémentaire pour la porte d\'entrée non prévu — l\'ajouter ?', 'U');
+  }
+  return list;
+}
+
+function oublisMenHtml(index) {
+  const piece = piecesSelectionnees[index];
+  if (!piece) return '';
+  const suggestions = controlesOublisMen(piece);
+  const men = (piece.config && piece.config.menuiserie) || {};
+  const OUBLI = ['MEN_HABILLAGE_CHAMPLAT','MEN_GARDE_CORPS','MEN_VOLET_ROULANT','MEN_SERRURE'];
+  const ajoutes = Object.entries(men).filter(([c, qte]) => qte > 0 && OUBLI.includes(c));
+  if (!suggestions.length && !ajoutes.length) return '';
+
+  const sugHtml = suggestions.map(s => `
+    <div style="display:flex;gap:8px;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px dashed var(--border);">
+      <span style="font-size:0.82rem;color:#78350f;flex:1;">${s.question} <span style="color:var(--text-light);">(${s.qty} ${s.unite} · ${formatEuro(getMoyenPrixFor(s.code, piece) * s.qty)})</span></span>
+      <span style="display:flex;gap:6px;flex-shrink:0;">
+        <button onclick="ajouterOubliMen(${index},'${s.code}',${s.qty})" style="background:var(--accent);color:#fff;border:none;border-radius:16px;padding:4px 12px;font-size:0.78rem;font-weight:700;cursor:pointer;">Oui, ajouter</button>
+        <button onclick="ignorerOubliMen(${index},'${s.code}')" style="background:var(--surface);color:var(--text-light);border:1px solid var(--border);border-radius:16px;padding:4px 12px;font-size:0.78rem;cursor:pointer;">Non</button>
+      </span>
+    </div>`).join('');
+
+  const ajHtml = ajoutes.map(([code, qte]) => `
+    <div style="display:flex;gap:8px;align-items:center;justify-content:space-between;padding:6px 0;">
+      <span style="font-size:0.82rem;color:var(--accent);flex:1;">✓ ${findPrestLabel(code)} × ${qte} — ${formatEuro(getMoyenPrixFor(code, piece) * qte)}</span>
+      <button onclick="retirerOubliMen(${index},'${code}')" style="background:none;border:none;color:var(--text-light);font-size:0.78rem;cursor:pointer;text-decoration:underline;">Retirer</button>
+    </div>`).join('');
+
+  return `
+    <div style="margin-top:12px;background:#fef9ec;border:1px solid #f59e0b;border-radius:12px;padding:12px;">
+      <strong style="font-size:0.84rem;color:#92400e;">🔎 Contrôle qualité — compléments fréquents</strong>
+      ${sugHtml}
+      ${ajHtml ? '<div style="margin-top:6px;border-top:1px solid var(--border);padding-top:6px;">' + ajHtml + '</div>' : ''}
+    </div>`;
+}
+
+function ajouterOubliMen(index, code, qty) {
+  const piece = piecesSelectionnees[index];
+  if (!piece.config.menuiserie) piece.config.menuiserie = {};
+  piece.config.menuiserie[code] = qty;
+  recalcPiece(index);
+}
+function ignorerOubliMen(index, code) {
+  const piece = piecesSelectionnees[index];
+  if (!piece._oublisIgnoresMen) piece._oublisIgnoresMen = {};
+  piece._oublisIgnoresMen[code] = true;
+  const el = document.getElementById(`oublis_men_${index}`);
+  if (el) el.innerHTML = oublisMenHtml(index);
+  saveEtat();
+}
+function retirerOubliMen(index, code) {
+  const piece = piecesSelectionnees[index];
+  if (piece.config.menuiserie) delete piece.config.menuiserie[code];
+  recalcPiece(index);
+}
+
 function getVmcPourPiece(pieceId) {
   if (['sdb','sde','wc','cuisine'].includes(pieceId)) return [
     { code:'VMC_BOUCHE', label:'Bouche d\'extraction', unite:'U' },
@@ -1948,9 +2070,11 @@ function renderMetierSection(section, pieceIndex) {
         ${section.metier === 'plomberie' ? selecteursPlomberie(pieceIndex) : ''}
         ${section.metier === 'carrelage' ? `<div id="reco_support_carr_${pieceIndex}"></div>` : ''}
         ${section.metier === 'isolation' ? `<div id="reco_support_iso_${pieceIndex}"></div>` : ''}
+        ${section.metier === 'menuiserie' ? `<div id="reco_support_men_${pieceIndex}"></div>` : ''}
         ${section.prests.map(p => renderPrestRow(p, pieceIndex, section.metier)).join('')}
         ${section.metier === 'carrelage' ? `<div id="oublis_carr_${pieceIndex}"></div>` : ''}
         ${section.metier === 'isolation' ? `<div id="oublis_iso_${pieceIndex}"></div>` : ''}
+        ${section.metier === 'menuiserie' ? `<div id="oublis_men_${pieceIndex}"></div>` : ''}
       </div>
     </div>
   `;
@@ -2853,6 +2977,14 @@ function recalcPiece(index) {
     if (recoIsoEl) recoIsoEl.innerHTML = recoSupportIsoHtml(piece);
     const oublisIsoEl = document.getElementById(`oublis_iso_${index}`);
     if (oublisIsoEl) oublisIsoEl.innerHTML = oublisIsoHtml(index);
+  }
+
+  // Recommandation + contrôle des oublis menuiserie (aide à la décision, non imposés)
+  if (metiersActifs.includes('menuiserie')) {
+    const recoMenEl = document.getElementById(`reco_support_men_${index}`);
+    if (recoMenEl) recoMenEl.innerHTML = recoSupportMenHtml(piece);
+    const oublisMenEl = document.getElementById(`oublis_men_${index}`);
+    if (oublisMenEl) oublisMenEl.innerHTML = oublisMenHtml(index);
   }
 
   // Temps de chantier de la pièce (heures, arrondi 0,1) — persisté avec le devis
