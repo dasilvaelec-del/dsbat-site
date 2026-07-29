@@ -2413,6 +2413,72 @@ function toggleSection(sid) {
 }
 
 
+// ===== INDICATEUR DE COMPLÉTUDE DU DOSSIER (rassurant — n'entre dans aucun calcul) =====
+// Score pondéré 0–100 % sur les informations logement, pièces, dimensions,
+// électricité, peinture et options. Les métiers inactifs ne pénalisent pas
+// (normalisation sur la somme des critères applicables).
+function scoreCompletude(pieces, ch, metiers) {
+  ch = ch || {}; pieces = pieces || []; metiers = metiers || [];
+  const rempli = v => v !== undefined && v !== null && v !== '';
+  const crit = [];
+
+  const info = [ch.surface, ch.pieces, ch.typeProjet, ch.codePostal, ch.etatLieux];
+  crit.push({ poids: 20, score: info.filter(rempli).length / info.length, label: 'Informations logement' });
+
+  crit.push({ poids: 10, score: pieces.length > 0 ? 1 : 0, label: 'Pièces' });
+
+  if (pieces.length) {
+    const dims = pieces.filter(p => (p.dims || {}).l && (p.dims || {}).la).length;
+    const haut = pieces.filter(p => (p.dims || {}).h).length;
+    crit.push({ poids: 25, score: (dims / pieces.length) * 0.85 + (haut / pieces.length) * 0.15, label: 'Dimensions' });
+  }
+
+  if (metiers.includes('electricite') && pieces.length) {
+    const ok = pieces.filter(p => {
+      const e = (p.config || {}).electricite || {};
+      return ['ELEC_PL_SA','ELEC_PL_VV','ELEC_PL_3BP','ELEC_PL_APP','ELEC_PL_APV','ELEC_PL_DBL','ELEC_PL_SUP'].some(k => e[k] > 0);
+    }).length;
+    crit.push({ poids: 20, score: ok / pieces.length, label: 'Électricité' });
+  }
+
+  if (metiers.includes('peinture') && pieces.length) {
+    const ok = pieces.filter(p => p.peintMur || ((p.config || {}).peinture_auto > 0)).length;
+    crit.push({ poids: 15, score: ok / pieces.length, label: 'Peinture' });
+  }
+
+  const opt = [ch.chauffage, ch.tableauExistant, ch.eauChaude, ch.accessibilite, ch.qualiteMateriaux];
+  crit.push({ poids: 10, score: opt.filter(rempli).length / opt.length, label: 'Options' });
+
+  const poidsTot = crit.reduce((s, c) => s + c.poids, 0) || 1;
+  const pct = Math.round(crit.reduce((s, c) => s + c.poids * c.score, 0) / poidsTot * 100);
+  let etoiles, label;
+  if (pct >= 90) { etoiles = 5; label = 'Projet très complet'; }
+  else if (pct >= 75) { etoiles = 4; label = 'Projet complet'; }
+  else if (pct >= 50) { etoiles = 3; label = 'Projet à vérifier'; }
+  else { etoiles = 2; label = 'Projet à compléter'; }
+  return { pct, etoiles, label, details: crit.map(c => ({ label: c.label, pct: Math.round(c.score * 100) })) };
+}
+
+function scoreCompletudeHtml(pieces, ch, metiers) {
+  const s = scoreCompletude(pieces, ch, metiers);
+  const etoiles = '★'.repeat(s.etoiles) + '☆'.repeat(5 - s.etoiles);
+  const detail = s.details.map(d => d.label + ' ' + d.pct + '%').join(' · ');
+  return `
+    <div style="background:linear-gradient(135deg,var(--primary),var(--primary-light));color:#fff;border-radius:var(--radius-lg);padding:20px 24px;margin-bottom:20px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+        <div>
+          <div style="font-size:1.1rem;font-weight:700;">Projet complété à ${s.pct}%</div>
+          <div style="font-size:0.95rem;opacity:.95;margin-top:2px;">${etoiles} ${s.label}</div>
+        </div>
+        <div style="font-size:2rem;font-weight:800;">${s.pct}%</div>
+      </div>
+      <div style="background:rgba(255,255,255,.25);border-radius:20px;height:8px;margin-top:12px;overflow:hidden;">
+        <div style="background:#fff;height:100%;width:${s.pct}%;border-radius:20px;"></div>
+      </div>
+      <div style="font-size:0.72rem;opacity:.85;margin-top:8px;">${detail}</div>
+    </div>`;
+}
+
 // ===== TVA selon le type de projet (neuf/extension : 20 % — rénovation logement >2 ans : 10 %) =====
 function tauxTVA() {
   const ch = chantier || {};
@@ -2609,6 +2675,7 @@ function renderPhase3() {
     </div>` : '';
 
   container.innerHTML = `
+    ${scoreCompletudeHtml(piecesSelectionnees, chantier, metiersActifs)}
     <h2 style="color:var(--primary);margin-bottom:20px;">📊 Récapitulatif par pièce</h2>
     ${rowsHtml}
     ${alertesHtml}
