@@ -1645,6 +1645,112 @@ function evaluationSupport(piece, ch) {
   return { niveau, raisons };
 }
 
+// ===== CONTRÔLE DES OUBLIS COURANTS (peinture) — aide à la décision, jamais imposé =====
+// Détecte des compléments fréquemment oubliés à partir des données déjà connues.
+// Chaque suggestion propose une quantité calculée ; rien n'est ajouté sans clic « Oui ».
+function controlesOublisPeinture(piece) {
+  const d = piece.dims || {};
+  const cfg = (piece.config && piece.config.peinture) || {};
+  const ign = piece._oublisIgnores || {};
+  const projetNeuf = chantier && (chantier.typeProjet === 'neuf' || chantier.typeProjet === 'extension');
+  const list = [];
+  const add = (code, qty, question, unite) => {
+    qty = Math.round((qty || 0) * 10) / 10;
+    if (qty <= 0 || cfg[code] || ign[code]) return; // déjà ajouté ou déjà refusé
+    list.push({ code, qty, question, unite });
+  };
+  // Portes intérieures (2 faces) — d'après le nombre de portes de la pièce
+  add(projetNeuf ? 'PEINT_PORTE_NEUVE' : 'PEINT_PORTE_EXIST', d.portes || 0,
+      'Vous n\'avez pas prévu de peindre les ' + (d.portes || 0) + ' porte(s) intérieure(s). Souhaitez-vous les ajouter ?', 'U');
+  // Plinthes — périmètre de la pièce moins les passages de portes
+  if (d.l && d.la) {
+    const per = 2 * (d.l + d.la) - 0.8 * (d.portes || 0);
+    add('PEINT_PLINTHE', Math.max(0, per),
+        'Vous n\'avez pas prévu de peindre les plinthes (~' + Math.round(per) + ' ml). Souhaitez-vous les ajouter ?', 'ml');
+  }
+  // Coffres de volets roulants — d'après le nombre de fenêtres
+  add('PEINT_COFFRE_VR', d.fenetres || 0,
+      'Coffres de volets roulants (' + (d.fenetres || 0) + ') non prévus. Les peindre ?', 'U');
+  // Radiateurs — pièces de vie chauffées (hors SDB à sèche-serviette)
+  if (['salon','salle_manger','chambre','bureau','couloir','entree'].includes(piece.id)) {
+    add('PEINT_RAD', 1, 'Un radiateur à peindre dans cette pièce ? (à ajuster)', 'U');
+  }
+  // Tuyaux / canalisations apparents — pièces humides et techniques
+  if (['sdb','sde','wc','cuisine','cave','garage'].includes(piece.id)) {
+    add('PEINT_TUYAU', 2, 'Tuyaux apparents à peindre ? (~2 ml, à ajuster)', 'ml');
+  }
+  // Boiseries diverses — pièces de réception
+  if (['salon','salle_manger','entree'].includes(piece.id)) {
+    add('PEINT_BOISERIE', 1, 'Boiseries diverses à peindre (moulures, habillages) ?', 'm²');
+  }
+  return list;
+}
+
+// Contrôles informatifs : murs / plafond non chiffrés faute de dimensions (pas d'ajout possible)
+function controlesInfoPeinture(piece) {
+  const s = piece.surfaces || {};
+  const out = [];
+  if (!(s.murs > 0)) out.push('Les murs de cette pièce ne sont pas chiffrés (dimensions manquantes). Est-ce volontaire ?');
+  if (!(s.plafond > 0)) out.push('Le plafond de cette pièce n\'est pas chiffré (dimensions manquantes). Est-ce volontaire ?');
+  return out;
+}
+
+// Bandeau HTML du contrôle qualité (suggestions + éléments déjà ajoutés + infos)
+function oublisPeintureHtml(index) {
+  const piece = piecesSelectionnees[index];
+  if (!piece) return '';
+  const suggestions = controlesOublisPeinture(piece);
+  const infos = controlesInfoPeinture(piece);
+  const cfg = (piece.config && piece.config.peinture) || {};
+  const ajoutes = Object.entries(cfg).filter(([, q]) => q > 0);
+  if (!suggestions.length && !infos.length && !ajoutes.length) return '';
+
+  const sugHtml = suggestions.map(s => `
+    <div style="display:flex;gap:8px;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px dashed var(--border);">
+      <span style="font-size:0.82rem;color:#78350f;flex:1;">${s.question} <span style="color:var(--text-light);">(${s.qty} ${s.unite} · ${formatEuro(getMoyenPrixFor(s.code, piece) * s.qty)})</span></span>
+      <span style="display:flex;gap:6px;flex-shrink:0;">
+        <button onclick="ajouterOubliPeint(${index},'${s.code}',${s.qty})" style="background:var(--accent);color:#fff;border:none;border-radius:16px;padding:4px 12px;font-size:0.78rem;font-weight:700;cursor:pointer;">Oui, ajouter</button>
+        <button onclick="ignorerOubliPeint(${index},'${s.code}')" style="background:var(--surface);color:var(--text-light);border:1px solid var(--border);border-radius:16px;padding:4px 12px;font-size:0.78rem;cursor:pointer;">Non</button>
+      </span>
+    </div>`).join('');
+
+  const ajHtml = ajoutes.map(([code, qty]) => `
+    <div style="display:flex;gap:8px;align-items:center;justify-content:space-between;padding:6px 0;">
+      <span style="font-size:0.82rem;color:var(--accent);flex:1;">✓ ${findPrestLabel(code)} × ${qty} — ${formatEuro(getMoyenPrixFor(code, piece) * qty)}</span>
+      <button onclick="retirerOubliPeint(${index},'${code}')" style="background:none;border:none;color:var(--text-light);font-size:0.78rem;cursor:pointer;text-decoration:underline;">Retirer</button>
+    </div>`).join('');
+
+  const infoHtml = infos.map(i => `<div style="font-size:0.8rem;color:#92400e;padding:4px 0;">⚠️ ${i}</div>`).join('');
+
+  return `
+    <div style="margin-top:12px;background:#fef9ec;border:1px solid #f59e0b;border-radius:12px;padding:12px;">
+      <strong style="font-size:0.84rem;color:#92400e;">🔎 Contrôle qualité — compléments fréquents</strong>
+      ${infoHtml}
+      ${sugHtml}
+      ${ajHtml ? '<div style="margin-top:6px;border-top:1px solid var(--border);padding-top:6px;">' + ajHtml + '</div>' : ''}
+    </div>`;
+}
+
+function ajouterOubliPeint(index, code, qty) {
+  const piece = piecesSelectionnees[index];
+  if (!piece.config.peinture) piece.config.peinture = {};
+  piece.config.peinture[code] = qty;
+  recalcPiece(index);
+}
+function ignorerOubliPeint(index, code) {
+  const piece = piecesSelectionnees[index];
+  if (!piece._oublisIgnores) piece._oublisIgnores = {};
+  piece._oublisIgnores[code] = true;
+  const el = document.getElementById(`oublis_peinture_${index}`);
+  if (el) el.innerHTML = oublisPeintureHtml(index);
+  saveEtat();
+}
+function retirerOubliPeint(index, code) {
+  const piece = piecesSelectionnees[index];
+  if (piece.config.peinture) delete piece.config.peinture[code];
+  recalcPiece(index);
+}
+
 function renderPeintureAuto(pieceIndex) {
   // Persistance : mêmes principes que l'électricité (elecMethode/elecGamme) —
   // les choix mémorisés sur la pièce priment sur les défauts issus de l'état des lieux.
@@ -1680,6 +1786,7 @@ function renderPeintureAuto(pieceIndex) {
     </div>
     <div id="souscouche_info_${pieceIndex}" style="font-size:0.8rem;color:var(--accent);margin-top:8px;"></div>
     <div id="reco_support_${pieceIndex}" style="margin-top:10px;"></div>
+    <div id="oublis_peinture_${pieceIndex}"></div>
   `;
 }
 
@@ -2146,6 +2253,10 @@ function recalcPiece(index) {
     const recoEl = document.getElementById(`reco_support_${index}`);
     if (recoEl) recoEl.innerHTML = recoSupportHtml(piece);
 
+    // Contrôle qualité des oublis courants (suggestions non imposées)
+    const oublisEl = document.getElementById(`oublis_peinture_${index}`);
+    if (oublisEl) oublisEl.innerHTML = oublisPeintureHtml(index);
+
     // Quantités de peinture (informatif — devis technique uniquement, aucun impact prix)
     piece.peintureQuantites = (typeof quantitesPeinture === 'function' && (surfMursNette > 0 || surfPlaf > 0))
       ? quantitesPeinture(surfMursNette, surfPlaf, sc ? sc.surf : 0)
@@ -2221,7 +2332,13 @@ function updateSectionTotals(index, piece) {
 
     if (s.auto) {
       const key = s.autoType + '_auto';
-      totalEl.textContent = formatEuro(piece.config[key] || 0);
+      let v = piece.config[key] || 0;
+      // Compléments manuels ajoutés via le contrôle des oublis (peinture)
+      if (s.autoType === 'peinture') {
+        const extras = piece.config.peinture || {};
+        for (const [code, qty] of Object.entries(extras)) v += getMoyenPrixFor(code, piece) * qty;
+      }
+      totalEl.textContent = formatEuro(v);
       return;
     }
 
@@ -2393,8 +2510,8 @@ function renderPhase3() {
     }
   });
 
-  const METIER_ICONS = { electricite:'⚡', plomberie:'🚿', peinture_auto:'🎨', sols_auto:'🪵', carrelage:'🔲', isolation:'🧱', menuiserie:'🚪', vmc:'💨' };
-  const METIER_LABELS = { electricite:'Électricité', plomberie:'Plomberie', peinture_auto:'Peinture', sols_auto:'Revêtement sols', carrelage:'Carrelage', isolation:'Isolation', menuiserie:'Menuiserie', vmc:'VMC' };
+  const METIER_ICONS = { electricite:'⚡', plomberie:'🚿', peinture_auto:'🎨', peinture:'🎨', sols_auto:'🪵', carrelage:'🔲', isolation:'🧱', menuiserie:'🚪', vmc:'💨' };
+  const METIER_LABELS = { electricite:'Électricité', plomberie:'Plomberie', peinture_auto:'Peinture', peinture:'Peinture (compléments)', sols_auto:'Revêtement sols', carrelage:'Carrelage', isolation:'Isolation', menuiserie:'Menuiserie', vmc:'VMC' };
 
   const metierRowsHtml = Object.entries(metierTotaux).filter(([,v]) => v > 0).map(([k, v]) => `
     <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px dashed var(--border);">
