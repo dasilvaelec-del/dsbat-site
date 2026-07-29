@@ -2047,6 +2047,10 @@ function recalcPiece(index) {
   piece.surfaces = { sol: surfSol, murs: surfMursNette, plafond: surfPlaf };
 
   let totalPiece = 0;
+  // ===== TEMPS DE CHANTIER (dossier technique / futur planning — aucun impact prix) =====
+  let tempsPiece = 0;
+  const tempsParMetier = {};
+  const addTemps = (metier, h) => { if (h > 0) { tempsPiece += h; tempsParMetier[metier] = (tempsParMetier[metier] || 0) + h; } };
 
   // Calcul peinture auto
   if (metiersActifs.includes('peinture')) {
@@ -2082,6 +2086,13 @@ function recalcPiece(index) {
       : null;
 
     const totalPeinture = pMur + pPlaf + pPapier + pSousCouche;
+
+    // Temps peinture depuis le champ « temps » du catalogue (h/m²)
+    addTemps('peinture',
+      (CODES_PEINT_MUR[murGamme] ? tempsUnitaire(CODES_PEINT_MUR[murGamme]) * surfMursNette : 0)
+      + (CODES_PEINT_PLAF[plafGamme] ? tempsUnitaire(CODES_PEINT_PLAF[plafGamme]) * surfPlaf : 0)
+      + (papier === 'oui' ? tempsUnitaire('PREP_DCOL_PAP') * surfMursNette : 0)
+      + (sc ? tempsUnitaire('PEINT_SOUS_COUCHE') * sc.surf : 0));
     const secTot = document.getElementById(`sec_${index}_peinture_total`);
     if (secTot) secTot.textContent = formatEuro(totalPeinture);
     totalPiece += totalPeinture;
@@ -2108,8 +2119,13 @@ function recalcPiece(index) {
     if (metier === 'peinture_auto' || metier === 'sols_auto') continue;
     for (const [code, qty] of Object.entries(prestations)) {
       totalPiece += getMoyenPrixFor(code, piece) * qty;
+      addTemps(metier, tempsUnitaire(code) * qty);
     }
   }
+
+  // Temps de chantier de la pièce (heures, arrondi 0,1) — persisté avec le devis
+  piece.tempsChantier = Math.round(tempsPiece * 10) / 10;
+  piece.tempsParMetier = Object.fromEntries(Object.entries(tempsParMetier).map(([m, h]) => [m, Math.round(h * 10) / 10]));
 
   // Mettre à jour les totaux de section
   updateSectionTotals(index, piece);
@@ -2447,6 +2463,16 @@ function envoyerEmail(subject, fields, pdfBlob, nomPdf) {
 }
 
 // ===== NOTIFICATIONS (WhatsApp + email automatique vers DS.BAT) =====
+// Temps unitaire d'un poste depuis le catalogue (h/U ou h/m²) — dossier technique / futur planning
+function tempsUnitaire(code) {
+  for (const cat of Object.values(PRIX)) {
+    if (!Array.isArray(cat)) continue;
+    const f = cat.find(p => p.code === code);
+    if (f) return f.temps || 0;
+  }
+  return 0;
+}
+
 function findPrestLabel(code) {
   for (const cat of Object.values(PRIX)) {
     if (!Array.isArray(cat)) continue;
@@ -2500,12 +2526,24 @@ function construireDetailTexte() {
       if (metier === 'sols_auto') { if (cfg > 0) out.push('Sols (auto) : ' + formatEuro(cfg)); continue; }
       for (const [code, qty] of Object.entries(cfg)) {
         if (!qty) continue;
-        out.push('  - ' + findPrestLabel(code) + ' × ' + qty + ' = ' + formatEuro(getMoyenPrixFor(code, p) * qty));
+        const tPoste = Math.round(tempsUnitaire(code) * qty * 10) / 10;
+        out.push('  - ' + findPrestLabel(code) + ' × ' + qty + ' = ' + formatEuro(getMoyenPrixFor(code, p) * qty) + (tPoste ? ' · ⏱ ' + tPoste + ' h' : ''));
       }
     }
     out.push('Total pièce : ' + formatEuro(p.totalHT || 0));
+    if (p.tempsChantier) {
+      const detail = Object.entries(p.tempsParMetier || {}).map(([m, h]) => m + ' ' + h + ' h').join(' · ');
+      out.push('⏱ Temps estimé pièce : ' + p.tempsChantier + ' h' + (detail ? ' (' + detail + ')' : ''));
+    }
     out.push('');
   });
+  // Temps total du chantier (base pour le futur planning)
+  const tempsTotal = Math.round(piecesSelectionnees.reduce((s, p) => s + (p.tempsChantier || 0), 0) * 10) / 10;
+  if (tempsTotal > 0) {
+    const hj = (typeof TEMPS_PARAMS !== 'undefined' && TEMPS_PARAMS.heuresParJour) || 7;
+    out.push('⏱ TEMPS DE CHANTIER TOTAL ESTIMÉ : ' + tempsTotal + ' h ≈ ' + (Math.round(tempsTotal / hj * 10) / 10) + ' jour(s)-homme (base ' + hj + ' h/jour) — hors tableau électrique et pose des sols.');
+    out.push('');
+  }
   // Raisonnement du moteur sur le tableau électrique (pour l'email DS.BAT)
   const _tabEx = window.__tableauAuto;
   if (_tabEx && typeof explicationsTableau === 'function') {
