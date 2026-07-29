@@ -753,6 +753,35 @@ window.axeptioSettings = {
     <div class="recap-global" id="recapGlobal"></div>
   </div>
 
+  <!-- ===== MISSION 024 — Écran de validation : capture des coordonnées en fin de parcours ===== -->
+  <div id="captureModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(15,23,42,.72);backdrop-filter:blur(3px);align-items:center;justify-content:center;padding:20px;overflow:auto;">
+    <div style="background:#fff;max-width:460px;width:100%;border-radius:18px;padding:28px 26px;box-shadow:0 20px 60px rgba(0,0,0,.35);">
+      <h2 style="margin:0 0 12px;color:#1e3a8a;font-size:1.5rem;text-align:center;line-height:1.2;">🎉 Votre devis est prêt !</h2>
+      <p style="margin:0 0 18px;color:#334155;font-size:0.95rem;line-height:1.55;text-align:center;">
+        Votre estimation a été calculée.<br>
+        Pour afficher le détail complet de votre devis, recevoir le PDF et pouvoir le modifier plus tard, indiquez simplement vos coordonnées.
+      </p>
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <input type="text"  id="cap_nom"   placeholder="Prénom et nom" autocomplete="name" style="padding:13px 14px;border:1.5px solid #cbd5e1;border-radius:10px;font-size:1rem;width:100%;box-sizing:border-box;">
+        <input type="tel"   id="cap_tel"   placeholder="Téléphone"     autocomplete="tel"  inputmode="tel"   style="padding:13px 14px;border:1.5px solid #cbd5e1;border-radius:10px;font-size:1rem;width:100%;box-sizing:border-box;">
+        <input type="email" id="cap_email" placeholder="Email"         autocomplete="email" inputmode="email" style="padding:13px 14px;border:1.5px solid #cbd5e1;border-radius:10px;font-size:1rem;width:100%;box-sizing:border-box;">
+      </div>
+      <p id="cap_error" style="display:none;color:#b91c1c;font-size:0.85rem;margin:10px 0 0;"></p>
+      <button onclick="validerCoordonnees()" style="margin-top:16px;width:100%;background:#f59e0b;color:#fff;border:none;padding:15px;border-radius:12px;font-weight:800;font-size:1.05rem;cursor:pointer;">
+        Afficher mon devis →
+      </button>
+      <div style="display:flex;flex-wrap:wrap;gap:6px 14px;justify-content:center;margin-top:16px;font-size:0.8rem;color:#16a34a;font-weight:600;">
+        <span>✔ Gratuit</span>
+        <span>✔ Sans engagement</span>
+        <span>✔ Aucune création de compte</span>
+        <span>✔ Vos données ne seront jamais revendues</span>
+      </div>
+      <p style="text-align:center;margin:14px 0 0;">
+        <a href="javascript:void(0)" onclick="fermerCaptureModal();allerPhase(2);" style="color:#64748b;font-size:0.85rem;text-decoration:underline;">← Revenir à la configuration</a>
+      </p>
+    </div>
+  </div>
+
 </main>
 
 <a href="https://wa.me/33629556627" target="_blank" rel="noopener noreferrer" class="whatsapp-float" aria-label="Contact WhatsApp">
@@ -1097,14 +1126,10 @@ function restaurerEtat() {
 
 // ===== INIT =====
 window.addEventListener('DOMContentLoaded', () => {
-  // ===== Coordonnées obligatoires : accès uniquement via le formulaire devis =====
-  const clientData = sessionStorage.getItem('client');
-  let __client = null;
-  try { __client = JSON.parse(clientData || 'null'); } catch(e) {}
-  if (!__client || !__client.nom || !__client.tel) {
-    window.location.replace('devis.html?configurateur=1');
-    return;
-  }
+  // ===== MISSION 024 — Configurateur SANS compte : plus de redirection forcée =====
+  // Les coordonnées ne sont plus exigées à l'entrée. Le client configure librement ;
+  // ses coordonnées sont demandées à la fin, sur l'écran de validation affiché AVANT
+  // le devis détaillé (voir allerPhase(3) + captureModal). Aucun calcul n'est modifié.
   const chantierData = sessionStorage.getItem('chantier');
 
   // Essayer de récupérer les métiers
@@ -1510,9 +1535,50 @@ function allerPhase(n) {
   phaseActuelle = n;
 
   if (n === 2) renderPhase2();
-  if (n === 3) renderPhase3();
+  if (n === 3) {
+    renderPhase3();
+    // MISSION 024 : écran de validation avant le devis détaillé si coordonnées manquantes
+    if (!coordsPresentes()) ouvrirCaptureModal();
+  }
 
   window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ===== MISSION 024 — Capture des coordonnées en fin de parcours (parcours uniquement) =====
+function coordsPresentes() {
+  try { const c = JSON.parse(sessionStorage.getItem('client') || 'null'); return !!(c && c.nom && c.tel && c.email); } catch(e) { return false; }
+}
+function ouvrirCaptureModal() {
+  const m = document.getElementById('captureModal');
+  if (!m) return;
+  let c = {}; try { c = JSON.parse(sessionStorage.getItem('client') || '{}') || {}; } catch(e) {}
+  if (c.nom)   document.getElementById('cap_nom').value = c.nom;
+  if (c.tel)   document.getElementById('cap_tel').value = c.tel;
+  if (c.email) document.getElementById('cap_email').value = c.email;
+  m.style.display = 'flex';
+}
+function fermerCaptureModal() {
+  const m = document.getElementById('captureModal');
+  if (m) m.style.display = 'none';
+}
+function validerCoordonnees() {
+  const g = id => (document.getElementById(id).value || '').trim();
+  const nom = g('cap_nom'), tel = g('cap_tel'), email = g('cap_email');
+  const err = document.getElementById('cap_error');
+  const telOk = tel.replace(/\D/g, '').length >= 10;
+  const emailOk = /^\S+@\S+\.\S+$/.test(email);
+  if (!nom || !telOk || !emailOk) {
+    err.textContent = !nom ? 'Merci d\'indiquer votre nom.' : (!telOk ? 'Numéro de téléphone invalide (10 chiffres).' : 'Adresse email invalide.');
+    err.style.display = 'block';
+    return;
+  }
+  err.style.display = 'none';
+  let c = {}; try { c = JSON.parse(sessionStorage.getItem('client') || '{}') || {}; } catch(e) {}
+  c.nom = nom; c.tel = tel; c.email = email;
+  try { sessionStorage.setItem('client', JSON.stringify(c)); } catch(e) {}
+  fermerCaptureModal();
+  renderPhase3();       // ré-affiche le devis détaillé avec les vraies coordonnées
+  genererPDFConfig();   // génère le PDF + email société (copie client en _cc)
 }
 
 // ===== PHASE 2 — CONFIG PIÈCES =====
@@ -3037,10 +3103,11 @@ function envoyerNotifications(numero, totalHT, tva, ttc, clientData, pdfBlob) {
   const recap = construireRecapTexte(numero, totalHT, tva, ttc, clientData);
   const detail = construireDetailTexte();
 
-  // 1) Email automatique avec PDF joint
+  // 1) Email automatique avec PDF joint (société) + copie automatique au client
+  const champs = { Recapitulatif: recap, Detail_complet: detail };
+  if (clientData && clientData.email) champs._cc = clientData.email; // MISSION 024 : copie au client
   envoyerEmail('📄 PDF généré — devis ' + numero + ' — ' + (clientData.nom || 'client'),
-    { Recapitulatif: recap, Detail_complet: detail },
-    pdfBlob, 'Devis_DSBAT_' + numero + '.pdf');
+    champs, pdfBlob, 'Devis_DSBAT_' + numero + '.pdf');
 
   // 2) WhatsApp pré-rempli vers DS.BAT (le client appuie sur Envoyer)
   window.open('https://wa.me/33629556627?text=' + encodeURIComponent(recap), '_blank');
