@@ -2662,64 +2662,57 @@ function labelTVA() {
   return tauxTVA() === 0.20 ? 'TVA 20 % (neuf / extension / local pro)' : 'TVA 10 % (rénovation logement)';
 }
 
-// ===== PHASE 3 — RÉCAPITULATIF =====
-function renderPhase3() {
-  const container = document.getElementById('recapGlobal');
-
+// ===== MOTEUR DE CALCUL UNIFIÉ (MISSION 021) =====
+// Source UNIQUE de vérité pour Total HT / TVA / TTC / acomptes.
+// Consommée par : le récapitulatif écran (renderPhase3), le PDF (genererPDFConfig),
+// et prête pour les futurs emails / API. Aucun prix ni aucune règle métier modifiés :
+// la logique est déplacée telle quelle (verbatim) depuis renderPhase3.
+// Effets de bord conservés : renseigne window.__besoinsTableau / __tableauAuto /
+// __ballon / __forfaitAcces pour les moteurs d'explication (écran, PDF, email).
+function calculerDevis() {
   let totalGlobalHT = 0;
-  piecesSelectionnees.forEach(p => {
-    totalGlobalHT += p.totalHT || 0;
-  });
+  piecesSelectionnees.forEach(p => { totalGlobalHT += p.totalHT || 0; });
 
-  // ===== TABLEAU ÉLECTRIQUE AUTO (NF C 15-100) =====
+  // ----- Tableau électrique auto (NF C 15-100) -----
   let tableau = null;
   if (metiersActifs.includes('electricite') && typeof dimensionnementTableau === 'function') {
     const b = { prises16:0, pointsLumineux:0, specialises20A:0, cuisson:0, chauffeEau:false, vmc:metiersActifs.includes('vmc'), circuitsVolets:0, circuitsChauffage:0, sonnerie:false, telerupteurs:0,
-                surfaceLogement: parseFloat(chantier.surface) || 0 }; // pour la règle A5 : 2 circuits d'éclairage min > 35 m²
+                surfaceLogement: parseFloat(chantier.surface) || 0 };
     let volets = 0, secheServ = 0, filPilote = 0;
     piecesSelectionnees.forEach(p => {
       const e = p.config.electricite || {};
-      // Socles comptés pour les circuits 16A : double = 2, triple = 3, prise commandée = 1 (postes catalogue, comptés même si non proposés aujourd'hui)
       b.prises16 += (e.ELEC_PRISE10||0) + (e.ELEC_PRISED||0)*2 + (e.ELEC_PRISET||0)*3 + (e.ELEC_PRISECMD||0);
       b.pointsLumineux += (e.ELEC_PL_SA||0) + (e.ELEC_PL_VV||0) + (e.ELEC_PL_3BP||0) + (e.ELEC_PL_APP||0) + (e.ELEC_PL_APV||0) + (e.ELEC_PL_DBL||0)*2 + (e.ELEC_PL_SUP||0);
       b.telerupteurs += (e.ELEC_PL_3BP||0);
       b.specialises20A += (e.ELEC_PRISE20||0) + (e.ELEC_SC20||0);
-      b.cuisson += (e.ELEC_PRISE32||0);                 // 1 circuit 32A dédié PAR prise 32A (2 cuisines = 2 circuits)
+      b.cuisson += (e.ELEC_PRISE32||0);
       if ((e.ELEC_SONETTE||0) > 0) b.sonnerie = true;
       volets += (e.ELEC_VOLET||0);
       secheServ += (e.ELEC_SECH_SERV||0);
-      filPilote += (e.ELEC_SC20_FP||0) + (e.ELEC_SC10_FP||0); // sorties radiateur réellement configurées
+      filPilote += (e.ELEC_SC20_FP||0) + (e.ELEC_SC10_FP||0);
       const pl = p.config.plomberie || {};
       if (((pl.PLO_BALLON_100||0) + (pl.PLO_BALLON_200||0)) > 0) b.chauffeEau = true;
     });
     b.circuitsVolets = volets > 0 ? Math.max(1, Math.ceil(volets/5)) : 0;
     b.circuitsChauffage = secheServ;
-
-    // ===== Enrichissement depuis le formulaire chantier =====
-    if (chantier.borneVE === 'oui') b.irve = true;                       // borne VE -> circuit IRVE 32A Type A
-    if (chantier.vmc && chantier.vmc !== 'non') b.vmc = true;            // VMC présente/à refaire -> circuit VMC
-    if (chantier.eauChaude === 'ballon') b.chauffeEau = true;            // ballon élec -> circuit + contacteur J/N
-    if (chantier.chauffage === 'electrique') {                           // chauffage élec -> circuits radiateurs
-      // Priorité aux sorties fil pilote réellement configurées (3 radiateurs max / circuit 20A ≈ 4500 W) ;
-      // repli sur l'heuristique nb de pièces si aucune sortie saisie
+    if (chantier.borneVE === 'oui') b.irve = true;
+    if (chantier.vmc && chantier.vmc !== 'non') b.vmc = true;
+    if (chantier.eauChaude === 'ballon') b.chauffeEau = true;
+    if (chantier.chauffage === 'electrique') {
       const nbP = parseInt(chantier.pieces) || 0;
       b.circuitsChauffage += filPilote > 0 ? Math.ceil(filPilote / 3) : Math.max(1, Math.ceil(nbP / 3));
     }
     if (chantier.tableauExistant === 'ancien' || chantier.tableauExistant === 'inexistant') b.parafoudre = true;
-
-    // On ne chiffre le tableau que si l'existant n'est pas déjà récent
     const besoinTableau = (chantier.tableauExistant !== 'recent');
     if (besoinTableau && (b.prises16 + b.pointsLumineux + b.specialises20A) > 0) {
       tableau = dimensionnementTableau(b);
       totalGlobalHT += tableau.prixTotalHT;
     }
-    window.__besoinsTableau = b; // conservé pour le moteur d'explication (écran, PDF, email)
+    window.__besoinsTableau = b;
   }
   window.__tableauAuto = tableau;
 
-  // Ballon d'eau chaude électrique (si indiqué au formulaire)
-  // Garde anti-double facturation : si un ballon est déjà configuré manuellement
-  // dans une pièce (plomberie), on n'ajoute pas le ballon automatique du formulaire.
+  // ----- Ballon d'eau chaude auto (garde anti-double facturation) -----
   const ballonDejaConfigure = piecesSelectionnees.some(p => {
     const pl = p.config.plomberie || {};
     return ((pl.PLO_BALLON_100||0) + (pl.PLO_BALLON_200||0) + (pl.PLO_BALLON_50||0)) > 0;
@@ -2732,7 +2725,7 @@ function renderPhase3() {
   }
   window.__ballon = ballon;
 
-  // Forfait accessibilité + majoration chantier occupé
+  // ----- Forfait accès + majoration logement occupé + coefficient de zone -----
   let forfaitAcces = 0;
   if (chantier.accessibilite === 'moyen') forfaitAcces += 80;
   else if (chantier.accessibilite === 'difficile') forfaitAcces += 200;
@@ -2742,13 +2735,36 @@ function renderPhase3() {
   totalGlobalHT += forfaitAcces;
   window.__forfaitAcces = forfaitAcces;
 
-  // Coefficient de zone selon le code postal du chantier
   const coefZ = (typeof coefZone === 'function') ? coefZone(chantier.codePostal) : 1;
   totalGlobalHT = Math.round(totalGlobalHT * coefZ);
 
-  // TVA
-  const tva = totalGlobalHT * tauxTVA();
+  // ----- TVA / TTC / acomptes -----
+  const taux = tauxTVA();
+  const tva = totalGlobalHT * taux;
   const ttc = totalGlobalHT + tva;
+
+  return {
+    totalHT: totalGlobalHT, taux, tva, ttc,
+    tableau, ballon, forfaitAcces, coefZ,
+    besoinsTableau: window.__besoinsTableau,
+    acomptes: { a1: ttc * 0.40, a2: ttc * 0.30, a3: ttc * 0.30 }
+  };
+}
+
+// ===== PHASE 3 — RÉCAPITULATIF =====
+function renderPhase3() {
+  const container = document.getElementById('recapGlobal');
+
+  // ===== TOTAUX via le moteur de calcul unifié (MISSION 021) =====
+  // Plus aucun calcul de total ici : source unique = calculerDevis().
+  const D = calculerDevis();
+  const tableau = D.tableau;
+  const ballon = D.ballon;
+  const forfaitAcces = D.forfaitAcces;
+  const coefZ = D.coefZ;
+  const totalGlobalHT = D.totalHT;
+  const tva = D.tva;
+  const ttc = D.ttc;
 
   // ===== LEAD : email automatique dès que le client voit le prix (une seule fois) =====
   if (!__recapEnvoye && totalGlobalHT > 0) {
@@ -2759,9 +2775,9 @@ function renderPhase3() {
       { Recapitulatif: construireRecapTexte(num, totalGlobalHT, tva, ttc, cd), Detail_complet: construireDetailTexte() });
   }
 
-  const a1 = ttc * 0.40;
-  const a2 = ttc * 0.30;
-  const a3 = ttc * 0.30;
+  const a1 = D.acomptes.a1;
+  const a2 = D.acomptes.a2;
+  const a3 = D.acomptes.a3;
 
   const rowsHtml = piecesSelectionnees.map(p => `
     <div class="recap-piece-row">
@@ -3032,17 +3048,13 @@ function envoyerNotifications(numero, totalHT, tva, ttc, clientData, pdfBlob) {
 
 // ===== PDF =====
 function genererPDFConfig() {
-  let totalGlobalHT = 0;
-  piecesSelectionnees.forEach(p => totalGlobalHT += p.totalHT || 0);
-  const _tab = window.__tableauAuto;
-  if (_tab) totalGlobalHT += _tab.prixTotalHT;
-  if (window.__ballon) totalGlobalHT += window.__ballon.prix;
-  if (chantier.accessSup === 'occupé') totalGlobalHT = Math.round(totalGlobalHT * 1.088);
-  totalGlobalHT += (window.__forfaitAcces || 0);
-  const _coefZ = (typeof coefZone === 'function') ? coefZone(chantier.codePostal) : 1;
-  totalGlobalHT = Math.round(totalGlobalHT * _coefZ);
-  const tva = totalGlobalHT * tauxTVA();
-  const ttc = totalGlobalHT + tva;
+  // ===== TOTAUX via le moteur de calcul unifié (MISSION 021) =====
+  // Plus aucun recalcul ici : mêmes chiffres que l'écran, garantis identiques.
+  const D = calculerDevis();
+  const totalGlobalHT = D.totalHT;
+  const tva = D.tva;
+  const ttc = D.ttc;
+  const _tab = window.__tableauAuto; // renseigné par calculerDevis()
   const date = new Date().toLocaleDateString('fr-FR');
   const numero = 'DSBT-' + Date.now().toString().slice(-6);
 
