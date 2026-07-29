@@ -2076,6 +2076,11 @@ function recalcPiece(index) {
       ? '🖌️ <strong>Sous-couche d\'impression ajoutée automatiquement</strong> (' + sc.surf.toFixed(1) + ' m² · ' + formatEuro(pSousCouche) + ') : ' + sc.raison + '.'
       : '';
 
+    // Quantités de peinture (informatif — devis technique uniquement, aucun impact prix)
+    piece.peintureQuantites = (typeof quantitesPeinture === 'function' && (surfMursNette > 0 || surfPlaf > 0))
+      ? quantitesPeinture(surfMursNette, surfPlaf, sc ? sc.surf : 0)
+      : null;
+
     const totalPeinture = pMur + pPlaf + pPapier + pSousCouche;
     const secTot = document.getElementById(`sec_${index}_peinture_total`);
     if (secTot) secTot.textContent = formatEuro(totalPeinture);
@@ -2478,7 +2483,20 @@ function construireDetailTexte() {
     if (p.surfaces) out.push('Surfaces : sol ' + (p.surfaces.sol||0).toFixed(1) + ' m² · murs ' + (p.surfaces.murs||0).toFixed(1) + ' m² · plafond ' + (p.surfaces.plafond||0).toFixed(1) + ' m²');
     if (p.elecMethode) out.push('Pose élec : ' + p.elecMethode + ' · gamme : ' + (p.elecGamme || ''));
     for (const [metier, cfg] of Object.entries(p.config)) {
-      if (metier === 'peinture_auto') { if (cfg > 0) out.push('Peinture (auto) : ' + formatEuro(cfg)); continue; }
+      if (metier === 'peinture_auto') {
+        if (cfg > 0) {
+          out.push('Peinture (auto) : ' + formatEuro(cfg));
+          // Devis technique : quantités de peinture calculées (jamais montrées au client)
+          const q = p.peintureQuantites;
+          if (q) {
+            const fmtPots = pots => pots.length ? pots.map(x => x.nb + '×' + x.taille + 'L').join(' + ') : '—';
+            const ligne = (nom, d) => d.litres > 0 ? '    ' + nom + ' : ' + d.surface.toFixed(1) + ' m² × ' + d.couches + ' couche(s) ÷ ' + d.rendement + ' m²/L = ' + d.litres + ' L → pots : ' + fmtPots(d.pots) + ' (' + d.litresAchetes + ' L achetés)' : null;
+            out.push('  Quantités peinture (surface totale ' + q.surfaceTotale + ' m²) :');
+            [ligne('Sous-couche', q.sousCouche), ligne('Finition murs', q.murs), ligne('Finition plafond', q.plafond)].filter(Boolean).forEach(l => out.push(l));
+          }
+        }
+        continue;
+      }
       if (metier === 'sols_auto') { if (cfg > 0) out.push('Sols (auto) : ' + formatEuro(cfg)); continue; }
       for (const [code, qty] of Object.entries(cfg)) {
         if (!qty) continue;
