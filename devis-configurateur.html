@@ -1859,6 +1859,11 @@ function recoSupportHtml(piece) {
 }
 
 function renderSolsAuto(pieceIndex) {
+  // Persistance : mêmes principes que l'électricité et la peinture —
+  // les choix mémorisés sur la pièce priment (restaurés au re-rendu / rechargement).
+  const piece = piecesSelectionnees[pieceIndex] || {};
+  const defType = piece.solType || '';
+  const defSC = piece.solSousCouche || 'non';
   const types = [
     { val:'parq_flot', label:'Parquet flottant (pose seule)' },
     { val:'stratifie', label:'Sol stratifié (fourniture + pose)' },
@@ -1870,16 +1875,16 @@ function renderSolsAuto(pieceIndex) {
     <div style="margin-bottom:14px;">
       <label style="font-size:0.82rem;font-weight:700;color:var(--text-light);text-transform:uppercase;">Type de revêtement</label>
       <select id="sol_type_${pieceIndex}" onchange="recalcPiece(${pieceIndex})" style="width:100%;margin-top:6px;padding:10px 14px;border-radius:12px;border:1.5px solid var(--border);background:var(--surface);color:var(--text);font-size:0.95rem;">
-        <option value="">-- Choisir --</option>
-        ${types.map(t => `<option value="${t.val}">${t.label}</option>`).join('')}
+        <option value="" ${defType===''?'selected':''}>-- Choisir --</option>
+        ${types.map(t => `<option value="${t.val}" ${t.val===defType?'selected':''}>${t.label}</option>`).join('')}
       </select>
     </div>
     <div>
       <label style="font-size:0.82rem;font-weight:700;color:var(--text-light);text-transform:uppercase;">Sous-couche ?</label>
       <select id="sol_souscouche_${pieceIndex}" onchange="recalcPiece(${pieceIndex})" style="width:100%;margin-top:6px;padding:10px 14px;border-radius:12px;border:1.5px solid var(--border);background:var(--surface);color:var(--text);font-size:0.95rem;">
-        <option value="non">Non</option>
-        <option value="std">Standard</option>
-        <option value="liege">Liège</option>
+        <option value="non" ${defSC==='non'?'selected':''}>Non</option>
+        <option value="std" ${defSC==='std'?'selected':''}>Standard</option>
+        <option value="liege" ${defSC==='liege'?'selected':''}>Liège</option>
       </select>
     </div>
   `;
@@ -2338,14 +2343,26 @@ function recalcPiece(index) {
     const solType = document.getElementById(`sol_type_${index}`)?.value;
     const sousCouche = document.getElementById(`sol_souscouche_${index}`)?.value;
 
-    const PRIX_SOLS = { parq_flot:52, stratifie:70, pvc:65, moquette:31, lino:65 };
-    const PRIX_SC = { std:17, liege:11 };
+    // Persistance des choix sur la pièce (sérialisés par saveEtat, comme la peinture).
+    // Garde : ne pas écraser une valeur mémorisée quand les selects ne sont pas dans le DOM.
+    if (solType !== undefined) piece.solType = solType;
+    if (sousCouche !== undefined) piece.solSousCouche = sousCouche;
 
-    let pSol = (PRIX_SOLS[solType] || 0) * surfSol;
-    let pSC = (PRIX_SC[sousCouche] || 0) * surfSol;
+    // Prix exclusivement depuis le catalogue PRIX.sols (moyenne min-max) — plus aucun tarif en dur.
+    const CODES_SOL = { parq_flot:'SOL_PARQ_FLOT', stratifie:'SOL_STRATIFIE', pvc:'SOL_PVC', moquette:'SOL_MOQUETTE', lino:'SOL_LINO' };
+    const CODES_SC = { std:'SOL_SOUSC', liege:'SOL_SOUSC_LIEGE' };
+    const codeSol = CODES_SOL[piece.solType];
+    const codeSC = CODES_SC[piece.solSousCouche];
+    const pSol = codeSol ? getMoyenPrixFor(codeSol, piece) * surfSol : 0;
+    const pSC = codeSC ? getMoyenPrixFor(codeSC, piece) * surfSol : 0;
     const totalSols = pSol + pSC;
     totalPiece += totalSols;
     piece.config['sols_auto'] = totalSols;
+
+    // Temps de chantier sols depuis le champ « temps » du catalogue (h/m²)
+    addTemps('sols',
+      (codeSol ? tempsUnitaire(codeSol) * surfSol : 0)
+      + (codeSC ? tempsUnitaire(codeSC) * surfSol : 0));
   }
 
   // Calcul prestations manuelles
@@ -2848,7 +2865,7 @@ function construireDetailTexte() {
   const tempsTotal = Math.round(piecesSelectionnees.reduce((s, p) => s + (p.tempsChantier || 0), 0) * 10) / 10;
   if (tempsTotal > 0) {
     const hj = (typeof TEMPS_PARAMS !== 'undefined' && TEMPS_PARAMS.heuresParJour) || 7;
-    out.push('⏱ TEMPS DE CHANTIER TOTAL ESTIMÉ : ' + tempsTotal + ' h ≈ ' + (Math.round(tempsTotal / hj * 10) / 10) + ' jour(s)-homme (base ' + hj + ' h/jour) — hors tableau électrique et pose des sols.');
+    out.push('⏱ TEMPS DE CHANTIER TOTAL ESTIMÉ : ' + tempsTotal + ' h ≈ ' + (Math.round(tempsTotal / hj * 10) / 10) + ' jour(s)-homme (base ' + hj + ' h/jour) — hors tableau électrique.');
     out.push('');
   }
   // Raisonnement du moteur sur le tableau électrique (pour l'email DS.BAT)
