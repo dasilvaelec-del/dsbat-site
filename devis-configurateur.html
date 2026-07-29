@@ -1581,8 +1581,12 @@ function renderMetierSection(section, pieceIndex) {
 }
 
 function renderPeintureAuto(pieceIndex) {
-  const defMur = ({ bon:'less', moyen:'std', mauvais:'fort' })[(chantier && chantier.etatLieux)] || 'std';
-  const defPlaf = defMur === 'less' ? 'less' : 'std';
+  // Persistance : mêmes principes que l'électricité (elecMethode/elecGamme) —
+  // les choix mémorisés sur la pièce priment sur les défauts issus de l'état des lieux.
+  const piece = piecesSelectionnees[pieceIndex] || {};
+  const defMur = piece.peintMur || ({ bon:'less', moyen:'std', mauvais:'fort' })[(chantier && chantier.etatLieux)] || 'std';
+  const defPlaf = piece.peintPlaf || (defMur === 'less' ? 'less' : 'std');
+  const defPap = piece.peintPapier || 'non';
   const gammes = [
     { val:'less', label:'Rafraîchissement (2 couches sur bon état)' },
     { val:'std', label:'Standard (égrenage + 2 couches)' },
@@ -1605,8 +1609,8 @@ function renderPeintureAuto(pieceIndex) {
     <div style="margin-bottom:8px;">
       <label style="font-size:0.82rem;font-weight:700;color:var(--text-light);text-transform:uppercase;">Décollage papier peint ?</label>
       <select id="peint_papier_${pieceIndex}" onchange="recalcPiece(${pieceIndex})" style="width:100%;margin-top:6px;padding:10px 14px;border-radius:12px;border:1.5px solid var(--border);background:var(--surface);color:var(--text);font-size:0.95rem;">
-        <option value="non">Non</option>
-        <option value="oui">Oui</option>
+        <option value="non" ${defPap==='non'?'selected':''}>Non</option>
+        <option value="oui" ${defPap==='oui'?'selected':''}>Oui</option>
       </select>
     </div>
   `;
@@ -2027,6 +2031,12 @@ function recalcPiece(index) {
     const murGamme = document.getElementById(`peint_mur_${index}`)?.value;
     const plafGamme = document.getElementById(`peint_plaf_${index}`)?.value;
     const papier = document.getElementById(`peint_papier_${index}`)?.value;
+
+    // Persistance des choix sur la pièce (sérialisés par saveEtat, comme l'électricité).
+    // Garde : ne pas écraser une valeur mémorisée quand les selects ne sont pas dans le DOM.
+    if (murGamme !== undefined) piece.peintMur = murGamme;
+    if (plafGamme !== undefined) piece.peintPlaf = plafGamme;
+    if (papier !== undefined) piece.peintPapier = papier;
 
     // Prix exclusivement depuis le catalogue PRIX.peinture (moyenne min-max,
     // comme partout dans le moteur) — plus aucun tarif en dur.
