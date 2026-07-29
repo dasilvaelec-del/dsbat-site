@@ -1105,6 +1105,135 @@ function getIsolationPourPiece(pieceId) {
   return base;
 }
 
+// ===== ÉVALUATION DU SUPPORT (isolation / plâtrerie) — aide à la décision, jamais imposée =====
+// Symétrique du carrelage. Surfaces d'isolant / de BA13 lues depuis la config de la pièce.
+function _isoQtes(piece) {
+  const iso = (piece.config && piece.config.isolation) || {};
+  const ba13Ossature = iso.PLA_BA13_MUR_OSS || 0;
+  const ba13Total = (iso.PLA_BA13_MUR_COL || 0) + (iso.PLA_BA13_MUR_OSS || 0) + (iso.PLA_CLOISON_BA13 || 0);
+  const laine = (iso.ISO_LV_100 || 0) + (iso.ISO_LV_140 || 0) + (iso.ISO_LV_120 || 0) + (iso.ISO_LV_160 || 0)
+              + (iso.ISO_LV_200_COMPLEX || 0) + (iso.ISO_ROCHE_100 || 0) + (iso.ISO_PHONIQUE || 0);
+  return { iso, ba13Ossature, ba13Total, laine };
+}
+
+function evaluationSupportIso(piece, ch) {
+  const q = _isoQtes(piece);
+  const reco = [];
+  // Doublage sur ossature sans isolant
+  if (q.ba13Ossature > 0 && q.laine <= 0) {
+    reco.push('un doublage sur ossature reçoit normalement un isolant (laine) — proposé ci-dessous');
+  }
+  // Pièce humide : plaque hydrofuge
+  if (['sdb','sde','cuisine'].includes(piece.id) && q.ba13Total > 0 && !(q.iso.PLA_BA13_HYDRO > 0)) {
+    reco.push('en pièce humide, une plaque hydrofuge (marine) est conseillée derrière le carrelage / la douche');
+  }
+  // Isolant sans pare-vapeur
+  if (q.laine > 0 && !(q.iso.ISO_PARE_VAP > 0)) {
+    reco.push('un pare-vapeur protège l\'isolant de l\'humidité et évite la condensation');
+  }
+  return reco;
+}
+
+function recoSupportIsoHtml(piece) {
+  const reco = evaluationSupportIso(piece, chantier);
+  if (!reco.length) return '';
+  return `
+    <div style="display:flex;gap:10px;align-items:flex-start;background:#fef9ec;border:1px solid #f59e0b;border-radius:12px;padding:12px;margin-bottom:12px;">
+      <span style="font-size:1.1rem;">💡</span>
+      <div style="font-size:0.82rem;color:#78350f;">
+        <strong>Recommandation DS.BAT :</strong> ${reco.join(' · ')}.
+        Vous restez libre de suivre ces conseils ou non.
+      </div>
+    </div>`;
+}
+
+// ===== CONTRÔLE DES OUBLIS COURANTS (isolation / plâtrerie) — suggestions non imposées =====
+function controlesOublisIso(piece) {
+  const d = piece.dims || {};
+  const q = _isoQtes(piece);
+  const ign = piece._oublisIgnoresIso || {};
+  const list = [];
+  if (q.ba13Total + q.laine <= 0) return list; // rien tant qu'aucune pose n'est saisie
+  const add = (code, qty, question, unite) => {
+    qty = Math.round((qty || 0) * 10) / 10;
+    if (qty <= 0 || q.iso[code] || ign[code]) return;
+    list.push({ code, qty, question, unite });
+  };
+  // Isolant manquant derrière un doublage sur ossature
+  if (q.ba13Ossature > 0 && q.laine <= 0) {
+    add('ISO_LV_100', q.ba13Ossature, 'Doublage sur ossature sans isolant — ajouter la laine de verre 100 mm (' + q.ba13Ossature + ' m²) ?', 'm²');
+  }
+  // Pare-vapeur sur l'isolant
+  if (q.laine > 0) {
+    add('ISO_PARE_VAP', q.laine, 'Pare-vapeur non prévu (' + q.laine + ' m²) — l\'ajouter ?', 'm²');
+  }
+  // Plaque hydrofuge en pièce humide
+  if (['sdb','sde','cuisine'].includes(piece.id) && q.ba13Total > 0) {
+    add('PLA_BA13_HYDRO', q.ba13Total, 'Plaque hydrofuge (pièce humide) non prévue (' + q.ba13Total + ' m²) — l\'ajouter ?', 'm²');
+  }
+  // Finition des plaques : bandes + enduit de ratissage
+  if (q.ba13Total > 0) {
+    add('PLA_ENDUIT_RATT', q.ba13Total, 'Finition des plaques (bandes + ratissage) non prévue (' + q.ba13Total + ' m²) — l\'ajouter ?', 'm²');
+  }
+  // Cornières d'angle (tableaux de portes / fenêtres)
+  if (q.ba13Total > 0) {
+    add('PLA_CORNIERE', Math.max(2, (d.portes || 0) + (d.fenetres || 0)), 'Cornières d\'angle non prévues — les ajouter ?', 'U');
+  }
+  return list;
+}
+
+function oublisIsoHtml(index) {
+  const piece = piecesSelectionnees[index];
+  if (!piece) return '';
+  const suggestions = controlesOublisIso(piece);
+  const iso = (piece.config && piece.config.isolation) || {};
+  const OUBLI = ['ISO_LV_100','ISO_PARE_VAP','PLA_BA13_HYDRO','PLA_ENDUIT_RATT','PLA_CORNIERE'];
+  const ajoutes = Object.entries(iso).filter(([c, qte]) => qte > 0 && OUBLI.includes(c));
+  if (!suggestions.length && !ajoutes.length) return '';
+
+  const sugHtml = suggestions.map(s => `
+    <div style="display:flex;gap:8px;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px dashed var(--border);">
+      <span style="font-size:0.82rem;color:#78350f;flex:1;">${s.question} <span style="color:var(--text-light);">(${s.qty} ${s.unite} · ${formatEuro(getMoyenPrixFor(s.code, piece) * s.qty)})</span></span>
+      <span style="display:flex;gap:6px;flex-shrink:0;">
+        <button onclick="ajouterOubliIso(${index},'${s.code}',${s.qty})" style="background:var(--accent);color:#fff;border:none;border-radius:16px;padding:4px 12px;font-size:0.78rem;font-weight:700;cursor:pointer;">Oui, ajouter</button>
+        <button onclick="ignorerOubliIso(${index},'${s.code}')" style="background:var(--surface);color:var(--text-light);border:1px solid var(--border);border-radius:16px;padding:4px 12px;font-size:0.78rem;cursor:pointer;">Non</button>
+      </span>
+    </div>`).join('');
+
+  const ajHtml = ajoutes.map(([code, qte]) => `
+    <div style="display:flex;gap:8px;align-items:center;justify-content:space-between;padding:6px 0;">
+      <span style="font-size:0.82rem;color:var(--accent);flex:1;">✓ ${findPrestLabel(code)} × ${qte} — ${formatEuro(getMoyenPrixFor(code, piece) * qte)}</span>
+      <button onclick="retirerOubliIso(${index},'${code}')" style="background:none;border:none;color:var(--text-light);font-size:0.78rem;cursor:pointer;text-decoration:underline;">Retirer</button>
+    </div>`).join('');
+
+  return `
+    <div style="margin-top:12px;background:#fef9ec;border:1px solid #f59e0b;border-radius:12px;padding:12px;">
+      <strong style="font-size:0.84rem;color:#92400e;">🔎 Contrôle qualité — compléments fréquents</strong>
+      ${sugHtml}
+      ${ajHtml ? '<div style="margin-top:6px;border-top:1px solid var(--border);padding-top:6px;">' + ajHtml + '</div>' : ''}
+    </div>`;
+}
+
+function ajouterOubliIso(index, code, qty) {
+  const piece = piecesSelectionnees[index];
+  if (!piece.config.isolation) piece.config.isolation = {};
+  piece.config.isolation[code] = qty;
+  recalcPiece(index);
+}
+function ignorerOubliIso(index, code) {
+  const piece = piecesSelectionnees[index];
+  if (!piece._oublisIgnoresIso) piece._oublisIgnoresIso = {};
+  piece._oublisIgnoresIso[code] = true;
+  const el = document.getElementById(`oublis_iso_${index}`);
+  if (el) el.innerHTML = oublisIsoHtml(index);
+  saveEtat();
+}
+function retirerOubliIso(index, code) {
+  const piece = piecesSelectionnees[index];
+  if (piece.config.isolation) delete piece.config.isolation[code];
+  recalcPiece(index);
+}
+
 function getMenuiseriePourPiece(pieceId) {
   const base = [
     { code:'MEN_PORTE_INT', label:'Porte intérieure', unite:'U' },
@@ -1815,8 +1944,10 @@ function renderMetierSection(section, pieceIndex) {
         ${section.metier === 'electricite' ? bandeauNorme() + explicationsPieceHtml(pieceIndex) + selecteursElec(pieceIndex) : ''}
         ${section.metier === 'plomberie' ? selecteursPlomberie(pieceIndex) : ''}
         ${section.metier === 'carrelage' ? `<div id="reco_support_carr_${pieceIndex}"></div>` : ''}
+        ${section.metier === 'isolation' ? `<div id="reco_support_iso_${pieceIndex}"></div>` : ''}
         ${section.prests.map(p => renderPrestRow(p, pieceIndex, section.metier)).join('')}
         ${section.metier === 'carrelage' ? `<div id="oublis_carr_${pieceIndex}"></div>` : ''}
+        ${section.metier === 'isolation' ? `<div id="oublis_iso_${pieceIndex}"></div>` : ''}
       </div>
     </div>
   `;
@@ -2711,6 +2842,14 @@ function recalcPiece(index) {
     if (recoCarrEl) recoCarrEl.innerHTML = recoSupportCarrHtml(piece);
     const oublisCarrEl = document.getElementById(`oublis_carr_${index}`);
     if (oublisCarrEl) oublisCarrEl.innerHTML = oublisCarrHtml(index);
+  }
+
+  // Recommandation support + contrôle des oublis isolation (aide à la décision, non imposés)
+  if (metiersActifs.includes('isolation')) {
+    const recoIsoEl = document.getElementById(`reco_support_iso_${index}`);
+    if (recoIsoEl) recoIsoEl.innerHTML = recoSupportIsoHtml(piece);
+    const oublisIsoEl = document.getElementById(`oublis_iso_${index}`);
+    if (oublisIsoEl) oublisIsoEl.innerHTML = oublisIsoHtml(index);
   }
 
   // Temps de chantier de la pièce (heures, arrondi 0,1) — persisté avec le devis
