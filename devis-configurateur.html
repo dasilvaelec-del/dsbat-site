@@ -3399,6 +3399,31 @@ function renderPhase3() {
       </details>` : ''}
     </div>` : '';
 
+  const plomberie = D.plomberie;
+  const exPlo = (plomberie && typeof explicationsPlomberie === 'function') ? explicationsPlomberie(window.__besoinsPlomberie, plomberie) : [];
+  const plomberieHtml = plomberie ? `
+    <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-md);padding:20px;margin:20px 0;">
+      <h3 style="color:var(--primary);margin-bottom:10px;font-size:1rem;">🚿 Plomberie — réseaux (dimensionnement auto)</h3>
+      <div style="font-size:0.88rem;color:var(--text-light);margin-bottom:10px;">
+        ${plomberie.efPoints} pt EF · ${plomberie.ecsPoints} pt ECS · évac. ${plomberie.evac40} × Ø40${plomberie.evac100 ? ' + ' + plomberie.evac100 + ' × Ø100' : ''}
+      </div>
+      <div style="display:flex;justify-content:space-between;font-weight:700;">
+        <span>Réseaux (alimentations PER + évacuations PVC)</span>
+        <span>${formatEuro(plomberie.prixTotalHT)}</span>
+      </div>
+      ${exPlo.length ? `
+      <details style="margin-top:12px;">
+        <summary style="cursor:pointer;color:var(--primary);font-weight:600;font-size:0.88rem;">🧠 Pourquoi ce dimensionnement ?</summary>
+        <ul style="margin:10px 0 12px;padding-left:18px;font-size:0.82rem;color:var(--text-light);">
+          ${exPlo.map(e => '<li style="margin-bottom:4px;">' + e + '</li>').join('')}
+        </ul>
+        <div style="font-size:0.8rem;border-top:1px dashed var(--border);padding-top:10px;">
+          <strong style="color:var(--primary);">Composition des réseaux :</strong>
+          ${plomberie.composition.map(c => '<div style="display:flex;justify-content:space-between;padding:2px 0;color:var(--text-light);"><span>' + c.libelle + ' — ' + c.qte + ' ' + c.unite + '</span><span>' + formatEuro(c.prixUnit * c.qte) + '</span></div>').join('')}
+        </div>
+      </details>` : ''}
+    </div>` : '';
+
   const extrasHtml = (ballon || forfaitAcces || chantier.accessSup === 'occupé') ? `
     <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-md);padding:16px 20px;margin:16px 0;font-size:0.92rem;">
       ${ballon ? '<div style="display:flex;justify-content:space-between;padding:4px 0;"><span>🔥 ' + ballon.label + '</span><strong>' + formatEuro(ballon.prix) + '</strong></div>' : ''}
@@ -3423,6 +3448,7 @@ function renderPhase3() {
     ${alertesHtml}
     ${tableauHtml}
     ${vmcHtml}
+    ${plomberieHtml}
     ${extrasHtml}
 
     <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-md);padding:20px;margin:20px 0;">
@@ -3535,6 +3561,8 @@ function construireRecapTexte(numero, totalHT, tva, ttc, clientData) {
   if (_tab) L.push('• Tableau électrique NF C 15-100 (' + _tab.nbCircuits + ' circuits) : ' + formatEuro(_tab.prixTotalHT));
   const _vmc = window.__vmcAuto;
   if (_vmc) L.push('• Centrale VMC ' + _vmc.type + ' (' + _vmc.bouches + ' bouches) : ' + formatEuro(_vmc.prixTotalHT));
+  const _plo = window.__plomberieAuto;
+  if (_plo) L.push('• Réseaux plomberie (' + _plo.efPoints + ' EF / ' + _plo.ecsPoints + ' ECS + évacuations) : ' + formatEuro(_plo.prixTotalHT));
   L.push('');
   L.push('Total HT : ' + formatEuro(totalHT));
   L.push(labelTVA() + ' : ' + formatEuro(tva));
@@ -3597,6 +3625,14 @@ function construireDetailTexte() {
     out.push('━━━ VMC — dimensionnement de la centrale ━━━');
     explicationsVMC(window.__besoinsVMC, _vmcEx).forEach(e => out.push('• ' + e));
     _vmcEx.composition.forEach(c => out.push('  - ' + c.libelle + ' × ' + c.qte + ' = ' + formatEuro(c.prixUnit * c.qte)));
+  }
+  // Raisonnement du moteur sur les réseaux plomberie
+  const _ploEx = window.__plomberieAuto;
+  if (_ploEx && typeof explicationsPlomberie === 'function') {
+    out.push('');
+    out.push('━━━ Plomberie — dimensionnement des réseaux EF/ECS + évacuations ━━━');
+    explicationsPlomberie(window.__besoinsPlomberie, _ploEx).forEach(e => out.push('• ' + e));
+    _ploEx.composition.forEach(c => out.push('  - ' + c.libelle + ' — ' + c.qte + ' ' + c.unite + ' = ' + formatEuro(c.prixUnit * c.qte)));
   }
   return out.join('\n');
 }

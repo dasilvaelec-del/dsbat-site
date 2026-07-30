@@ -97,6 +97,30 @@ function calculerDevis() {
   }
   window.__vmcAuto = vmc;
 
+  // ----- Plomberie : dimensionnement auto des réseaux EF/ECS + évacuations -----
+  // Les appareils sont chiffrés par pièce ; on ajoute les réseaux manquants
+  // (alimentations PER + évacuations PVC), sur le modèle du tableau / de la VMC.
+  let plomberie = null;
+  if (metiersActifs.includes('plomberie') && typeof dimensionnementPlomberie === 'function') {
+    let wc = 0, vasque = 0, douche = 0, baignoire = 0, evier = 0, laveLinge = 0;
+    piecesSelectionnees.forEach(p => {
+      const pl = p.config.plomberie || {};
+      wc += (pl.PLO_WC_SIMPLE || 0) + (pl.PLO_WC_SUSP || 0);
+      vasque += (pl.PLO_MEUBLE_LAV || 0) + (pl.PLO_LAV_SIMPLE || 0);
+      douche += (pl.PLO_DOUCHE_ITAL || 0) + (pl.PLO_DOUCHE_CABINE || 0);
+      baignoire += (pl.PLO_BAIGNOIRE || 0);
+      evier += (pl.PLO_EVIER || 0) + (pl.PLO_EVIER_DBL || 0);
+      laveLinge += (pl.PLO_RACCORD_LV || 0);
+    });
+    const besoins = { wc, vasque, douche, baignoire, evier, laveLinge };
+    if (wc + vasque + douche + baignoire + evier + laveLinge > 0) {
+      plomberie = dimensionnementPlomberie(besoins);
+      if (plomberie) totalGlobalHT += plomberie.prixTotalHT;
+    }
+    window.__besoinsPlomberie = besoins;
+  }
+  window.__plomberieAuto = plomberie;
+
   // ----- Forfait accès + majoration logement occupé + coefficient de zone -----
   let forfaitAcces = 0;
   if (chantier.accessibilite === 'moyen') forfaitAcces += 80;
@@ -117,9 +141,10 @@ function calculerDevis() {
 
   return {
     totalHT: totalGlobalHT, taux, tva, ttc,
-    tableau, ballon, vmc, forfaitAcces, coefZ,
+    tableau, ballon, vmc, plomberie, forfaitAcces, coefZ,
     besoinsTableau: window.__besoinsTableau,
     besoinsVMC: window.__besoinsVMC,
+    besoinsPlomberie: window.__besoinsPlomberie,
     acomptes: { a1: ttc * 0.40, a2: ttc * 0.30, a3: ttc * 0.30 }
   };
 }
