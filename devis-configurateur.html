@@ -1187,27 +1187,52 @@ function recoSupportCarrHtml(piece) {
 // Compléments de finition qui ne figurent pas déjà comme lignes de la section.
 function controlesOublisCarr(piece) {
   const d = piece.dims || {};
+  const s = piece.surfaces || {};
   const carr = (piece.config && piece.config.carrelage) || {};
   const ign = piece._oublisIgnoresCarr || {};
   const list = [];
+  const pieceHumide = ['sdb','sde','wc','cuisine'].includes(piece.id);
   const solCarrele = (carr.CAR_POSE_SOL || 0) + (carr.CAR_POSE_SOL_GRAND || 0);
   const murCarrele = (carr.CAR_POSE_MUR || 0) + (carr.CAR_POSE_MUR_PETIT || 0);
-  if (solCarrele + murCarrele <= 0) return list; // rien tant qu'aucune pose n'est saisie
   const add = (code, qty, question, unite) => {
     qty = Math.round((qty || 0) * 10) / 10;
     if (qty <= 0 || carr[code] || ign[code]) return;
     list.push({ code, qty, question, unite });
   };
-  // Fourniture carreau si seule la pose est prévue
+
+  // === Surfaces automatiques : pré-calcul depuis les dimensions déjà connues ===
+  if (solCarrele <= 0 && s.sol > 0) {
+    add('CAR_POSE_SOL', s.sol, 'Carrelage de sol (~' + s.sol.toFixed(1) + ' m² calculés) — l\'ajouter ?', 'm²');
+  }
+  if (pieceHumide && murCarrele <= 0 && s.murs > 0) {
+    add('CAR_POSE_MUR', s.murs, 'Faïence murale (~' + s.murs.toFixed(1) + ' m² calculés) — l\'ajouter ?', 'm²');
+  }
+
+  if (solCarrele + murCarrele <= 0) return list; // le reste ne s'affiche qu'une fois une pose saisie
+
+  // Coefficient de pertes par format (CARRELAGE_PARAMS) — appliqué à la FOURNITURE seule
+  const perte = (code, defaut) => {
+    if (typeof CARRELAGE_PARAMS === 'undefined') return defaut;
+    const type = CARRELAGE_PARAMS.perteParPose[code];
+    const p = CARRELAGE_PARAMS.pertes[piece.carPose === 'diagonale' ? 'diagonale' : type];
+    return (p === undefined) ? defaut : p;
+  };
+  // Fourniture carreau (pose sol) avec pertes selon le format
+  const fournCarreau = (carr.CAR_POSE_SOL || 0) * (1 + perte('CAR_POSE_SOL', 0.10)) + (carr.CAR_POSE_SOL_GRAND || 0) * (1 + perte('CAR_POSE_SOL_GRAND', 0.12));
   if (solCarrele > 0 && !(carr.CAR_FOURN_CARREAU > 0)) {
-    add('CAR_FOURN_CARREAU', solCarrele, 'Fourniture du carreau non prévue (' + solCarrele + ' m² de pose sol) — l\'ajouter ?', 'm²');
+    add('CAR_FOURN_CARREAU', fournCarreau, 'Fourniture du carreau (' + Math.round(fournCarreau) + ' m², chutes incluses) — l\'ajouter ?', 'm²');
   }
-  // Fourniture faïence si seule la pose murale est prévue
+  // Fourniture faïence (pose murale) avec pertes selon le format
+  const fournFaience = (carr.CAR_POSE_MUR || 0) * (1 + perte('CAR_POSE_MUR', 0.10)) + (carr.CAR_POSE_MUR_PETIT || 0) * (1 + perte('CAR_POSE_MUR_PETIT', 0.15));
   if (murCarrele > 0 && !(carr.CAR_FOURN_FAIENCE > 0)) {
-    add('CAR_FOURN_FAIENCE', murCarrele, 'Fourniture de la faïence non prévue (' + murCarrele + ' m² de pose murale) — l\'ajouter ?', 'm²');
+    add('CAR_FOURN_FAIENCE', fournFaience, 'Fourniture de la faïence (' + Math.round(fournFaience) + ' m², chutes incluses) — l\'ajouter ?', 'm²');
   }
-  // Primaire d'accrochage sur la surface carrelée
+
+  // Consommables : primaire, mortier-colle + joint, préparation du support
   add('CAR_PRIMAIRE', solCarrele + murCarrele, 'Primaire d\'accrochage non prévu (' + (solCarrele + murCarrele) + ' m²) — l\'ajouter ?', 'm²');
+  add('CAR_MORTIER_COLLE', solCarrele + murCarrele, 'Mortier-colle + joint non prévu (' + (solCarrele + murCarrele) + ' m²) — l\'ajouter ?', 'm²');
+  add('CAR_PREP_MORTIER', solCarrele, 'Préparation du support au mortier (' + solCarrele + ' m²) — l\'ajouter ?', 'm²');
+
   // Plinthes carrelage (périmètre moins passages de portes) si sol carrelé
   if (solCarrele > 0 && d.l && d.la) {
     const per = 2 * (d.l + d.la) - 0.8 * (d.portes || 0);
@@ -1217,6 +1242,10 @@ function controlesOublisCarr(piece) {
   if (solCarrele > 0) {
     add('CAR_SEUIL', Math.round(0.8 * (d.portes || 0) * 10) / 10, 'Seuils de transition aux ' + (d.portes || 0) + ' passage(s) de porte non prévus — les ajouter ?', 'ml');
   }
+  // Accessoires de finition (optionnels) : profilés d'arête si faïence
+  if (murCarrele > 0) {
+    add('CAR_PROFILE', Math.max(2, (d.portes || 0) + (d.fenetres || 0)), 'Profilés de finition (arêtes de faïence) — les ajouter ?', 'U');
+  }
   return list;
 }
 
@@ -1225,7 +1254,7 @@ function oublisCarrHtml(index) {
   if (!piece) return '';
   const suggestions = controlesOublisCarr(piece);
   const carr = (piece.config && piece.config.carrelage) || {};
-  const OUBLI = ['CAR_FOURN_CARREAU','CAR_FOURN_FAIENCE','CAR_PRIMAIRE','CAR_PLINTHE','CAR_SEUIL'];
+  const OUBLI = ['CAR_FOURN_CARREAU','CAR_FOURN_FAIENCE','CAR_PRIMAIRE','CAR_MORTIER_COLLE','CAR_PREP_MORTIER','CAR_PLINTHE','CAR_SEUIL','CAR_PROFILE','CAR_LISTEL'];
   const ajoutes = Object.entries(carr).filter(([c, q]) => q > 0 && OUBLI.includes(c));
   if (!suggestions.length && !ajoutes.length) return '';
 
@@ -1256,6 +1285,10 @@ function ajouterOubliCarr(index, code, qty) {
   const piece = piecesSelectionnees[index];
   if (!piece.config.carrelage) piece.config.carrelage = {};
   piece.config.carrelage[code] = qty;
+  const qs = document.getElementById(`qty_${index}_${code}`);
+  if (qs) qs.textContent = qty;
+  const pt = document.getElementById(`ptotal_${index}_${code}`);
+  if (pt) pt.textContent = formatEuro(getMoyenPrixFor(code, piece) * qty);
   recalcPiece(index);
 }
 function ignorerOubliCarr(index, code) {
@@ -1269,6 +1302,10 @@ function ignorerOubliCarr(index, code) {
 function retirerOubliCarr(index, code) {
   const piece = piecesSelectionnees[index];
   if (piece.config.carrelage) delete piece.config.carrelage[code];
+  const qs = document.getElementById(`qty_${index}_${code}`);
+  if (qs) qs.textContent = 0;
+  const pt = document.getElementById(`ptotal_${index}_${code}`);
+  if (pt) pt.textContent = formatEuro(0);
   recalcPiece(index);
 }
 
