@@ -2496,7 +2496,10 @@ function renderSolsAuto(pieceIndex) {
   // les choix mémorisés sur la pièce priment (restaurés au re-rendu / rechargement).
   const piece = piecesSelectionnees[pieceIndex] || {};
   const defType = piece.solType || '';
-  const defSC = piece.solSousCouche || 'non';
+  // Sous-couche recommandée par défaut sous un sol flottant (retirable) — jamais imposée :
+  // un choix explicite mémorisé (y compris « non ») prime toujours.
+  const _flottant = (defType === 'parq_flot' || defType === 'stratifie');
+  const defSC = piece.solSousCouche || (_flottant ? 'std' : 'non');
   const types = [
     { val:'parq_flot', label:'Parquet flottant (pose seule)' },
     { val:'stratifie', label:'Sol stratifié (fourniture + pose)' },
@@ -2544,14 +2547,24 @@ function evaluationSupportSol(piece, ch) {
 function recoSupportSolHtml(piece) {
   if (!piece.solType) return '';
   const ev = evaluationSupportSol(piece, chantier);
-  const dejaRagreage = piece.config && piece.config.sols && piece.config.sols.SOL_RAGREAGE > 0;
-  if (!ev.ragreageConseille || dejaRagreage) return '';
+  const sols = (piece.config && piece.config.sols) || {};
+  const messages = [];
+  // Ragréage si le support le justifie et non déjà prévu
+  if (ev.ragreageConseille && !(sols.SOL_RAGREAGE > 0)) {
+    messages.push('un <strong>ragréage</strong> est généralement conseillé pour un support plan (' + ev.raisons.join(', ') + ')');
+  }
+  // Sous-couche pour les sols flottants (parquet flottant / stratifié) — recommandée, jamais imposée
+  const flottant = (piece.solType === 'parq_flot' || piece.solType === 'stratifie');
+  const sansSousCouche = !piece.solSousCouche || piece.solSousCouche === 'non';
+  if (flottant && sansSousCouche) {
+    messages.push('une <strong>sous-couche</strong> est recommandée sous un sol flottant (confort et isolation phonique) — sélectionnez-la ci-dessus, vous pouvez toujours la retirer');
+  }
+  if (!messages.length) return '';
   return `
     <div style="display:flex;gap:10px;align-items:flex-start;background:#fef9ec;border:1px solid #f59e0b;border-radius:12px;padding:12px;margin-top:10px;">
       <span style="font-size:1.1rem;">💡</span>
       <div style="font-size:0.82rem;color:#78350f;">
-        <strong>Recommandation DS.BAT :</strong> un <strong>ragréage</strong> est généralement conseillé pour un support plan (${ev.raisons.join(', ')}).
-        Vous restez libre de l'ajouter ou non ci-dessous.
+        <strong>Recommandation DS.BAT :</strong> ${messages.join(' · ')}.
       </div>
     </div>`;
 }
@@ -2584,6 +2597,11 @@ function controlesOublisSol(piece) {
   if (ev.ragreageConseille && d.l && d.la) {
     add('SOL_RAGREAGE', d.l * d.la,
         'Ragréage du sol non prévu (support plan avant pose). L\'ajouter ?', 'm²');
+  }
+  // Dépose de l'ancien revêtement — proposée en rénovation
+  if (chantier && chantier.typeProjet === 'renov' && d.l && d.la) {
+    add('SOL_DEPOSE', d.l * d.la,
+        'Dépose de l\'ancien revêtement non prévue (rénovation). L\'ajouter ?', 'm²');
   }
   // Joint à froid pour lino
   if (type === 'lino' && d.l && d.la) {
@@ -3120,7 +3138,15 @@ function recalcPiece(index) {
     const CODES_SC = { std:'SOL_SOUSC', liege:'SOL_SOUSC_LIEGE' };
     const codeSol = CODES_SOL[piece.solType];
     const codeSC = CODES_SC[piece.solSousCouche];
-    const pSol = codeSol ? getMoyenPrixFor(codeSol, piece) * surfSol : 0;
+    // Coefficient de pertes / chutes selon le revêtement (SOLS_PARAMS) + supplément
+    // pose diagonale (point d'entrée futur). Multiplicateur de surface, jamais un prix.
+    let coefPertes = 1;
+    if (typeof SOLS_PARAMS !== 'undefined') {
+      coefPertes += (SOLS_PARAMS.pertes[piece.solType] || 0);
+      if (piece.solPose === 'diagonale') coefPertes += (SOLS_PARAMS.perteDiagonale || 0);
+    }
+    const surfSolFacturee = surfSol * coefPertes;
+    const pSol = codeSol ? getMoyenPrixFor(codeSol, piece) * surfSolFacturee : 0;
     const pSC = codeSC ? getMoyenPrixFor(codeSC, piece) * surfSol : 0;
     const totalSols = pSol + pSC;
     totalPiece += totalSols;
