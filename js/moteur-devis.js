@@ -26,6 +26,16 @@ function calculerDevis() {
   let totalGlobalHT = 0;
   piecesSelectionnees.forEach(p => { totalGlobalHT += p.totalHT || 0; });
 
+  // ----- Chauffage électrique (calculé AVANT le tableau pour en piloter les circuits) -----
+  // Émetteurs dimensionnés par pièce ; le nombre de circuits/sorties fil pilote qui en
+  // découle est injecté dans le tableau électrique (cohérence chauffage <-> tableau).
+  let chauffage = null;
+  if (chantier.chauffage === 'electrique' && typeof dimensionnementChauffage === 'function') {
+    chauffage = dimensionnementChauffage(piecesSelectionnees, chantier);
+    if (chauffage) totalGlobalHT += chauffage.prixTotalHT;
+  }
+  window.__chauffageAuto = chauffage;
+
   // ----- Tableau électrique auto (NF C 15-100) -----
   let tableau = null;
   if (metiersActifs.includes('electricite') && typeof dimensionnementTableau === 'function') {
@@ -52,8 +62,9 @@ function calculerDevis() {
     if (chantier.vmc && chantier.vmc !== 'non') b.vmc = true;
     if (chantier.eauChaude === 'ballon') b.chauffeEau = true;
     if (chantier.chauffage === 'electrique') {
+      // Cohérence : circuits chauffage dérivés des radiateurs réellement retenus
       const nbP = parseInt(chantier.pieces) || 0;
-      b.circuitsChauffage += filPilote > 0 ? Math.ceil(filPilote / 3) : Math.max(1, Math.ceil(nbP / 3));
+      b.circuitsChauffage += chauffage ? chauffage.nbCircuits : (filPilote > 0 ? Math.ceil(filPilote / 3) : Math.max(1, Math.ceil(nbP / 3)));
     }
     if (chantier.tableauExistant === 'ancien' || chantier.tableauExistant === 'inexistant') b.parafoudre = true;
     const besoinTableau = (chantier.tableauExistant !== 'recent');
@@ -129,16 +140,6 @@ function calculerDevis() {
     window.__besoinsPlomberie = besoins;
   }
   window.__plomberieAuto = plomberie;
-
-  // ----- Chauffage électrique : dimensionnement auto des radiateurs + thermostat -----
-  // Émetteurs (radiateurs) chiffrés selon la puissance par pièce ; le raccordement
-  // (fil pilote) et les circuits/protections sont déjà fournis par le moteur Électricité.
-  let chauffage = null;
-  if (chantier.chauffage === 'electrique' && typeof dimensionnementChauffage === 'function') {
-    chauffage = dimensionnementChauffage(piecesSelectionnees, chantier);
-    if (chauffage) totalGlobalHT += chauffage.prixTotalHT;
-  }
-  window.__chauffageAuto = chauffage;
 
   // ----- Forfait accès + majoration logement occupé + coefficient de zone -----
   let forfaitAcces = 0;
