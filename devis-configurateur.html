@@ -1502,20 +1502,34 @@ function getMenuiseriePourPiece(pieceId) {
   const base = [
     { code:'MEN_PORTE_INT', label:'Porte intérieure', unite:'U' },
     { code:'MEN_VOLET_ROULANT', label:'Volet roulant', unite:'U' },
+    { code:'MEN_STORE', label:'Store', unite:'U' },
+  ];
+  // Fenêtres (catalogue existant) proposées dans les pièces à ouvertures
+  const fenetres = [
+    { code:'MEN_FEN_ALU_STD', label:'Fenêtre alu standard', unite:'U' },
+    { code:'MEN_FEN_BOIS_STD', label:'Fenêtre bois standard', unite:'U' },
+    { code:'MEN_FEN_BOIS_CINTRE', label:'Fenêtre bois cintrée', unite:'U' },
   ];
   if (['entree'].includes(pieceId)) return [
     ...base,
     { code:'MEN_PORTE_ENTREE_PVC', label:'Porte d\'entrée PVC', unite:'U' },
+    { code:'MEN_PORTE_ENTREE_BOIS', label:'Porte d\'entrée bois', unite:'U' },
     { code:'MEN_PORTE_BLINDEE', label:'Porte blindée A2P', unite:'U' },
   ];
-  if (['salon'].includes(pieceId)) return [
-    ...base,
+  if (['salon','salle_manger'].includes(pieceId)) return [
+    ...base, ...fenetres,
     { code:'MEN_FEN_ALU_BAIE', label:'Baie vitrée coulissante', unite:'U' },
     { code:'MEN_VERRIERE', label:'Verrière intérieure', unite:'U' },
   ];
+  if (['veranda','combles','grenier'].includes(pieceId)) return [
+    ...base, ...fenetres,
+    { code:'MEN_FEN_TOIT', label:'Fenêtre de toit (velux)', unite:'U' },
+  ];
+  if (['chambre','bureau','cuisine'].includes(pieceId)) return [...base, ...fenetres];
   if (['escalier'].includes(pieceId)) return [
     { code:'MEN_ESCALIER_BOIS', label:'Escalier bois', unite:'U' },
     { code:'MEN_GARDE_CORPS', label:'Garde-corps', unite:'ml' },
+    { code:'MEN_BALUSTRADE', label:'Balustrade', unite:'ml' },
   ];
   return base;
 }
@@ -1563,14 +1577,37 @@ function recoSupportMenHtml(piece) {
 // ===== CONTRÔLE DES OUBLIS COURANTS (menuiserie) — suggestions non imposées =====
 function controlesOublisMen(piece) {
   const q = _menQtes(piece);
+  const d = piece.dims || {};
   const ign = piece._oublisIgnoresMen || {};
   const list = [];
-  if (q.portesInt + q.portesEntree + q.fenetres + q.escalier <= 0) return list; // rien tant qu'aucune pose
   const add = (code, qty, question, unite) => {
     qty = Math.round((qty || 0) * 10) / 10;
     if (qty <= 0 || q.men[code] || ign[code]) return;
     list.push({ code, qty, question, unite });
   };
+  const pieceAFenetres = ['salon','salle_manger','chambre','bureau','cuisine','veranda','combles','grenier'].includes(piece.id);
+
+  // === Auto-génération depuis les ouvertures déjà saisies (dims) ===
+  // Fenêtres : nombre déclaré non encore équipé -> proposer une fenêtre alu standard par ouverture
+  if (pieceAFenetres && q.fenetres <= 0 && (d.fenetres || 0) > 0) {
+    add('MEN_FEN_ALU_STD', d.fenetres, (d.fenetres) + ' fenêtre(s) déclarée(s) sans menuiserie — ajouter des fenêtres alu standard (modifiable) ?', 'U');
+  }
+  // Portes intérieures : nombre déclaré non encore équipé
+  if (q.portesInt <= 0 && (d.portes || 0) > 0 && !['entree','escalier'].includes(piece.id)) {
+    add('MEN_PORTE_INT', d.portes, (d.portes) + ' porte(s) déclarée(s) sans menuiserie — ajouter des portes intérieures (modifiable) ?', 'U');
+  }
+
+  // Dépose des anciennes menuiseries en rénovation (références catalogue existantes)
+  if (chantier && chantier.typeProjet === 'renov') {
+    if (pieceAFenetres && (d.fenetres || 0) > 0) {
+      add('MAC_DEMO_FENETRE', d.fenetres, 'Dépose des ' + d.fenetres + ' ancienne(s) fenêtre(s) (rénovation) — l\'ajouter ?', 'U');
+    }
+    if ((d.portes || 0) > 0 && !['escalier'].includes(piece.id)) {
+      add('MAC_DEMO_PORTE', d.portes, 'Dépose des ' + d.portes + ' ancienne(s) porte(s) (rénovation) — l\'ajouter ?', 'U');
+    }
+  }
+
+  if (q.portesInt + q.portesEntree + q.fenetres + q.escalier <= 0) return list; // le reste ne s'affiche qu'une fois une menuiserie posée
   // Habillage champlat pour les portes intérieures (finition du bâti)
   if (q.portesInt > 0) {
     add('MEN_HABILLAGE_CHAMPLAT', q.portesInt, 'Habillage / champlat des ' + q.portesInt + ' porte(s) intérieure(s) non prévu — l\'ajouter ?', 'U');
@@ -1595,7 +1632,7 @@ function oublisMenHtml(index) {
   if (!piece) return '';
   const suggestions = controlesOublisMen(piece);
   const men = (piece.config && piece.config.menuiserie) || {};
-  const OUBLI = ['MEN_HABILLAGE_CHAMPLAT','MEN_GARDE_CORPS','MEN_VOLET_ROULANT','MEN_SERRURE'];
+  const OUBLI = ['MEN_HABILLAGE_CHAMPLAT','MEN_GARDE_CORPS','MEN_VOLET_ROULANT','MEN_SERRURE','MAC_DEMO_FENETRE','MAC_DEMO_PORTE'];
   const ajoutes = Object.entries(men).filter(([c, qte]) => qte > 0 && OUBLI.includes(c));
   if (!suggestions.length && !ajoutes.length) return '';
 
@@ -1626,6 +1663,10 @@ function ajouterOubliMen(index, code, qty) {
   const piece = piecesSelectionnees[index];
   if (!piece.config.menuiserie) piece.config.menuiserie = {};
   piece.config.menuiserie[code] = qty;
+  const qs = document.getElementById(`qty_${index}_${code}`);
+  if (qs) qs.textContent = qty;
+  const pt = document.getElementById(`ptotal_${index}_${code}`);
+  if (pt) pt.textContent = formatEuro(getMoyenPrixFor(code, piece) * qty);
   recalcPiece(index);
 }
 function ignorerOubliMen(index, code) {
@@ -1639,7 +1680,40 @@ function ignorerOubliMen(index, code) {
 function retirerOubliMen(index, code) {
   const piece = piecesSelectionnees[index];
   if (piece.config.menuiserie) delete piece.config.menuiserie[code];
+  const qs = document.getElementById(`qty_${index}_${code}`);
+  if (qs) qs.textContent = 0;
+  const pt = document.getElementById(`ptotal_${index}_${code}`);
+  if (pt) pt.textContent = formatEuro(0);
   recalcPiece(index);
+}
+
+// ===== CONTRÔLE FINAL DU MOTEUR MENUISERIE (MISSION 042) =====
+function verifierMenuiserie(pieces, metiers) {
+  metiers = metiers || (typeof metiersActifs !== 'undefined' ? metiersActifs : []);
+  const alertes = [];
+  if (!metiers.includes('menuiserie')) return alertes;
+  const existe = code => { try { return getMoyenPrixFor(code, {}) > 0; } catch (e) { return false; } };
+  const CODES_FEN = ['MEN_FEN_ALU_STD','MEN_FEN_BOIS_STD','MEN_FEN_BOIS_CINTRE','MEN_FEN_ALU_BAIE','MEN_FEN_TOIT'];
+  (pieces || []).forEach(p => {
+    const q = _menQtes(p);
+    const d = p.dims || {};
+    const pieceAFenetres = ['salon','salle_manger','chambre','bureau','cuisine','veranda','combles','grenier'].includes(p.id);
+    // Ouverture déclarée sans menuiserie associée
+    if (pieceAFenetres && (d.fenetres || 0) > 0 && q.fenetres <= 0) {
+      alertes.push({ niveau:'info', texte: p.nom + ' : ' + d.fenetres + ' fenêtre(s) déclarée(s) sans menuiserie configurée (conservées ou à ajouter ?).' });
+    }
+    // Menuiserie fenêtre sans ouverture déclarée
+    if (q.fenetres > 0 && (d.fenetres || 0) === 0) {
+      alertes.push({ niveau:'info', texte: p.nom + ' : fenêtre(s) configurée(s) sans ouverture déclarée en dimensions — vérifiez la saisie.' });
+    }
+    // Incohérence de quantité (plus de menuiseries que d'ouvertures déclarées)
+    if ((d.fenetres || 0) > 0 && q.fenetres > (d.fenetres || 0)) {
+      alertes.push({ niveau:'info', texte: p.nom + ' : ' + q.fenetres + ' fenêtre(s) posée(s) pour ' + d.fenetres + ' déclarée(s) — quantité à confirmer.' });
+    }
+    // Référence catalogue absente
+    Object.keys(q.men).forEach(code => { if ((q.men[code] || 0) > 0 && !existe(code)) alertes.push({ niveau:'attention', texte: p.nom + ' : référence menuiserie « ' + code + ' » absente du catalogue.' }); });
+  });
+  return alertes;
 }
 
 function getVmcPourPiece(pieceId) {
@@ -2232,6 +2306,10 @@ function controlesCoherence(pieces, ch) {
   // Contrôle final du moteur VMC (bouches, entrées d'air, cohérence caisson) — MISSION 040
   if (typeof verifierVMC === 'function') {
     verifierVMC(pieces).forEach(a => alertes.push(a));
+  }
+  // Contrôle final du moteur menuiserie (ouvertures ↔ menuiseries, quantités, références) — MISSION 042
+  if (typeof verifierMenuiserie === 'function') {
+    verifierMenuiserie(pieces).forEach(a => alertes.push(a));
   }
 
   return alertes;
