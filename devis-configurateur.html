@@ -1996,6 +1996,10 @@ function controlesCoherence(pieces, ch) {
   if (typeof verifierPlomberie === 'function') {
     verifierPlomberie(pieces).forEach(a => alertes.push(a));
   }
+  // Contrôle final du moteur sols (surface, référence, dépose, sous-couche, doublons) — MISSION 033
+  if (typeof verifierSols === 'function') {
+    verifierSols(pieces).forEach(a => alertes.push(a));
+  }
 
   return alertes;
 }
@@ -2675,6 +2679,46 @@ function retirerOubliSol(index, code) {
   recalcPiece(index);
 }
 
+// ===== CONTRÔLE FINAL DU MOTEUR SOLS (MISSION 033) =====
+// Fonction pure : analyse la cohérence du devis sols avant validation. Détecte :
+// surface manquante, référence catalogue absente, dépose non tarifable,
+// sous-couche recommandée mais refusée, incohérence de quantités / doublon inter-métier.
+function verifierSols(pieces, metiers) {
+  metiers = metiers || (typeof metiersActifs !== 'undefined' ? metiersActifs : []);
+  const alertes = [];
+  if (!metiers.includes('sols')) return alertes;
+  const CODES_SOL = { parq_flot:'SOL_PARQ_FLOT', stratifie:'SOL_STRATIFIE', pvc:'SOL_PVC', moquette:'SOL_MOQUETTE', lino:'SOL_LINO' };
+  const existe = code => { try { return getMoyenPrixFor(code, {}) > 0; } catch (e) { return false; } };
+  (pieces || []).forEach(p => {
+    const type = p.solType;
+    if (!type) return; // aucun revêtement -> rien à vérifier
+    const d = p.dims || {};
+    const surf = (d.l || 0) * (d.la || 0);
+    const sols = (p.config && p.config.sols) || {};
+    const car = (p.config && p.config.carrelage) || {};
+
+    // 1. Surface manquante
+    if (!(surf > 0)) alertes.push({ niveau:'attention', texte: p.nom + ' : revêtement choisi mais surface non calculée (dimensions manquantes) — sol compté à 0 €.' });
+    // 2. Référence catalogue absente
+    const code = CODES_SOL[type];
+    if (code && !existe(code)) alertes.push({ niveau:'attention', texte: p.nom + ' : référence de revêtement « ' + code + ' » absente du catalogue.' });
+    // 3. Dépose détectée mais non tarifable
+    if ((sols.SOL_DEPOSE || 0) > 0 && !existe('SOL_DEPOSE')) alertes.push({ niveau:'attention', texte: p.nom + ' : dépose demandée mais non tarifable (référence catalogue manquante).' });
+    // 4. Sous-couche recommandée mais refusée (avertissement simple)
+    const flottant = (type === 'parq_flot' || type === 'stratifie');
+    if (flottant && (!p.solSousCouche || p.solSousCouche === 'non')) alertes.push({ niveau:'info', texte: p.nom + ' : sous-couche recommandée sous un sol flottant mais non retenue — à confirmer.' });
+    // 5. Incohérence / doublon inter-métier : un sol ne peut être à la fois revêtement sols ET carrelage sol
+    if ((car.CAR_POSE_SOL || 0) > 0 || (car.CAR_POSE_SOL_GRAND || 0) > 0) {
+      alertes.push({ niveau:'attention', texte: p.nom + ' : un revêtement de sol ET un carrelage au sol sont configurés — un seul revêtement par sol, doublon probable.' });
+    }
+    // Ragréage compté à la fois côté sols et côté carrelage
+    if ((sols.SOL_RAGREAGE || 0) > 0 && (car.CAR_RAGREAGE || 0) > 0) {
+      alertes.push({ niveau:'info', texte: p.nom + ' : ragréage compté côté sols ET côté carrelage — vérifiez le doublon.' });
+    }
+  });
+  return alertes;
+}
+
 // ===== SÉLECTEURS POSE / GAMME (par pièce) =====
 const _SEL_SS = 'width:100%;margin-top:6px;padding:10px 14px;border-radius:12px;border:1.5px solid var(--border);background:var(--surface);color:var(--text);font-size:0.95rem;';
 const _SEL_LS = 'font-size:0.82rem;font-weight:700;color:var(--text-light);text-transform:uppercase;';
@@ -3138,15 +3182,19 @@ function recalcPiece(index) {
     const CODES_SC = { std:'SOL_SOUSC', liege:'SOL_SOUSC_LIEGE' };
     const codeSol = CODES_SOL[piece.solType];
     const codeSC = CODES_SC[piece.solSousCouche];
-    // Coefficient de pertes / chutes selon le revêtement (SOLS_PARAMS) + supplément
-    // pose diagonale (point d'entrée futur). Multiplicateur de surface, jamais un prix.
-    let coefPertes = 1;
+    // Pertes / chutes (SOLS_PARAMS) appliquées UNIQUEMENT à la part fourniture du
+    // prix combiné, jamais à la main-d'œuvre (MISSION 033). Le parquet flottant est
+    // en fourniture client (fraction 0) -> aucune perte sur notre prix.
+    let perte = 0, frac = 1;
     if (typeof SOLS_PARAMS !== 'undefined') {
-      coefPertes += (SOLS_PARAMS.pertes[piece.solType] || 0);
-      if (piece.solPose === 'diagonale') coefPertes += (SOLS_PARAMS.perteDiagonale || 0);
+      perte = (SOLS_PARAMS.pertes[piece.solType] || 0);
+      if (piece.solPose === 'diagonale') perte += (SOLS_PARAMS.perteDiagonale || 0);
+      const f = SOLS_PARAMS.fournitureFraction[piece.solType];
+      frac = (f === undefined) ? 1 : f; // par défaut, pertes sur tout le prix
     }
-    const surfSolFacturee = surfSol * coefPertes;
-    const pSol = codeSol ? getMoyenPrixFor(codeSol, piece) * surfSolFacturee : 0;
+    // €/m² effectif = pose (sans pertes) + fourniture (avec pertes)
+    const majoration = (1 - frac) + frac * (1 + perte);
+    const pSol = codeSol ? getMoyenPrixFor(codeSol, piece) * surfSol * majoration : 0;
     const pSC = codeSC ? getMoyenPrixFor(codeSC, piece) * surfSol : 0;
     const totalSols = pSol + pSC;
     totalPiece += totalSols;
