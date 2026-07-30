@@ -1089,6 +1089,51 @@ function retirerOubliPlo(index, code) {
   recalcPiece(index);
 }
 
+// ===== CONTRÔLE FINAL DU MOTEUR PLOMBERIE (MISSION 030) =====
+// Fonction pure : analyse la cohérence du devis plomberie avant validation.
+// Détecte : équipement sans alimentation/évacuation, doublons, incohérences,
+// prestations incomplètes / accessoires orphelins. Retourne [{niveau, texte}].
+function verifierPlomberie(pieces, metiers) {
+  metiers = metiers || (typeof metiersActifs !== 'undefined' ? metiersActifs : []);
+  const alertes = [];
+  if (!metiers.includes('plomberie')) return alertes;
+  let totalAppareils = 0;
+  (pieces || []).forEach(p => {
+    const pl = (p.config && p.config.plomberie) || {};
+    const car = (p.config && p.config.carrelage) || {};
+    const italienne = pl.PLO_DOUCHE_ITAL || 0;
+    const cabine = pl.PLO_DOUCHE_CABINE || 0;
+    const douches = italienne + cabine;
+    const ballons = (pl.PLO_BALLON_50 || 0) + (pl.PLO_BALLON_100 || 0) + (pl.PLO_BALLON_200 || 0);
+    const adoucisseurs = pl.PLO_ADOUCISSEUR || 0;
+    const receveurs = (pl.PLO_RECEV_PRET || 0) + (pl.PLO_RECEV_90 || 0) + (pl.PLO_RECEV_120PC || 0);
+    totalAppareils += (pl.PLO_WC_SIMPLE || 0) + (pl.PLO_WC_SUSP || 0) + (pl.PLO_MEUBLE_LAV || 0) + (pl.PLO_LAV_SIMPLE || 0)
+                    + douches + (pl.PLO_BAIGNOIRE || 0) + (pl.PLO_EVIER || 0) + (pl.PLO_EVIER_DBL || 0) + (pl.PLO_RACCORD_LV || 0);
+
+    // DOUBLON — étanchéité déjà comprise dans la douche à l'italienne « complet »
+    if (italienne > 0 && (car.CAR_ETANCHEITE || 0) > 0) {
+      alertes.push({ niveau:'attention', texte: p.nom + ' : l\'étanchéité est déjà comprise dans la douche à l\'italienne (complet) — la ligne « Étanchéité » du carrelage fait doublon.' });
+    }
+    // DOUBLON — la cabine de douche inclut déjà son receveur
+    if (cabine > 0 && receveurs > 0) {
+      alertes.push({ niveau:'attention', texte: p.nom + ' : la cabine de douche inclut déjà son receveur — le receveur séparé fait doublon.' });
+    }
+    // INCOHÉRENCES / accessoires orphelins
+    if ((pl.PLO_DOUCHE_ENS || 0) > 0 && douches <= 0) alertes.push({ niveau:'info', texte: p.nom + ' : ensemble de douche sans douche configurée.' });
+    if (((pl.PLO_PAROI_DOUCHE || 0) + (pl.PLO_PAROI_DBL || 0)) > 0 && douches <= 0) alertes.push({ niveau:'info', texte: p.nom + ' : paroi de douche sans douche configurée.' });
+    if ((pl.PLO_GROUPE_SECU || 0) > 0 && ballons <= 0) alertes.push({ niveau:'info', texte: p.nom + ' : groupe de sécurité sans ballon d\'eau chaude.' });
+    if ((pl.PLO_DISCONNECTEUR || 0) > 0 && adoucisseurs <= 0) alertes.push({ niveau:'info', texte: p.nom + ' : disconnecteur sans adoucisseur.' });
+    if (receveurs > 0 && italienne <= 0 && cabine <= 0) alertes.push({ niveau:'info', texte: p.nom + ' : receveur sans douche configurée.' });
+  });
+
+  // ÉQUIPEMENT ORPHELIN — des appareils existent mais le réseau EF/ECS/évacuation
+  // n'a pas été généré (ne doit jamais arriver : le réseau est auto-dimensionné).
+  if (totalAppareils > 0 && typeof window !== 'undefined' && window.__plomberieAuto === null) {
+    alertes.push({ niveau:'attention', texte: 'Des appareils sanitaires sont configurés mais aucun réseau EF/ECS/évacuation n\'a été généré — vérifiez que le lot plomberie est bien actif.' });
+  }
+  return alertes;
+}
+
 function getCarrelagePourPiece(pieceId) {
   const base = [
     { code:'CAR_POSE_SOL', label:'Carrelage sol (standard)', unite:'m²' },
@@ -1945,6 +1990,11 @@ function controlesCoherence(pieces, ch) {
   const nbChambres = pieces.filter(p => p.id === 'chambre').length;
   if (surfDeclaree >= S.grandeSurface && nbChambres > 0 && nbChambres < S.chambresMinGrandeSurface) {
     alertes.push({ niveau:'info', texte: surfDeclaree + ' m² avec seulement ' + nbChambres + ' chambre(s) : composition inhabituelle, confirmez-la.' });
+  }
+
+  // Contrôle final du moteur plomberie (doublons, incohérences, orphelins) — MISSION 030
+  if (typeof verifierPlomberie === 'function') {
+    verifierPlomberie(pieces).forEach(a => alertes.push(a));
   }
 
   return alertes;
