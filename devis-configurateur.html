@@ -1643,14 +1643,160 @@ function retirerOubliMen(index, code) {
 }
 
 function getVmcPourPiece(pieceId) {
-  if (['sdb','sde','wc','cuisine'].includes(pieceId)) return [
+  if (['sdb','sde','wc','cuisine','cave'].includes(pieceId)) return [
     { code:'VMC_BOUCHE', label:'Bouche d\'extraction', unite:'U' },
     { code:'VMC_ENTREE_AIR', label:'Entrée d\'air hygro', unite:'U' },
   ];
-  if (['salon','chambre'].includes(pieceId)) return [
+  if (['salon','salle_manger','chambre','bureau'].includes(pieceId)) return [
     { code:'VMC_ENTREE_AIR', label:'Entrée d\'air hygro', unite:'U' },
   ];
   return [];
+}
+
+// ===== VMC — pièces & rôles (extraction / balayage) =====
+function _vmcRole(pieceId) {
+  if (['cuisine','sdb','sde','wc','cave'].includes(pieceId)) return 'extraction'; // pièces humides / de service
+  if (['salon','salle_manger','chambre','bureau'].includes(pieceId)) return 'balayage'; // pièces principales
+  return null;
+}
+
+// ===== ÉVALUATION MÉTIER VMC — aide à la décision, jamais imposée =====
+function evaluationSupportVmc(piece, ch) {
+  const v = (piece.config && piece.config.vmc) || {};
+  const role = _vmcRole(piece.id);
+  const reco = [];
+  if (role === 'extraction' && !(v.VMC_BOUCHE > 0)) {
+    reco.push('pièce humide : une bouche d\'extraction est nécessaire pour la VMC');
+  }
+  if (role === 'balayage' && !(v.VMC_ENTREE_AIR > 0)) {
+    reco.push('pièce principale : une entrée d\'air assure le balayage (air neuf)');
+  }
+  if (piece.id === 'cuisine' && (v.VMC_BOUCHE > 0)) {
+    reco.push('cuisine : bouche grand débit (temporisée) recommandée ; rejet en toiture par défaut, sortie façade possible');
+  }
+  return reco;
+}
+
+function recoSupportVmcHtml(piece) {
+  const reco = evaluationSupportVmc(piece, chantier);
+  if (!reco.length) return '';
+  return `
+    <div style="display:flex;gap:10px;align-items:flex-start;background:#fef9ec;border:1px solid #f59e0b;border-radius:12px;padding:12px;margin-bottom:12px;">
+      <span style="font-size:1.1rem;">💡</span>
+      <div style="font-size:0.82rem;color:#78350f;">
+        <strong>Recommandation DS.BAT :</strong> ${reco.join(' · ')}.
+        Vous restez libre de suivre ces conseils ou non.
+      </div>
+    </div>`;
+}
+
+// ===== AUTO-GÉNÉRATION DES BOUCHES / ENTRÉES D'AIR — suggestions non imposées =====
+function controlesOublisVmc(piece) {
+  const v = (piece.config && piece.config.vmc) || {};
+  const ign = piece._oublisIgnoresVmc || {};
+  const role = _vmcRole(piece.id);
+  const list = [];
+  const add = (code, qty, question, unite) => {
+    qty = Math.round((qty || 0) * 10) / 10;
+    if (qty <= 0 || v[code] || ign[code]) return;
+    list.push({ code, qty, question, unite });
+  };
+  // Extraction : 1 bouche par pièce humide / de service (cuisine, SDB, SDE, WC, buanderie)
+  if (role === 'extraction' && !(v.VMC_BOUCHE > 0)) {
+    add('VMC_BOUCHE', 1, 'Bouche d\'extraction non prévue dans cette pièce — l\'ajouter ?', 'U');
+  }
+  // Balayage : 1 entrée d'air par pièce principale (séjour, chambres, bureau)
+  if (role === 'balayage' && !(v.VMC_ENTREE_AIR > 0)) {
+    add('VMC_ENTREE_AIR', 1, 'Entrée d\'air non prévue dans cette pièce principale — l\'ajouter ?', 'U');
+  }
+  return list;
+}
+
+function oublisVmcHtml(index) {
+  const piece = piecesSelectionnees[index];
+  if (!piece) return '';
+  const suggestions = controlesOublisVmc(piece);
+  const v = (piece.config && piece.config.vmc) || {};
+  const OUBLI = ['VMC_BOUCHE','VMC_ENTREE_AIR'];
+  const ajoutes = Object.entries(v).filter(([c, q]) => q > 0 && OUBLI.includes(c));
+  if (!suggestions.length && !ajoutes.length) return '';
+
+  const sugHtml = suggestions.map(s => `
+    <div style="display:flex;gap:8px;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px dashed var(--border);">
+      <span style="font-size:0.82rem;color:#78350f;flex:1;">${s.question} <span style="color:var(--text-light);">(${s.qty} ${s.unite} · ${formatEuro(getMoyenPrixFor(s.code, piece) * s.qty)})</span></span>
+      <span style="display:flex;gap:6px;flex-shrink:0;">
+        <button onclick="ajouterOubliVmc(${index},'${s.code}',${s.qty})" style="background:var(--accent);color:#fff;border:none;border-radius:16px;padding:4px 12px;font-size:0.78rem;font-weight:700;cursor:pointer;">Oui, ajouter</button>
+        <button onclick="ignorerOubliVmc(${index},'${s.code}')" style="background:var(--surface);color:var(--text-light);border:1px solid var(--border);border-radius:16px;padding:4px 12px;font-size:0.78rem;cursor:pointer;">Non</button>
+      </span>
+    </div>`).join('');
+
+  const ajHtml = ajoutes.map(([code, qte]) => `
+    <div style="display:flex;gap:8px;align-items:center;justify-content:space-between;padding:6px 0;">
+      <span style="font-size:0.82rem;color:var(--accent);flex:1;">✓ ${findPrestLabel(code)} × ${qte} — ${formatEuro(getMoyenPrixFor(code, piece) * qte)}</span>
+      <button onclick="retirerOubliVmc(${index},'${code}')" style="background:none;border:none;color:var(--text-light);font-size:0.78rem;cursor:pointer;text-decoration:underline;">Retirer</button>
+    </div>`).join('');
+
+  return `
+    <div style="margin-top:12px;background:#fef9ec;border:1px solid #f59e0b;border-radius:12px;padding:12px;">
+      <strong style="font-size:0.84rem;color:#92400e;">🔎 Contrôle qualité VMC — bouches & entrées d'air</strong>
+      ${sugHtml}
+      ${ajHtml ? '<div style="margin-top:6px;border-top:1px solid var(--border);padding-top:6px;">' + ajHtml + '</div>' : ''}
+    </div>`;
+}
+
+function ajouterOubliVmc(index, code, qty) {
+  const piece = piecesSelectionnees[index];
+  if (!piece.config.vmc) piece.config.vmc = {};
+  piece.config.vmc[code] = qty;
+  const qs = document.getElementById(`qty_${index}_${code}`);
+  if (qs) qs.textContent = qty;
+  const pt = document.getElementById(`ptotal_${index}_${code}`);
+  if (pt) pt.textContent = formatEuro(getMoyenPrixFor(code, piece) * qty);
+  recalcPiece(index);
+}
+function ignorerOubliVmc(index, code) {
+  const piece = piecesSelectionnees[index];
+  if (!piece._oublisIgnoresVmc) piece._oublisIgnoresVmc = {};
+  piece._oublisIgnoresVmc[code] = true;
+  const el = document.getElementById(`oublis_vmc_${index}`);
+  if (el) el.innerHTML = oublisVmcHtml(index);
+  saveEtat();
+}
+function retirerOubliVmc(index, code) {
+  const piece = piecesSelectionnees[index];
+  if (piece.config.vmc) delete piece.config.vmc[code];
+  const qs = document.getElementById(`qty_${index}_${code}`);
+  if (qs) qs.textContent = 0;
+  const pt = document.getElementById(`ptotal_${index}_${code}`);
+  if (pt) pt.textContent = formatEuro(0);
+  recalcPiece(index);
+}
+
+// ===== CONTRÔLE FINAL DU MOTEUR VMC (MISSION 040) =====
+function verifierVMC(pieces, metiers) {
+  metiers = metiers || (typeof metiersActifs !== 'undefined' ? metiersActifs : []);
+  const alertes = [];
+  if (!metiers.includes('vmc')) return alertes;
+  let totalBouches = 0;
+  (pieces || []).forEach(p => {
+    const v = (p.config && p.config.vmc) || {};
+    const role = _vmcRole(p.id);
+    totalBouches += (v.VMC_BOUCHE || 0);
+    if (role === 'extraction' && !(v.VMC_BOUCHE > 0)) {
+      alertes.push({ niveau:'attention', texte: p.nom + ' : pièce humide sans bouche d\'extraction VMC.' });
+    }
+    if (role === 'balayage' && !(v.VMC_ENTREE_AIR > 0)) {
+      alertes.push({ niveau:'info', texte: p.nom + ' : pièce principale sans entrée d\'air (balayage).' });
+    }
+  });
+  if (totalBouches <= 0) {
+    alertes.push({ niveau:'attention', texte: 'VMC sélectionnée mais aucune bouche d\'extraction configurée — la centrale ne sera pas chiffrée.' });
+  }
+  // Cohérence bouches / caisson : le caisson est dimensionné sur le nombre de bouches
+  if (totalBouches > 8) {
+    alertes.push({ niveau:'info', texte: totalBouches + ' bouches : vérifier le débit et la capacité du caisson (un caisson à fort débit peut être nécessaire).' });
+  }
+  return alertes;
 }
 
 // ===== ÉTAT GLOBAL =====
@@ -2083,6 +2229,10 @@ function controlesCoherence(pieces, ch) {
   if (typeof verifierSols === 'function') {
     verifierSols(pieces).forEach(a => alertes.push(a));
   }
+  // Contrôle final du moteur VMC (bouches, entrées d'air, cohérence caisson) — MISSION 040
+  if (typeof verifierVMC === 'function') {
+    verifierVMC(pieces).forEach(a => alertes.push(a));
+  }
 
   return alertes;
 }
@@ -2341,11 +2491,13 @@ function renderMetierSection(section, pieceIndex) {
         ${section.metier === 'carrelage' ? `<div id="reco_support_carr_${pieceIndex}"></div>` : ''}
         ${section.metier === 'isolation' ? `<div id="reco_support_iso_${pieceIndex}"></div>` : ''}
         ${section.metier === 'menuiserie' ? `<div id="reco_support_men_${pieceIndex}"></div>` : ''}
+        ${section.metier === 'vmc' ? `<div id="reco_support_vmc_${pieceIndex}"></div>` : ''}
         ${section.prests.map(p => renderPrestRow(p, pieceIndex, section.metier)).join('')}
         ${section.metier === 'carrelage' ? `<div id="oublis_carr_${pieceIndex}"></div>` : ''}
         ${section.metier === 'isolation' ? `<div id="oublis_iso_${pieceIndex}"></div>` : ''}
         ${section.metier === 'menuiserie' ? `<div id="oublis_men_${pieceIndex}"></div>` : ''}
         ${section.metier === 'plomberie' ? `<div id="oublis_plo_${pieceIndex}"></div>` : ''}
+        ${section.metier === 'vmc' ? `<div id="oublis_vmc_${pieceIndex}"></div>` : ''}
       </div>
     </div>
   `;
@@ -3334,6 +3486,14 @@ function recalcPiece(index) {
     if (recoPloEl) recoPloEl.innerHTML = recoSupportPloHtml(piece);
     const oublisPloEl = document.getElementById(`oublis_plo_${index}`);
     if (oublisPloEl) oublisPloEl.innerHTML = oublisPloHtml(index);
+  }
+
+  // Recommandation + auto-génération bouches/entrées d'air VMC (aide à la décision, non imposés)
+  if (metiersActifs.includes('vmc')) {
+    const recoVmcEl = document.getElementById(`reco_support_vmc_${index}`);
+    if (recoVmcEl) recoVmcEl.innerHTML = recoSupportVmcHtml(piece);
+    const oublisVmcEl = document.getElementById(`oublis_vmc_${index}`);
+    if (oublisVmcEl) oublisVmcEl.innerHTML = oublisVmcHtml(index);
   }
 
   // Temps de chantier de la pièce (heures, arrondi 0,1) — persisté avec le devis

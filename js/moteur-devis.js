@@ -83,17 +83,20 @@ function calculerDevis() {
   // éléments centraux manquants, comme le tableau électrique côté élec.
   let vmc = null;
   if (metiersActifs.includes('vmc') && typeof dimensionnementVMC === 'function') {
-    let bouches = 0, entreesAir = 0;
+    let bouches = 0, entreesAir = 0, debitTotal = 0;
+    const dpb = (typeof VMC_PARAMS !== 'undefined') ? VMC_PARAMS.debitParBouche : { defaut: 30 };
     piecesSelectionnees.forEach(p => {
       const v = p.config.vmc || {};
-      bouches += (v.VMC_BOUCHE || 0);
+      const nb = (v.VMC_BOUCHE || 0);
+      bouches += nb;
       entreesAir += (v.VMC_ENTREE_AIR || 0);
+      debitTotal += nb * ((dpb[p.id] !== undefined) ? dpb[p.id] : dpb.defaut);
     });
     if (bouches > 0) {
-      vmc = dimensionnementVMC({ bouches, entreesAir });
+      vmc = dimensionnementVMC({ bouches, entreesAir, debitTotal });
       totalGlobalHT += vmc.prixTotalHT;
     }
-    window.__besoinsVMC = { bouches, entreesAir };
+    window.__besoinsVMC = { bouches, entreesAir, debitTotal };
   }
   window.__vmcAuto = vmc;
 
