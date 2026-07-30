@@ -3569,6 +3569,31 @@ function renderPhase3() {
       </details>` : ''}
     </div>` : '';
 
+  const chauffage = D.chauffage;
+  const exChauf = (chauffage && typeof explicationsChauffage === 'function') ? explicationsChauffage(chauffage) : [];
+  const chauffageHtml = chauffage ? `
+    <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-md);padding:20px;margin:20px 0;">
+      <h3 style="color:var(--primary);margin-bottom:10px;font-size:1rem;">🔥 Chauffage électrique — dimensionnement auto</h3>
+      <div style="font-size:0.88rem;color:var(--text-light);margin-bottom:10px;">
+        ${chauffage.nbPiecesChauffees} pièce(s) · ${chauffage.nbRadiateurs} radiateur(s) · ~${chauffage.puissanceTotale} W
+      </div>
+      <div style="display:flex;justify-content:space-between;font-weight:700;">
+        <span>Radiateurs + thermostat fil pilote</span>
+        <span>${formatEuro(chauffage.prixTotalHT)}</span>
+      </div>
+      ${exChauf.length ? `
+      <details style="margin-top:12px;">
+        <summary style="cursor:pointer;color:var(--primary);font-weight:600;font-size:0.88rem;">🧠 Pourquoi ce dimensionnement ?</summary>
+        <ul style="margin:10px 0 12px;padding-left:18px;font-size:0.82rem;color:var(--text-light);">
+          ${exChauf.map(e => '<li style="margin-bottom:4px;">' + e + '</li>').join('')}
+        </ul>
+        <div style="font-size:0.8rem;border-top:1px dashed var(--border);padding-top:10px;">
+          <strong style="color:var(--primary);">Composition :</strong>
+          ${chauffage.composition.map(c => '<div style="display:flex;justify-content:space-between;padding:2px 0;color:var(--text-light);"><span>' + c.libelle + ' × ' + c.qte + '</span><span>' + formatEuro(c.prixUnit * c.qte) + '</span></div>').join('')}
+        </div>
+      </details>` : ''}
+    </div>` : '';
+
   const plomberie = D.plomberie;
   const exPlo = (plomberie && typeof explicationsPlomberie === 'function') ? explicationsPlomberie(window.__besoinsPlomberie, plomberie) : [];
   const plomberieHtml = plomberie ? `
@@ -3619,6 +3644,7 @@ function renderPhase3() {
     ${tableauHtml}
     ${vmcHtml}
     ${plomberieHtml}
+    ${chauffageHtml}
     ${extrasHtml}
 
     <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-md);padding:20px;margin:20px 0;">
@@ -3733,6 +3759,8 @@ function construireRecapTexte(numero, totalHT, tva, ttc, clientData) {
   if (_vmc) L.push('• Centrale VMC ' + _vmc.type + ' (' + _vmc.bouches + ' bouches) : ' + formatEuro(_vmc.prixTotalHT));
   const _plo = window.__plomberieAuto;
   if (_plo) L.push('• Réseaux plomberie (' + _plo.efPoints + ' EF / ' + _plo.ecsPoints + ' ECS + évacuations) : ' + formatEuro(_plo.prixTotalHT));
+  const _chauf = window.__chauffageAuto;
+  if (_chauf) L.push('• Chauffage électrique (' + _chauf.nbRadiateurs + ' radiateurs, ~' + _chauf.puissanceTotale + ' W) : ' + formatEuro(_chauf.prixTotalHT));
   L.push('');
   L.push('Total HT : ' + formatEuro(totalHT));
   L.push(labelTVA() + ' : ' + formatEuro(tva));
@@ -3813,6 +3841,15 @@ function construireDetailTexte() {
     out.push('━━━ Plomberie — dimensionnement des réseaux EF/ECS + évacuations ━━━');
     explicationsPlomberie(window.__besoinsPlomberie, _ploEx).forEach(e => out.push('• ' + e));
     _ploEx.composition.forEach(c => out.push('  - ' + c.libelle + ' — ' + c.qte + ' ' + c.unite + ' = ' + formatEuro(c.prixUnit * c.qte)));
+  }
+  // Raisonnement du moteur sur le chauffage électrique
+  const _chaufEx = window.__chauffageAuto;
+  if (_chaufEx && typeof explicationsChauffage === 'function') {
+    out.push('');
+    out.push('━━━ Chauffage électrique — dimensionnement des radiateurs ━━━');
+    explicationsChauffage(_chaufEx).forEach(e => out.push('• ' + e));
+    (_chaufEx.detail || []).forEach(d => out.push('  ' + d.piece + ' : ' + d.surface + ' m² → ~' + d.besoin + ' W (' + d.radiateurs.map(r => r.qte + '×' + r.w + 'W').join(' + ') + ')'));
+    _chaufEx.composition.forEach(c => out.push('  - ' + c.libelle + ' × ' + c.qte + ' = ' + formatEuro(c.prixUnit * c.qte)));
   }
   return out.join('\n');
 }

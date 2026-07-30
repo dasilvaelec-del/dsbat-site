@@ -127,6 +127,16 @@ function calculerDevis() {
   }
   window.__plomberieAuto = plomberie;
 
+  // ----- Chauffage électrique : dimensionnement auto des radiateurs + thermostat -----
+  // Émetteurs (radiateurs) chiffrés selon la puissance par pièce ; le raccordement
+  // (fil pilote) et les circuits/protections sont déjà fournis par le moteur Électricité.
+  let chauffage = null;
+  if (chantier.chauffage === 'electrique' && typeof dimensionnementChauffage === 'function') {
+    chauffage = dimensionnementChauffage(piecesSelectionnees, chantier);
+    if (chauffage) totalGlobalHT += chauffage.prixTotalHT;
+  }
+  window.__chauffageAuto = chauffage;
+
   // ----- Forfait accès + majoration logement occupé + coefficient de zone -----
   let forfaitAcces = 0;
   if (chantier.accessibilite === 'moyen') forfaitAcces += 80;
@@ -147,7 +157,7 @@ function calculerDevis() {
 
   return {
     totalHT: totalGlobalHT, taux, tva, ttc,
-    tableau, ballon, vmc, plomberie, forfaitAcces, coefZ,
+    tableau, ballon, vmc, plomberie, chauffage, forfaitAcces, coefZ,
     besoinsTableau: window.__besoinsTableau,
     besoinsVMC: window.__besoinsVMC,
     besoinsPlomberie: window.__besoinsPlomberie,
