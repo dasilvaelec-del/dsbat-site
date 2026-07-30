@@ -956,6 +956,139 @@ function getPlombPourPiece(pieceId) {
   return [];
 }
 
+// ===== ÉVALUATION / COMPLÉTUDE (plomberie) — aide à la décision, jamais imposée =====
+// Plomberie = métier manuel (avec gammes). Quantités lues depuis la config de la pièce.
+function _ploQtes(piece) {
+  const plo = (piece.config && piece.config.plomberie) || {};
+  const douches = (plo.PLO_DOUCHE_ITAL || 0) + (plo.PLO_DOUCHE_CABINE || 0);
+  const ballons = (plo.PLO_BALLON_50 || 0) + (plo.PLO_BALLON_100 || 0) + (plo.PLO_BALLON_200 || 0);
+  const adoucisseurs = (plo.PLO_ADOUCISSEUR || 0);
+  const ensembleDouche = (plo.PLO_DOUCHE_ENS || 0);
+  const paroi = (plo.PLO_PAROI_DOUCHE || 0) + (plo.PLO_PAROI_DBL || 0);
+  const groupeSecu = (plo.PLO_GROUPE_SECU || 0);
+  const disconnecteur = (plo.PLO_DISCONNECTEUR || 0);
+  const sanitaires = douches + (plo.PLO_BAIGNOIRE || 0) + (plo.PLO_MEUBLE_LAV || 0) + (plo.PLO_LAV_SIMPLE || 0)
+                   + (plo.PLO_WC_SIMPLE || 0) + (plo.PLO_WC_SUSP || 0) + (plo.PLO_EVIER || 0) + (plo.PLO_EVIER_DBL || 0);
+  return { plo, douches, ballons, adoucisseurs, ensembleDouche, paroi, groupeSecu, disconnecteur, sanitaires };
+}
+
+function evaluationSupportPlo(piece, ch) {
+  const q = _ploQtes(piece);
+  const reco = [];
+  // Ballon d'eau chaude sans groupe de sécurité (obligatoire)
+  if (q.ballons > 0 && q.groupeSecu <= 0) {
+    reco.push('un groupe de sécurité est obligatoire sur un chauffe-eau (ballon)');
+  }
+  // Douche sans ensemble (colonne / mitigeur)
+  if (q.douches > 0 && q.ensembleDouche <= 0) {
+    reco.push('un ensemble de douche (colonne, mitigeur) complète la douche');
+  }
+  // Douche à l'italienne : étanchéité + receveur/caniveau
+  if ((q.plo.PLO_DOUCHE_ITAL || 0) > 0) {
+    reco.push('douche à l\'italienne : prévoyez l\'étanchéité (SPEC) et un caniveau / receveur à carreler');
+  }
+  // Adoucisseur sans disconnecteur
+  if (q.adoucisseurs > 0 && q.disconnecteur <= 0) {
+    reco.push('un disconnecteur protège le réseau en amont d\'un adoucisseur');
+  }
+  return reco;
+}
+
+function recoSupportPloHtml(piece) {
+  const reco = evaluationSupportPlo(piece, chantier);
+  if (!reco.length) return '';
+  return `
+    <div style="display:flex;gap:10px;align-items:flex-start;background:#fef9ec;border:1px solid #f59e0b;border-radius:12px;padding:12px;margin:12px 0;">
+      <span style="font-size:1.1rem;">💡</span>
+      <div style="font-size:0.82rem;color:#78350f;">
+        <strong>Recommandation DS.BAT :</strong> ${reco.join(' · ')}.
+        Vous restez libre de suivre ces conseils ou non.
+      </div>
+    </div>`;
+}
+
+// ===== CONTRÔLE DES OUBLIS COURANTS (plomberie) — suggestions non imposées =====
+function controlesOublisPlo(piece) {
+  const q = _ploQtes(piece);
+  const ign = piece._oublisIgnoresPlo || {};
+  const list = [];
+  if (q.sanitaires <= 0 && q.ballons <= 0) return list; // rien tant qu'aucune pose
+  const add = (code, qty, question, unite) => {
+    qty = Math.round((qty || 0) * 10) / 10;
+    if (qty <= 0 || q.plo[code] || ign[code]) return;
+    list.push({ code, qty, question, unite });
+  };
+  // Ensemble douche (colonne, mitigeur) si douche sans ensemble
+  if (q.douches > 0 && q.ensembleDouche <= 0) {
+    add('PLO_DOUCHE_ENS', q.douches, 'Ensemble de douche (colonne, mitigeur) non prévu — l\'ajouter ?', 'U');
+  }
+  // Paroi de douche si douche sans paroi
+  if (q.douches > 0 && q.paroi <= 0) {
+    add('PLO_PAROI_DOUCHE', q.douches, 'Paroi de douche non prévue — l\'ajouter ?', 'U');
+  }
+  // Groupe de sécurité sur le ballon
+  if (q.ballons > 0 && q.groupeSecu <= 0) {
+    add('PLO_GROUPE_SECU', q.ballons, 'Groupe de sécurité du ballon (obligatoire) non prévu — l\'ajouter ?', 'U');
+  }
+  // Disconnecteur sur l'adoucisseur
+  if (q.adoucisseurs > 0 && q.disconnecteur <= 0) {
+    add('PLO_DISCONNECTEUR', q.adoucisseurs, 'Disconnecteur (protection réseau, adoucisseur) non prévu — l\'ajouter ?', 'U');
+  }
+  return list;
+}
+
+function oublisPloHtml(index) {
+  const piece = piecesSelectionnees[index];
+  if (!piece) return '';
+  const suggestions = controlesOublisPlo(piece);
+  const plo = (piece.config && piece.config.plomberie) || {};
+  const OUBLI = ['PLO_DOUCHE_ENS','PLO_PAROI_DOUCHE','PLO_GROUPE_SECU','PLO_DISCONNECTEUR'];
+  const ajoutes = Object.entries(plo).filter(([c, qte]) => qte > 0 && OUBLI.includes(c));
+  if (!suggestions.length && !ajoutes.length) return '';
+
+  const sugHtml = suggestions.map(s => `
+    <div style="display:flex;gap:8px;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px dashed var(--border);">
+      <span style="font-size:0.82rem;color:#78350f;flex:1;">${s.question} <span style="color:var(--text-light);">(${s.qty} ${s.unite} · ${formatEuro(getMoyenPrixFor(s.code, piece) * s.qty)})</span></span>
+      <span style="display:flex;gap:6px;flex-shrink:0;">
+        <button onclick="ajouterOubliPlo(${index},'${s.code}',${s.qty})" style="background:var(--accent);color:#fff;border:none;border-radius:16px;padding:4px 12px;font-size:0.78rem;font-weight:700;cursor:pointer;">Oui, ajouter</button>
+        <button onclick="ignorerOubliPlo(${index},'${s.code}')" style="background:var(--surface);color:var(--text-light);border:1px solid var(--border);border-radius:16px;padding:4px 12px;font-size:0.78rem;cursor:pointer;">Non</button>
+      </span>
+    </div>`).join('');
+
+  const ajHtml = ajoutes.map(([code, qte]) => `
+    <div style="display:flex;gap:8px;align-items:center;justify-content:space-between;padding:6px 0;">
+      <span style="font-size:0.82rem;color:var(--accent);flex:1;">✓ ${findPrestLabel(code)} × ${qte} — ${formatEuro(getMoyenPrixFor(code, piece) * qte)}</span>
+      <button onclick="retirerOubliPlo(${index},'${code}')" style="background:none;border:none;color:var(--text-light);font-size:0.78rem;cursor:pointer;text-decoration:underline;">Retirer</button>
+    </div>`).join('');
+
+  return `
+    <div style="margin-top:12px;background:#fef9ec;border:1px solid #f59e0b;border-radius:12px;padding:12px;">
+      <strong style="font-size:0.84rem;color:#92400e;">🔎 Contrôle qualité — compléments fréquents</strong>
+      ${sugHtml}
+      ${ajHtml ? '<div style="margin-top:6px;border-top:1px solid var(--border);padding-top:6px;">' + ajHtml + '</div>' : ''}
+    </div>`;
+}
+
+function ajouterOubliPlo(index, code, qty) {
+  const piece = piecesSelectionnees[index];
+  if (!piece.config.plomberie) piece.config.plomberie = {};
+  piece.config.plomberie[code] = qty;
+  recalcPiece(index);
+}
+function ignorerOubliPlo(index, code) {
+  const piece = piecesSelectionnees[index];
+  if (!piece._oublisIgnoresPlo) piece._oublisIgnoresPlo = {};
+  piece._oublisIgnoresPlo[code] = true;
+  const el = document.getElementById(`oublis_plo_${index}`);
+  if (el) el.innerHTML = oublisPloHtml(index);
+  saveEtat();
+}
+function retirerOubliPlo(index, code) {
+  const piece = piecesSelectionnees[index];
+  if (piece.config.plomberie) delete piece.config.plomberie[code];
+  recalcPiece(index);
+}
+
 function getCarrelagePourPiece(pieceId) {
   const base = [
     { code:'CAR_POSE_SOL', label:'Carrelage sol (standard)', unite:'m²' },
@@ -2067,7 +2200,7 @@ function renderMetierSection(section, pieceIndex) {
       </div>
       <div class="metier-section-body">
         ${section.metier === 'electricite' ? bandeauNorme() + explicationsPieceHtml(pieceIndex) + selecteursElec(pieceIndex) : ''}
-        ${section.metier === 'plomberie' ? selecteursPlomberie(pieceIndex) : ''}
+        ${section.metier === 'plomberie' ? selecteursPlomberie(pieceIndex) + `<div id="reco_support_plo_${pieceIndex}"></div>` : ''}
         ${section.metier === 'carrelage' ? `<div id="reco_support_carr_${pieceIndex}"></div>` : ''}
         ${section.metier === 'isolation' ? `<div id="reco_support_iso_${pieceIndex}"></div>` : ''}
         ${section.metier === 'menuiserie' ? `<div id="reco_support_men_${pieceIndex}"></div>` : ''}
@@ -2075,6 +2208,7 @@ function renderMetierSection(section, pieceIndex) {
         ${section.metier === 'carrelage' ? `<div id="oublis_carr_${pieceIndex}"></div>` : ''}
         ${section.metier === 'isolation' ? `<div id="oublis_iso_${pieceIndex}"></div>` : ''}
         ${section.metier === 'menuiserie' ? `<div id="oublis_men_${pieceIndex}"></div>` : ''}
+        ${section.metier === 'plomberie' ? `<div id="oublis_plo_${pieceIndex}"></div>` : ''}
       </div>
     </div>
   `;
@@ -2985,6 +3119,14 @@ function recalcPiece(index) {
     if (recoMenEl) recoMenEl.innerHTML = recoSupportMenHtml(piece);
     const oublisMenEl = document.getElementById(`oublis_men_${index}`);
     if (oublisMenEl) oublisMenEl.innerHTML = oublisMenHtml(index);
+  }
+
+  // Recommandation + contrôle des oublis plomberie (aide à la décision, non imposés)
+  if (metiersActifs.includes('plomberie')) {
+    const recoPloEl = document.getElementById(`reco_support_plo_${index}`);
+    if (recoPloEl) recoPloEl.innerHTML = recoSupportPloHtml(piece);
+    const oublisPloEl = document.getElementById(`oublis_plo_${index}`);
+    if (oublisPloEl) oublisPloEl.innerHTML = oublisPloHtml(index);
   }
 
   // Temps de chantier de la pièce (heures, arrondi 0,1) — persisté avec le devis
