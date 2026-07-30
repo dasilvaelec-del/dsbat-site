@@ -102,7 +102,8 @@ function calculerDevis() {
   // (alimentations PER + évacuations PVC), sur le modèle du tableau / de la VMC.
   let plomberie = null;
   if (metiersActifs.includes('plomberie') && typeof dimensionnementPlomberie === 'function') {
-    let wc = 0, vasque = 0, douche = 0, baignoire = 0, evier = 0, laveLinge = 0;
+    let wc = 0, vasque = 0, douche = 0, baignoire = 0, evier = 0, laveLinge = 0,
+        italienne = 0, dejaReceveur = 0, dejaNourrice = 0, dejaRobinet = 0;
     piecesSelectionnees.forEach(p => {
       const pl = p.config.plomberie || {};
       wc += (pl.PLO_WC_SIMPLE || 0) + (pl.PLO_WC_SUSP || 0);
@@ -111,8 +112,13 @@ function calculerDevis() {
       baignoire += (pl.PLO_BAIGNOIRE || 0);
       evier += (pl.PLO_EVIER || 0) + (pl.PLO_EVIER_DBL || 0);
       laveLinge += (pl.PLO_RACCORD_LV || 0);
+      italienne += (pl.PLO_DOUCHE_ITAL || 0);
+      // Accessoires déjà configurés manuellement -> gardes anti-doublon
+      dejaReceveur += (pl.PLO_RECEV_PRET || 0) + (pl.PLO_RECEV_90 || 0) + (pl.PLO_RECEV_120PC || 0);
+      dejaNourrice += (pl.PLO_NOURRICE || 0);
+      dejaRobinet += (pl.PLO_ROB_ARRET || 0);
     });
-    const besoins = { wc, vasque, douche, baignoire, evier, laveLinge };
+    const besoins = { wc, vasque, douche, baignoire, evier, laveLinge, italienne, dejaReceveur, dejaNourrice, dejaRobinet };
     if (wc + vasque + douche + baignoire + evier + laveLinge > 0) {
       plomberie = dimensionnementPlomberie(besoins);
       if (plomberie) totalGlobalHT += plomberie.prixTotalHT;
