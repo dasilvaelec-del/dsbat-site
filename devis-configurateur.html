@@ -46,6 +46,15 @@ window.axeptioSettings = {
 <script src="js/moteur-devis.js"></script>
 <script src="js/moteur-recommandations.js"></script>
 <script src="menu.js"></script>
+<script src="js/moteurs/electricite.js"></script>
+<script src="js/moteurs/plomberie.js"></script>
+<script src="js/moteurs/peinture.js"></script>
+<script src="js/moteurs/sols.js"></script>
+<script src="js/moteurs/carrelage.js"></script>
+<script src="js/moteurs/isolation.js"></script>
+<script src="js/moteurs/chauffage.js"></script>
+<script src="js/moteurs/vmc.js"></script>
+<script src="js/moteurs/menuiserie.js"></script>
 
 <style>
 /* ===== CONFIGURATEUR PIÈCE PAR PIÈCE ===== */
@@ -877,122 +886,11 @@ function getPrestationsPourPiece(pieceId, metiersActifs) {
   return sections;
 }
 
-function getElecPourPiece(pieceId) {
-  const base = [
-    { code:'ELEC_PL_SA', label:'Point lumineux simple', unite:'U' },
-    { code:'ELEC_PL_VV', label:'Point lumineux va-et-vient (2 accès)', unite:'U' },
-    { code:'ELEC_PL_3BP', label:'Point lumineux télérupteur (3+ accès)', unite:'U' },
-    { code:'ELEC_PL_SUP', label:'Point lumineux supplémentaire (même interrupteur)', unite:'U' },
-    { code:'ELEC_PRISE10', label:'Prise 2P+T simple', unite:'U' },
-    { code:'ELEC_PRISED', label:'Prise double 2P+T', unite:'U' },
-  ];
-  const cuisine = [
-    { code:'ELEC_PRISE20', label:'Prise spécialisée 20A (four, lave-vaisselle)', unite:'U' },
-    { code:'ELEC_PRISE32', label:'Prise spécialisée 32A (plaque induction)', unite:'U' },
-    { code:'ELEC_SC20', label:'Sortie de câble 20A (hotte)', unite:'U' },
-  ];
-  const sdb = [
-    { code:'ELEC_PL_APP', label:'Applique au-dessus du lavabo (éclairage miroir)', unite:'U' },
-    { code:'ELEC_SECH_SERV', label:'Sèche-serviette', unite:'U' },
-    { code:'ELEC_LIAISON_EQUI', label:'Liaison équipotentielle SDB', unite:'U' },
-  ];
-  const salon = [
-    { code:'ELEC_TV', label:'Prise TV', unite:'U' },
-    { code:'ELEC_RJ45', label:'Prise RJ45 cat6', unite:'U' },
-    { code:'ELEC_VOLET', label:'Commande volet roulant', unite:'U' },
-    { code:'ELEC_THERMO', label:'Thermostat d\'ambiance', unite:'U' },
-  ];
-  const commun = [
-    { code:'ELEC_SONETTE', label:'Sonnette / Interphone', unite:'U' },
-    { code:'ELEC_VOLET', label:'Commande volet roulant', unite:'U' },
-  ];
-  // Buanderie / cave / garage : circuits spécialisés gros électroménager (NF C 15-100 : 1 circuit dédié par appareil)
-  const buanderie = [
-    { code:'ELEC_PRISE20', label:'Prise spécialisée 20A (lave-linge)', unite:'U' },
-    { code:'ELEC_SC20', label:'Sortie de câble 20A (sèche-linge)', unite:'U' },
-  ];
 
-  let prests = [...base];
-  if (['cuisine'].includes(pieceId)) prests = [...prests, ...cuisine];
-  if (['cave','garage'].includes(pieceId)) prests = [...prests, ...buanderie];
-  if (['sdb','sde'].includes(pieceId)) prests = [...prests, ...sdb];
-  if (['salon','salle_manger'].includes(pieceId)) prests = [...prests, ...salon];
-  if (['chambre'].includes(pieceId)) prests = [...prests, { code:'ELEC_TV', label:'Prise TV', unite:'U' }, { code:'ELEC_RJ45', label:'Prise RJ45 cat6', unite:'U' }, { code:'ELEC_VOLET', label:'Commande volet roulant', unite:'U' }];
-  if (['bureau'].includes(pieceId)) prests = [...prests, { code:'ELEC_RJ45', label:'Prise RJ45 cat6', unite:'U' }, { code:'ELEC_VOLET', label:'Commande volet roulant', unite:'U' }];
-  if (['entree'].includes(pieceId)) prests = [...prests, ...commun];
-  if (chantier && chantier.chauffage === 'electrique' && ['salon','salle_manger','chambre','bureau'].includes(pieceId)) prests = [...prests, { code:'ELEC_SC20_FP', label:'Sortie de câble radiateur (fil pilote)', unite:'U' }];
-  return prests;
-}
-
-function getPlombPourPiece(pieceId) {
-  if (['sdb'].includes(pieceId)) return [
-    { code:'PLO_BAIGNOIRE', label:'Baignoire', unite:'U' },
-    { code:'PLO_DOUCHE_ITAL', label:'Douche à l\'italienne', unite:'U' },
-    { code:'PLO_DOUCHE_CABINE', label:'Cabine de douche', unite:'U' },
-    { code:'PLO_MEUBLE_LAV', label:'Meuble vasque', unite:'U' },
-    { code:'PLO_WC_SUSP', label:'WC suspendu', unite:'U' },
-    { code:'PLO_BALLON_100', label:'Ballon eau chaude 100L', unite:'U' },
-  ];
-  if (['sde'].includes(pieceId)) return [
-    { code:'PLO_DOUCHE_ITAL', label:'Douche à l\'italienne', unite:'U' },
-    { code:'PLO_DOUCHE_CABINE', label:'Cabine de douche', unite:'U' },
-    { code:'PLO_MEUBLE_LAV', label:'Meuble vasque', unite:'U' },
-  ];
-  if (['wc'].includes(pieceId)) return [
-    { code:'PLO_WC_SIMPLE', label:'WC simple', unite:'U' },
-    { code:'PLO_WC_SUSP', label:'WC suspendu bâti', unite:'U' },
-    { code:'PLO_LAV_SIMPLE', label:'Lave-mains', unite:'U' },
-  ];
-  if (['cuisine'].includes(pieceId)) return [
-    { code:'PLO_EVIER', label:'Évier 1 bac', unite:'U' },
-    { code:'PLO_EVIER_DBL', label:'Évier double bac', unite:'U' },
-    { code:'PLO_RACCORD_LV', label:'Raccordement lave-vaisselle', unite:'U' },
-    { code:'PLO_ADOUCISSEUR', label:'Adoucisseur d\'eau', unite:'U' },
-  ];
-  if (['cave'].includes(pieceId)) return [
-    { code:'PLO_RACCORD_LV', label:'Raccordement lave-linge', unite:'U' },
-    { code:'PLO_BALLON_200', label:'Ballon eau chaude 200L', unite:'U' },
-  ];
-  return [];
-}
 
 // ===== ÉVALUATION / COMPLÉTUDE (plomberie) — aide à la décision, jamais imposée =====
 // Plomberie = métier manuel (avec gammes). Quantités lues depuis la config de la pièce.
-function _ploQtes(piece) {
-  const plo = (piece.config && piece.config.plomberie) || {};
-  const douches = (plo.PLO_DOUCHE_ITAL || 0) + (plo.PLO_DOUCHE_CABINE || 0);
-  const ballons = (plo.PLO_BALLON_50 || 0) + (plo.PLO_BALLON_100 || 0) + (plo.PLO_BALLON_200 || 0);
-  const adoucisseurs = (plo.PLO_ADOUCISSEUR || 0);
-  const ensembleDouche = (plo.PLO_DOUCHE_ENS || 0);
-  const paroi = (plo.PLO_PAROI_DOUCHE || 0) + (plo.PLO_PAROI_DBL || 0);
-  const groupeSecu = (plo.PLO_GROUPE_SECU || 0);
-  const disconnecteur = (plo.PLO_DISCONNECTEUR || 0);
-  const sanitaires = douches + (plo.PLO_BAIGNOIRE || 0) + (plo.PLO_MEUBLE_LAV || 0) + (plo.PLO_LAV_SIMPLE || 0)
-                   + (plo.PLO_WC_SIMPLE || 0) + (plo.PLO_WC_SUSP || 0) + (plo.PLO_EVIER || 0) + (plo.PLO_EVIER_DBL || 0);
-  return { plo, douches, ballons, adoucisseurs, ensembleDouche, paroi, groupeSecu, disconnecteur, sanitaires };
-}
 
-function evaluationSupportPlo(piece, ch) {
-  const q = _ploQtes(piece);
-  const reco = [];
-  // Ballon d'eau chaude sans groupe de sécurité (obligatoire)
-  if (q.ballons > 0 && q.groupeSecu <= 0) {
-    reco.push('un groupe de sécurité est obligatoire sur un chauffe-eau (ballon)');
-  }
-  // Douche sans ensemble (colonne / mitigeur)
-  if (q.douches > 0 && q.ensembleDouche <= 0) {
-    reco.push('un ensemble de douche (colonne, mitigeur) complète la douche');
-  }
-  // Douche à l'italienne : étanchéité + receveur/caniveau
-  if ((q.plo.PLO_DOUCHE_ITAL || 0) > 0) {
-    reco.push('douche à l\'italienne : prévoyez l\'étanchéité (SPEC) et un caniveau / receveur à carreler');
-  }
-  // Adoucisseur sans disconnecteur
-  if (q.adoucisseurs > 0 && q.disconnecteur <= 0) {
-    reco.push('un disconnecteur protège le réseau en amont d\'un adoucisseur');
-  }
-  return reco;
-}
 
 function recoSupportPloHtml(piece) {
   const reco = evaluationSupportPlo(piece, chantier);
@@ -1008,34 +906,6 @@ function recoSupportPloHtml(piece) {
 }
 
 // ===== CONTRÔLE DES OUBLIS COURANTS (plomberie) — suggestions non imposées =====
-function controlesOublisPlo(piece) {
-  const q = _ploQtes(piece);
-  const ign = piece._oublisIgnoresPlo || {};
-  const list = [];
-  if (q.sanitaires <= 0 && q.ballons <= 0) return list; // rien tant qu'aucune pose
-  const add = (code, qty, question, unite) => {
-    qty = Math.round((qty || 0) * 10) / 10;
-    if (qty <= 0 || q.plo[code] || ign[code]) return;
-    list.push({ code, qty, question, unite });
-  };
-  // Ensemble douche (colonne, mitigeur) si douche sans ensemble
-  if (q.douches > 0 && q.ensembleDouche <= 0) {
-    add('PLO_DOUCHE_ENS', q.douches, 'Ensemble de douche (colonne, mitigeur) non prévu — l\'ajouter ?', 'U');
-  }
-  // Paroi de douche si douche sans paroi
-  if (q.douches > 0 && q.paroi <= 0) {
-    add('PLO_PAROI_DOUCHE', q.douches, 'Paroi de douche non prévue — l\'ajouter ?', 'U');
-  }
-  // Groupe de sécurité sur le ballon
-  if (q.ballons > 0 && q.groupeSecu <= 0) {
-    add('PLO_GROUPE_SECU', q.ballons, 'Groupe de sécurité du ballon (obligatoire) non prévu — l\'ajouter ?', 'U');
-  }
-  // Disconnecteur sur l'adoucisseur
-  if (q.adoucisseurs > 0 && q.disconnecteur <= 0) {
-    add('PLO_DISCONNECTEUR', q.adoucisseurs, 'Disconnecteur (protection réseau, adoucisseur) non prévu — l\'ajouter ?', 'U');
-  }
-  return list;
-}
 
 function oublisPloHtml(index) {
   const piece = piecesSelectionnees[index];
@@ -1093,82 +963,12 @@ function retirerOubliPlo(index, code) {
 // Fonction pure : analyse la cohérence du devis plomberie avant validation.
 // Détecte : équipement sans alimentation/évacuation, doublons, incohérences,
 // prestations incomplètes / accessoires orphelins. Retourne [{niveau, texte}].
-function verifierPlomberie(pieces, metiers) {
-  metiers = metiers || (typeof metiersActifs !== 'undefined' ? metiersActifs : []);
-  const alertes = [];
-  if (!metiers.includes('plomberie')) return alertes;
-  let totalAppareils = 0;
-  (pieces || []).forEach(p => {
-    const pl = (p.config && p.config.plomberie) || {};
-    const car = (p.config && p.config.carrelage) || {};
-    const italienne = pl.PLO_DOUCHE_ITAL || 0;
-    const cabine = pl.PLO_DOUCHE_CABINE || 0;
-    const douches = italienne + cabine;
-    const ballons = (pl.PLO_BALLON_50 || 0) + (pl.PLO_BALLON_100 || 0) + (pl.PLO_BALLON_200 || 0);
-    const adoucisseurs = pl.PLO_ADOUCISSEUR || 0;
-    const receveurs = (pl.PLO_RECEV_PRET || 0) + (pl.PLO_RECEV_90 || 0) + (pl.PLO_RECEV_120PC || 0);
-    totalAppareils += (pl.PLO_WC_SIMPLE || 0) + (pl.PLO_WC_SUSP || 0) + (pl.PLO_MEUBLE_LAV || 0) + (pl.PLO_LAV_SIMPLE || 0)
-                    + douches + (pl.PLO_BAIGNOIRE || 0) + (pl.PLO_EVIER || 0) + (pl.PLO_EVIER_DBL || 0) + (pl.PLO_RACCORD_LV || 0);
 
-    // DOUBLON — étanchéité déjà comprise dans la douche à l'italienne « complet »
-    if (italienne > 0 && (car.CAR_ETANCHEITE || 0) > 0) {
-      alertes.push({ niveau:'attention', texte: p.nom + ' : l\'étanchéité est déjà comprise dans la douche à l\'italienne (complet) — la ligne « Étanchéité » du carrelage fait doublon.' });
-    }
-    // DOUBLON — la cabine de douche inclut déjà son receveur
-    if (cabine > 0 && receveurs > 0) {
-      alertes.push({ niveau:'attention', texte: p.nom + ' : la cabine de douche inclut déjà son receveur — le receveur séparé fait doublon.' });
-    }
-    // INCOHÉRENCES / accessoires orphelins
-    if ((pl.PLO_DOUCHE_ENS || 0) > 0 && douches <= 0) alertes.push({ niveau:'info', texte: p.nom + ' : ensemble de douche sans douche configurée.' });
-    if (((pl.PLO_PAROI_DOUCHE || 0) + (pl.PLO_PAROI_DBL || 0)) > 0 && douches <= 0) alertes.push({ niveau:'info', texte: p.nom + ' : paroi de douche sans douche configurée.' });
-    if ((pl.PLO_GROUPE_SECU || 0) > 0 && ballons <= 0) alertes.push({ niveau:'info', texte: p.nom + ' : groupe de sécurité sans ballon d\'eau chaude.' });
-    if ((pl.PLO_DISCONNECTEUR || 0) > 0 && adoucisseurs <= 0) alertes.push({ niveau:'info', texte: p.nom + ' : disconnecteur sans adoucisseur.' });
-    if (receveurs > 0 && italienne <= 0 && cabine <= 0) alertes.push({ niveau:'info', texte: p.nom + ' : receveur sans douche configurée.' });
-  });
-
-  // ÉQUIPEMENT ORPHELIN — des appareils existent mais le réseau EF/ECS/évacuation
-  // n'a pas été généré (ne doit jamais arriver : le réseau est auto-dimensionné).
-  if (totalAppareils > 0 && typeof window !== 'undefined' && window.__plomberieAuto === null) {
-    alertes.push({ niveau:'attention', texte: 'Des appareils sanitaires sont configurés mais aucun réseau EF/ECS/évacuation n\'a été généré — vérifiez que le lot plomberie est bien actif.' });
-  }
-  return alertes;
-}
-
-function getCarrelagePourPiece(pieceId) {
-  const base = [
-    { code:'CAR_POSE_SOL', label:'Carrelage sol (standard)', unite:'m²' },
-    { code:'CAR_POSE_SOL_GRAND', label:'Carrelage sol grand format', unite:'m²' },
-    { code:'CAR_RAGREAGE', label:'Ragréage', unite:'m²' },
-  ];
-  const mur = [
-    { code:'CAR_POSE_MUR', label:'Faïence murale', unite:'m²' },
-    { code:'CAR_POSE_MUR_PETIT', label:'Faïence mosaïque', unite:'m²' },
-    { code:'CAR_ETANCHEITE', label:'Étanchéité (douche)', unite:'forfait' },
-  ];
-  if (['sdb','sde','wc','cuisine'].includes(pieceId)) return [...base, ...mur];
-  return base;
-}
 
 // ===== ÉVALUATION DU SUPPORT (carrelage) — aide à la décision, jamais imposée =====
 // Symétrique de la peinture et des sols. Recommande étanchéité (pièces humides,
 // obligatoire sous douche — DTU 52.2) et ragréage (support inégal), déjà ajoutables
 // via les lignes existantes « Étanchéité » et « Ragréage ».
-function evaluationSupportCarr(piece, ch) {
-  ch = ch || {}; piece = piece || {};
-  const carr = (piece.config && piece.config.carrelage) || {};
-  const reco = [];
-  // Étanchéité en pièce humide si non prévue
-  if (['sdb','sde'].includes(piece.id) && !(carr.CAR_ETANCHEITE > 0)) {
-    reco.push({ code: 'CAR_ETANCHEITE', texte: 'étanchéité sous carrelage (SPEC) obligatoire sous la douche / en pièce humide — ligne « Étanchéité » ci-dessus' });
-  }
-  // Ragréage si support probablement inégal et non prévu
-  const supportIrregulier = (ch.typeProjet === 'neuf' || ch.typeProjet === 'extension' || ch.etatLieux === 'mauvais' || ch.ageBati === 'ancien' || ch.ageBati === 'tres_ancien');
-  const solCarrele = (carr.CAR_POSE_SOL > 0) || (carr.CAR_POSE_SOL_GRAND > 0);
-  if (supportIrregulier && solCarrele && !(carr.CAR_RAGREAGE > 0)) {
-    reco.push({ code: 'CAR_RAGREAGE', texte: 'ragréage conseillé pour un support plan avant pose (chantier neuf / support ancien) — ligne « Ragréage » ci-dessus' });
-  }
-  return reco;
-}
 
 function recoSupportCarrHtml(piece) {
   const reco = evaluationSupportCarr(piece, chantier);
@@ -1185,69 +985,6 @@ function recoSupportCarrHtml(piece) {
 
 // ===== CONTRÔLE DES OUBLIS COURANTS (carrelage) — suggestions non imposées =====
 // Compléments de finition qui ne figurent pas déjà comme lignes de la section.
-function controlesOublisCarr(piece) {
-  const d = piece.dims || {};
-  const s = piece.surfaces || {};
-  const carr = (piece.config && piece.config.carrelage) || {};
-  const ign = piece._oublisIgnoresCarr || {};
-  const list = [];
-  const pieceHumide = ['sdb','sde','wc','cuisine'].includes(piece.id);
-  const solCarrele = (carr.CAR_POSE_SOL || 0) + (carr.CAR_POSE_SOL_GRAND || 0);
-  const murCarrele = (carr.CAR_POSE_MUR || 0) + (carr.CAR_POSE_MUR_PETIT || 0);
-  const add = (code, qty, question, unite) => {
-    qty = Math.round((qty || 0) * 10) / 10;
-    if (qty <= 0 || carr[code] || ign[code]) return;
-    list.push({ code, qty, question, unite });
-  };
-
-  // === Surfaces automatiques : pré-calcul depuis les dimensions déjà connues ===
-  if (solCarrele <= 0 && s.sol > 0) {
-    add('CAR_POSE_SOL', s.sol, 'Carrelage de sol (~' + s.sol.toFixed(1) + ' m² calculés) — l\'ajouter ?', 'm²');
-  }
-  if (pieceHumide && murCarrele <= 0 && s.murs > 0) {
-    add('CAR_POSE_MUR', s.murs, 'Faïence murale (~' + s.murs.toFixed(1) + ' m² calculés) — l\'ajouter ?', 'm²');
-  }
-
-  if (solCarrele + murCarrele <= 0) return list; // le reste ne s'affiche qu'une fois une pose saisie
-
-  // Coefficient de pertes par format (CARRELAGE_PARAMS) — appliqué à la FOURNITURE seule
-  const perte = (code, defaut) => {
-    if (typeof CARRELAGE_PARAMS === 'undefined') return defaut;
-    const type = CARRELAGE_PARAMS.perteParPose[code];
-    const p = CARRELAGE_PARAMS.pertes[piece.carPose === 'diagonale' ? 'diagonale' : type];
-    return (p === undefined) ? defaut : p;
-  };
-  // Fourniture carreau (pose sol) avec pertes selon le format
-  const fournCarreau = (carr.CAR_POSE_SOL || 0) * (1 + perte('CAR_POSE_SOL', 0.10)) + (carr.CAR_POSE_SOL_GRAND || 0) * (1 + perte('CAR_POSE_SOL_GRAND', 0.12));
-  if (solCarrele > 0 && !(carr.CAR_FOURN_CARREAU > 0)) {
-    add('CAR_FOURN_CARREAU', fournCarreau, 'Fourniture du carreau (' + Math.round(fournCarreau) + ' m², chutes incluses) — l\'ajouter ?', 'm²');
-  }
-  // Fourniture faïence (pose murale) avec pertes selon le format
-  const fournFaience = (carr.CAR_POSE_MUR || 0) * (1 + perte('CAR_POSE_MUR', 0.10)) + (carr.CAR_POSE_MUR_PETIT || 0) * (1 + perte('CAR_POSE_MUR_PETIT', 0.15));
-  if (murCarrele > 0 && !(carr.CAR_FOURN_FAIENCE > 0)) {
-    add('CAR_FOURN_FAIENCE', fournFaience, 'Fourniture de la faïence (' + Math.round(fournFaience) + ' m², chutes incluses) — l\'ajouter ?', 'm²');
-  }
-
-  // Consommables : primaire, mortier-colle + joint, préparation du support
-  add('CAR_PRIMAIRE', solCarrele + murCarrele, 'Primaire d\'accrochage non prévu (' + (solCarrele + murCarrele) + ' m²) — l\'ajouter ?', 'm²');
-  add('CAR_MORTIER_COLLE', solCarrele + murCarrele, 'Mortier-colle + joint non prévu (' + (solCarrele + murCarrele) + ' m²) — l\'ajouter ?', 'm²');
-  add('CAR_PREP_MORTIER', solCarrele, 'Préparation du support au mortier (' + solCarrele + ' m²) — l\'ajouter ?', 'm²');
-
-  // Plinthes carrelage (périmètre moins passages de portes) si sol carrelé
-  if (solCarrele > 0 && d.l && d.la) {
-    const per = 2 * (d.l + d.la) - 0.8 * (d.portes || 0);
-    add('CAR_PLINTHE', Math.max(0, per), 'Plinthes carrelage non prévues (~' + Math.round(per) + ' ml) — les ajouter ?', 'ml');
-  }
-  // Seuils de transition aux passages de porte
-  if (solCarrele > 0) {
-    add('CAR_SEUIL', Math.round(0.8 * (d.portes || 0) * 10) / 10, 'Seuils de transition aux ' + (d.portes || 0) + ' passage(s) de porte non prévus — les ajouter ?', 'ml');
-  }
-  // Accessoires de finition (optionnels) : profilés d'arête si faïence
-  if (murCarrele > 0) {
-    add('CAR_PROFILE', Math.max(2, (d.portes || 0) + (d.fenetres || 0)), 'Profilés de finition (arêtes de faïence) — les ajouter ?', 'U');
-  }
-  return list;
-}
 
 function oublisCarrHtml(index) {
   const piece = piecesSelectionnees[index];
@@ -1309,71 +1046,10 @@ function retirerOubliCarr(index, code) {
   recalcPiece(index);
 }
 
-function getIsolationPourPiece(pieceId) {
-  // Base : doublages murs + cloison + faux plafond (tous au catalogue)
-  const base = [
-    { code:'PLA_BA13_MUR_COL', label:'BA13 mur collé', unite:'m²' },
-    { code:'PLA_BA13_MUR_OSS', label:'BA13 mur sur ossature', unite:'m²' },
-    { code:'PLA_BA13_PLAF_OSS', label:'Faux plafond BA13 sur ossature', unite:'m²' },
-    { code:'PLA_CLOISON_BA13', label:'Cloison BA13', unite:'m²' },
-  ];
-  // Isolant mural : gamme d'épaisseurs (catalogue existant)
-  const isolantMur = [
-    { code:'ISO_LV_100', label:'Isolation laine 100 mm', unite:'m²' },
-    { code:'ISO_LV_120', label:'Isolation laine 120 mm', unite:'m²' },
-    { code:'ISO_LV_140', label:'Isolation laine 140 mm', unite:'m²' },
-  ];
-  if (['cave','garage'].includes(pieceId)) return [...isolantMur, { code:'PLA_BA13_MUR_OSS', label:'BA13 sur ossature', unite:'m²' }, { code:'PLA_BA13_PLAF_OSS', label:'Faux plafond BA13', unite:'m²' }];
-  // Pièces sous toiture : combles + rampants (codes catalogue existants)
-  if (['veranda','combles','grenier'].includes(pieceId)) return [
-    ...base,
-    { code:'ISO_LV_300_COMB', label:'Isolation combles 300 mm', unite:'m²' },
-    { code:'ISO_LV_280', label:'Isolation rampant 280 mm', unite:'m²' },
-    { code:'ISO_LV_300_RAMP', label:'Isolation rampant 300 mm', unite:'m²' },
-  ];
-  return [...base, ...isolantMur];
-}
 
 // ===== ÉVALUATION DU SUPPORT (isolation / plâtrerie) — aide à la décision, jamais imposée =====
 // Symétrique du carrelage. Surfaces d'isolant / de BA13 lues depuis la config de la pièce.
-function _isoQtes(piece) {
-  const iso = (piece.config && piece.config.isolation) || {};
-  const ba13Ossature = iso.PLA_BA13_MUR_OSS || 0;
-  const ba13Mur = (iso.PLA_BA13_MUR_COL || 0) + (iso.PLA_BA13_MUR_OSS || 0) + (iso.PLA_CLOISON_BA13 || 0);
-  const ba13Plafond = iso.PLA_BA13_PLAF_OSS || 0;
-  const ba13Total = ba13Mur + ba13Plafond;
-  const laine = (iso.ISO_LV_100 || 0) + (iso.ISO_LV_140 || 0) + (iso.ISO_LV_120 || 0) + (iso.ISO_LV_160 || 0)
-              + (iso.ISO_LV_200_COMPLEX || 0) + (iso.ISO_ROCHE_100 || 0) + (iso.ISO_PHONIQUE || 0)
-              + (iso.ISO_LV_300_COMB || 0) + (iso.ISO_LV_280 || 0) + (iso.ISO_LV_300_RAMP || 0);
-  return { iso, ba13Ossature, ba13Mur, ba13Plafond, ba13Total, laine };
-}
 
-function evaluationSupportIso(piece, ch) {
-  const q = _isoQtes(piece);
-  const reco = [];
-  // Doublage sur ossature sans isolant
-  if (q.ba13Ossature > 0 && q.laine <= 0) {
-    reco.push('un doublage sur ossature reçoit normalement un isolant (laine) — proposé ci-dessous');
-  }
-  // Pièce humide : plaque hydrofuge
-  if (['sdb','sde','cuisine'].includes(piece.id) && q.ba13Total > 0 && !(q.iso.PLA_BA13_HYDRO > 0)) {
-    reco.push('en pièce humide, une plaque hydrofuge (marine) est conseillée derrière le carrelage / la douche');
-  }
-  // Isolant sans pare-vapeur
-  if (q.laine > 0 && !(q.iso.ISO_PARE_VAP > 0)) {
-    reco.push('un pare-vapeur protège l\'isolant de l\'humidité et évite la condensation');
-  }
-  // Guidage d'épaisseur selon l'usage (RE2020 / bonnes pratiques)
-  if (typeof ISOLATION_PARAMS !== 'undefined') {
-    const E = ISOLATION_PARAMS.epaisseurs;
-    if (['veranda','combles','grenier'].includes(piece.id)) {
-      reco.push('sous toiture : privilégier ~' + E.comble.mm + ' mm en combles perdus et ~' + E.rampant.mm + ' mm en rampant (performance thermique)');
-    } else if (q.ba13Ossature > 0 && q.laine <= 0) {
-      reco.push('épaisseur d\'isolant conseillée en doublage de mur : ~' + E.mur.mm + ' mm');
-    }
-  }
-  return reco;
-}
 
 function recoSupportIsoHtml(piece) {
   const reco = evaluationSupportIso(piece, chantier);
@@ -1389,52 +1065,6 @@ function recoSupportIsoHtml(piece) {
 }
 
 // ===== CONTRÔLE DES OUBLIS COURANTS (isolation / plâtrerie) — suggestions non imposées =====
-function controlesOublisIso(piece) {
-  const d = piece.dims || {};
-  const q = _isoQtes(piece);
-  const s = piece.surfaces || {};
-  const ign = piece._oublisIgnoresIso || {};
-  const list = [];
-  const add = (code, qty, question, unite) => {
-    qty = Math.round((qty || 0) * 10) / 10;
-    if (qty <= 0 || q.iso[code] || ign[code]) return;
-    list.push({ code, qty, question, unite });
-  };
-
-  // === Surfaces automatiques : pré-calcul depuis les dimensions déjà connues ===
-  // Doublage BA13 des murs — quantité = surface murs nette calculée
-  if (q.ba13Mur <= 0 && s.murs > 0) {
-    add('PLA_BA13_MUR_OSS', s.murs, 'Doublage BA13 des murs sur ossature (~' + s.murs.toFixed(1) + ' m² calculés) — l\'ajouter ?', 'm²');
-  }
-  // Faux plafond BA13 — quantité = surface plafond calculée
-  if (q.ba13Plafond <= 0 && s.plafond > 0) {
-    add('PLA_BA13_PLAF_OSS', s.plafond, 'Faux plafond BA13 sur ossature (~' + s.plafond.toFixed(1) + ' m² calculés) — l\'ajouter ?', 'm²');
-  }
-
-  if (q.ba13Total + q.laine <= 0) return list; // le reste ne s'affiche qu'une fois une pose saisie
-  // Isolant manquant derrière un doublage sur ossature — épaisseur conseillée (guidage)
-  if (q.ba13Ossature > 0 && q.laine <= 0) {
-    const eMur = (typeof ISOLATION_PARAMS !== 'undefined') ? ISOLATION_PARAMS.epaisseurs.mur : { mm: 120, code: 'ISO_LV_120' };
-    add(eMur.code, q.ba13Ossature, 'Doublage sur ossature sans isolant — ajouter la laine ' + eMur.mm + ' mm (' + q.ba13Ossature + ' m²) ?', 'm²');
-  }
-  // Pare-vapeur sur l'isolant
-  if (q.laine > 0) {
-    add('ISO_PARE_VAP', q.laine, 'Pare-vapeur non prévu (' + q.laine + ' m²) — l\'ajouter ?', 'm²');
-  }
-  // Plaque hydrofuge en pièce humide
-  if (['sdb','sde','cuisine'].includes(piece.id) && q.ba13Total > 0) {
-    add('PLA_BA13_HYDRO', q.ba13Total, 'Plaque hydrofuge (pièce humide) non prévue (' + q.ba13Total + ' m²) — l\'ajouter ?', 'm²');
-  }
-  // Finition des plaques : bandes + enduit de ratissage
-  if (q.ba13Total > 0) {
-    add('PLA_ENDUIT_RATT', q.ba13Total, 'Finition des plaques (bandes + ratissage) non prévue (' + q.ba13Total + ' m²) — l\'ajouter ?', 'm²');
-  }
-  // Cornières d'angle (tableaux de portes / fenêtres)
-  if (q.ba13Total > 0) {
-    add('PLA_CORNIERE', Math.max(2, (d.portes || 0) + (d.fenetres || 0)), 'Cornières d\'angle non prévues — les ajouter ?', 'U');
-  }
-  return list;
-}
 
 function oublisIsoHtml(index) {
   const piece = piecesSelectionnees[index];
@@ -1498,68 +1128,10 @@ function retirerOubliIso(index, code) {
   recalcPiece(index);
 }
 
-function getMenuiseriePourPiece(pieceId) {
-  const base = [
-    { code:'MEN_PORTE_INT', label:'Porte intérieure', unite:'U' },
-    { code:'MEN_VOLET_ROULANT', label:'Volet roulant', unite:'U' },
-    { code:'MEN_STORE', label:'Store', unite:'U' },
-  ];
-  // Fenêtres (catalogue existant) proposées dans les pièces à ouvertures
-  const fenetres = [
-    { code:'MEN_FEN_ALU_STD', label:'Fenêtre alu standard', unite:'U' },
-    { code:'MEN_FEN_BOIS_STD', label:'Fenêtre bois standard', unite:'U' },
-    { code:'MEN_FEN_BOIS_CINTRE', label:'Fenêtre bois cintrée', unite:'U' },
-  ];
-  if (['entree'].includes(pieceId)) return [
-    ...base,
-    { code:'MEN_PORTE_ENTREE_PVC', label:'Porte d\'entrée PVC', unite:'U' },
-    { code:'MEN_PORTE_ENTREE_BOIS', label:'Porte d\'entrée bois', unite:'U' },
-    { code:'MEN_PORTE_BLINDEE', label:'Porte blindée A2P', unite:'U' },
-  ];
-  if (['salon','salle_manger'].includes(pieceId)) return [
-    ...base, ...fenetres,
-    { code:'MEN_FEN_ALU_BAIE', label:'Baie vitrée coulissante', unite:'U' },
-    { code:'MEN_VERRIERE', label:'Verrière intérieure', unite:'U' },
-  ];
-  if (['veranda','combles','grenier'].includes(pieceId)) return [
-    ...base, ...fenetres,
-    { code:'MEN_FEN_TOIT', label:'Fenêtre de toit (velux)', unite:'U' },
-  ];
-  if (['chambre','bureau','cuisine'].includes(pieceId)) return [...base, ...fenetres];
-  if (['escalier'].includes(pieceId)) return [
-    { code:'MEN_ESCALIER_BOIS', label:'Escalier bois', unite:'U' },
-    { code:'MEN_GARDE_CORPS', label:'Garde-corps', unite:'ml' },
-    { code:'MEN_BALUSTRADE', label:'Balustrade', unite:'ml' },
-  ];
-  return base;
-}
 
 // ===== ÉVALUATION / COMPLÉTUDE (menuiserie) — aide à la décision, jamais imposée =====
 // Menuiserie = métier manuel. Quantités lues depuis la config de la pièce.
-function _menQtes(piece) {
-  const men = (piece.config && piece.config.menuiserie) || {};
-  const portesInt = men.MEN_PORTE_INT || 0;
-  const portesEntree = (men.MEN_PORTE_ENTREE_PVC || 0) + (men.MEN_PORTE_ENTREE_BOIS || 0) + (men.MEN_PORTE_BLINDEE || 0);
-  const fenetres = (men.MEN_FEN_ALU_BAIE || 0) + (men.MEN_FEN_BOIS_STD || 0) + (men.MEN_FEN_ALU_STD || 0) + (men.MEN_FEN_TOIT || 0);
-  const occultation = (men.MEN_VOLET_ROULANT || 0) + (men.MEN_STORE || 0);
-  const escalier = men.MEN_ESCALIER_BOIS || 0;
-  const gardeCorps = (men.MEN_GARDE_CORPS || 0) + (men.MEN_BALUSTRADE || 0);
-  return { men, portesInt, portesEntree, fenetres, occultation, escalier, gardeCorps };
-}
 
-function evaluationSupportMen(piece, ch) {
-  const q = _menQtes(piece);
-  const reco = [];
-  // Escalier sans garde-corps -> sécurité
-  if (q.escalier > 0 && q.gardeCorps <= 0) {
-    reco.push('un garde-corps est obligatoire le long d\'un escalier (sécurité, hauteur de chute)');
-  }
-  // Fenêtre / baie sans occultation -> confort
-  if (q.fenetres > 0 && q.occultation <= 0) {
-    reco.push('pensez à l\'occultation des ' + q.fenetres + ' fenêtre(s) / baie(s) (volet roulant ou store)');
-  }
-  return reco;
-}
 
 function recoSupportMenHtml(piece) {
   const reco = evaluationSupportMen(piece, chantier);
@@ -1575,57 +1147,6 @@ function recoSupportMenHtml(piece) {
 }
 
 // ===== CONTRÔLE DES OUBLIS COURANTS (menuiserie) — suggestions non imposées =====
-function controlesOublisMen(piece) {
-  const q = _menQtes(piece);
-  const d = piece.dims || {};
-  const ign = piece._oublisIgnoresMen || {};
-  const list = [];
-  const add = (code, qty, question, unite) => {
-    qty = Math.round((qty || 0) * 10) / 10;
-    if (qty <= 0 || q.men[code] || ign[code]) return;
-    list.push({ code, qty, question, unite });
-  };
-  const pieceAFenetres = ['salon','salle_manger','chambre','bureau','cuisine','veranda','combles','grenier'].includes(piece.id);
-
-  // === Auto-génération depuis les ouvertures déjà saisies (dims) ===
-  // Fenêtres : nombre déclaré non encore équipé -> proposer une fenêtre alu standard par ouverture
-  if (pieceAFenetres && q.fenetres <= 0 && (d.fenetres || 0) > 0) {
-    add('MEN_FEN_ALU_STD', d.fenetres, (d.fenetres) + ' fenêtre(s) déclarée(s) sans menuiserie — ajouter des fenêtres alu standard (modifiable) ?', 'U');
-  }
-  // Portes intérieures : nombre déclaré non encore équipé
-  if (q.portesInt <= 0 && (d.portes || 0) > 0 && !['entree','escalier'].includes(piece.id)) {
-    add('MEN_PORTE_INT', d.portes, (d.portes) + ' porte(s) déclarée(s) sans menuiserie — ajouter des portes intérieures (modifiable) ?', 'U');
-  }
-
-  // Dépose des anciennes menuiseries en rénovation (références catalogue existantes)
-  if (chantier && chantier.typeProjet === 'renov') {
-    if (pieceAFenetres && (d.fenetres || 0) > 0) {
-      add('MAC_DEMO_FENETRE', d.fenetres, 'Dépose des ' + d.fenetres + ' ancienne(s) fenêtre(s) (rénovation) — l\'ajouter ?', 'U');
-    }
-    if ((d.portes || 0) > 0 && !['escalier'].includes(piece.id)) {
-      add('MAC_DEMO_PORTE', d.portes, 'Dépose des ' + d.portes + ' ancienne(s) porte(s) (rénovation) — l\'ajouter ?', 'U');
-    }
-  }
-
-  if (q.portesInt + q.portesEntree + q.fenetres + q.escalier <= 0) return list; // le reste ne s'affiche qu'une fois une menuiserie posée
-  // Habillage champlat pour les portes intérieures (finition du bâti)
-  if (q.portesInt > 0) {
-    add('MEN_HABILLAGE_CHAMPLAT', q.portesInt, 'Habillage / champlat des ' + q.portesInt + ' porte(s) intérieure(s) non prévu — l\'ajouter ?', 'U');
-  }
-  // Garde-corps si escalier sans garde-corps
-  if (q.escalier > 0 && q.gardeCorps <= 0) {
-    add('MEN_GARDE_CORPS', 3, 'Garde-corps d\'escalier non prévu (~3 ml, sécurité) — l\'ajouter ?', 'ml');
-  }
-  // Occultation si fenêtre / baie sans volet ni store
-  if (q.fenetres > 0 && q.occultation <= 0) {
-    add('MEN_VOLET_ROULANT', q.fenetres, 'Occultation des ' + q.fenetres + ' fenêtre(s) non prévue — ajouter un volet roulant par fenêtre ?', 'U');
-  }
-  // Serrure / verrou supplémentaire pour les portes d'entrée
-  if (q.portesEntree > 0) {
-    add('MEN_SERRURE', q.portesEntree, 'Serrure / verrou supplémentaire pour la porte d\'entrée non prévu — l\'ajouter ?', 'U');
-  }
-  return list;
-}
 
 function oublisMenHtml(index) {
   const piece = piecesSelectionnees[index];
@@ -1688,68 +1209,11 @@ function retirerOubliMen(index, code) {
 }
 
 // ===== CONTRÔLE FINAL DU MOTEUR MENUISERIE (MISSION 042) =====
-function verifierMenuiserie(pieces, metiers) {
-  metiers = metiers || (typeof metiersActifs !== 'undefined' ? metiersActifs : []);
-  const alertes = [];
-  if (!metiers.includes('menuiserie')) return alertes;
-  const existe = code => { try { return getMoyenPrixFor(code, {}) > 0; } catch (e) { return false; } };
-  const CODES_FEN = ['MEN_FEN_ALU_STD','MEN_FEN_BOIS_STD','MEN_FEN_BOIS_CINTRE','MEN_FEN_ALU_BAIE','MEN_FEN_TOIT'];
-  (pieces || []).forEach(p => {
-    const q = _menQtes(p);
-    const d = p.dims || {};
-    const pieceAFenetres = ['salon','salle_manger','chambre','bureau','cuisine','veranda','combles','grenier'].includes(p.id);
-    // Ouverture déclarée sans menuiserie associée
-    if (pieceAFenetres && (d.fenetres || 0) > 0 && q.fenetres <= 0) {
-      alertes.push({ niveau:'info', texte: p.nom + ' : ' + d.fenetres + ' fenêtre(s) déclarée(s) sans menuiserie configurée (conservées ou à ajouter ?).' });
-    }
-    // Menuiserie fenêtre sans ouverture déclarée
-    if (q.fenetres > 0 && (d.fenetres || 0) === 0) {
-      alertes.push({ niveau:'info', texte: p.nom + ' : fenêtre(s) configurée(s) sans ouverture déclarée en dimensions — vérifiez la saisie.' });
-    }
-    // Incohérence de quantité (plus de menuiseries que d'ouvertures déclarées)
-    if ((d.fenetres || 0) > 0 && q.fenetres > (d.fenetres || 0)) {
-      alertes.push({ niveau:'info', texte: p.nom + ' : ' + q.fenetres + ' fenêtre(s) posée(s) pour ' + d.fenetres + ' déclarée(s) — quantité à confirmer.' });
-    }
-    // Référence catalogue absente
-    Object.keys(q.men).forEach(code => { if ((q.men[code] || 0) > 0 && !existe(code)) alertes.push({ niveau:'attention', texte: p.nom + ' : référence menuiserie « ' + code + ' » absente du catalogue.' }); });
-  });
-  return alertes;
-}
 
-function getVmcPourPiece(pieceId) {
-  if (['sdb','sde','wc','cuisine','cave'].includes(pieceId)) return [
-    { code:'VMC_BOUCHE', label:'Bouche d\'extraction', unite:'U' },
-    { code:'VMC_ENTREE_AIR', label:'Entrée d\'air hygro', unite:'U' },
-  ];
-  if (['salon','salle_manger','chambre','bureau'].includes(pieceId)) return [
-    { code:'VMC_ENTREE_AIR', label:'Entrée d\'air hygro', unite:'U' },
-  ];
-  return [];
-}
 
 // ===== VMC — pièces & rôles (extraction / balayage) =====
-function _vmcRole(pieceId) {
-  if (['cuisine','sdb','sde','wc','cave'].includes(pieceId)) return 'extraction'; // pièces humides / de service
-  if (['salon','salle_manger','chambre','bureau'].includes(pieceId)) return 'balayage'; // pièces principales
-  return null;
-}
 
 // ===== ÉVALUATION MÉTIER VMC — aide à la décision, jamais imposée =====
-function evaluationSupportVmc(piece, ch) {
-  const v = (piece.config && piece.config.vmc) || {};
-  const role = _vmcRole(piece.id);
-  const reco = [];
-  if (role === 'extraction' && !(v.VMC_BOUCHE > 0)) {
-    reco.push('pièce humide : une bouche d\'extraction est nécessaire pour la VMC');
-  }
-  if (role === 'balayage' && !(v.VMC_ENTREE_AIR > 0)) {
-    reco.push('pièce principale : une entrée d\'air assure le balayage (air neuf)');
-  }
-  if (piece.id === 'cuisine' && (v.VMC_BOUCHE > 0)) {
-    reco.push('cuisine : bouche grand débit (temporisée) recommandée ; rejet en toiture par défaut, sortie façade possible');
-  }
-  return reco;
-}
 
 function recoSupportVmcHtml(piece) {
   const reco = evaluationSupportVmc(piece, chantier);
@@ -1765,26 +1229,6 @@ function recoSupportVmcHtml(piece) {
 }
 
 // ===== AUTO-GÉNÉRATION DES BOUCHES / ENTRÉES D'AIR — suggestions non imposées =====
-function controlesOublisVmc(piece) {
-  const v = (piece.config && piece.config.vmc) || {};
-  const ign = piece._oublisIgnoresVmc || {};
-  const role = _vmcRole(piece.id);
-  const list = [];
-  const add = (code, qty, question, unite) => {
-    qty = Math.round((qty || 0) * 10) / 10;
-    if (qty <= 0 || v[code] || ign[code]) return;
-    list.push({ code, qty, question, unite });
-  };
-  // Extraction : 1 bouche par pièce humide / de service (cuisine, SDB, SDE, WC, buanderie)
-  if (role === 'extraction' && !(v.VMC_BOUCHE > 0)) {
-    add('VMC_BOUCHE', 1, 'Bouche d\'extraction non prévue dans cette pièce — l\'ajouter ?', 'U');
-  }
-  // Balayage : 1 entrée d'air par pièce principale (séjour, chambres, bureau)
-  if (role === 'balayage' && !(v.VMC_ENTREE_AIR > 0)) {
-    add('VMC_ENTREE_AIR', 1, 'Entrée d\'air non prévue dans cette pièce principale — l\'ajouter ?', 'U');
-  }
-  return list;
-}
 
 function oublisVmcHtml(index) {
   const piece = piecesSelectionnees[index];
@@ -1847,31 +1291,6 @@ function retirerOubliVmc(index, code) {
 }
 
 // ===== CONTRÔLE FINAL DU MOTEUR VMC (MISSION 040) =====
-function verifierVMC(pieces, metiers) {
-  metiers = metiers || (typeof metiersActifs !== 'undefined' ? metiersActifs : []);
-  const alertes = [];
-  if (!metiers.includes('vmc')) return alertes;
-  let totalBouches = 0;
-  (pieces || []).forEach(p => {
-    const v = (p.config && p.config.vmc) || {};
-    const role = _vmcRole(p.id);
-    totalBouches += (v.VMC_BOUCHE || 0);
-    if (role === 'extraction' && !(v.VMC_BOUCHE > 0)) {
-      alertes.push({ niveau:'attention', texte: p.nom + ' : pièce humide sans bouche d\'extraction VMC.' });
-    }
-    if (role === 'balayage' && !(v.VMC_ENTREE_AIR > 0)) {
-      alertes.push({ niveau:'info', texte: p.nom + ' : pièce principale sans entrée d\'air (balayage).' });
-    }
-  });
-  if (totalBouches <= 0) {
-    alertes.push({ niveau:'attention', texte: 'VMC sélectionnée mais aucune bouche d\'extraction configurée — la centrale ne sera pas chiffrée.' });
-  }
-  // Cohérence bouches / caisson : le caisson est dimensionné sur le nombre de bouches
-  if (totalBouches > 8) {
-    alertes.push({ niveau:'info', texte: totalBouches + ' bouches : vérifier le débit et la capacité du caisson (un caisson à fort débit peut être nécessaire).' });
-  }
-  return alertes;
-}
 
 // ===== ÉTAT GLOBAL =====
 let piecesSelectionnees = []; // [{id, nom, icon, numero, dims:{l,la,h,fenetres,portes}, config:{metier:{code:qty}}}]
@@ -2322,32 +1741,6 @@ function controlesCoherence(pieces, ch) {
 // ===== CONTRÔLE FINAL DU MOTEUR CHAUFFAGE (MISSION 043) =====
 // Cohérence chauffage électrique <-> électricité : radiateur sans circuit, circuit sans
 // radiateur, sorties fil pilote insuffisantes, puissance installée vs calculée.
-function verifierChauffage(pieces, ch) {
-  ch = ch || (typeof chantier !== 'undefined' ? chantier : {});
-  const metiers = (typeof metiersActifs !== 'undefined') ? metiersActifs : [];
-  const alertes = [];
-  if (ch.chauffage !== 'electrique' || !metiers.includes('electricite') || typeof dimensionnementChauffage !== 'function') return alertes;
-  const r = dimensionnementChauffage(pieces, ch);
-  if (!r) {
-    // chauffage électrique déclaré mais aucun radiateur dimensionné (pièces sans cotes ?)
-    const aFilPilote = (pieces || []).some(p => { const e = (p.config && p.config.electricite) || {}; return (e.ELEC_SC20_FP || 0) + (e.ELEC_SC10_FP || 0) > 0; });
-    if (aFilPilote) alertes.push({ niveau:'attention', texte: 'Chauffage électrique : des sorties fil pilote sont prévues mais aucun radiateur n\'a pu être dimensionné (dimensions de pièce manquantes ?).' });
-    return alertes;
-  }
-  // Sorties fil pilote configurées insuffisantes par rapport aux radiateurs retenus
-  if (r.sortiesConfigurees < r.nbSortiesFilPilote) {
-    alertes.push({ niveau:'attention', texte: 'Chauffage : ' + r.nbRadiateurs + ' radiateur(s) retenu(s) mais ' + r.sortiesConfigurees + ' sortie(s) fil pilote configurée(s) — prévoir ' + r.nbSortiesFilPilote + ' raccordement(s) (1 par radiateur).' });
-  }
-  // Puissance installée nettement inférieure au besoin (sous-dimensionnement)
-  if (r.puissanceInstallee < r.puissanceTotale * 0.95) {
-    alertes.push({ niveau:'info', texte: 'Chauffage : puissance installée ' + r.puissanceInstallee + ' W pour un besoin de ' + r.puissanceTotale + ' W — vérifier le dimensionnement.' });
-  }
-  // Rappel cohérence circuits (info)
-  if (r.nbCircuits > 0) {
-    alertes.push({ niveau:'info', texte: 'Chauffage : ' + r.nbRadiateurs + ' radiateur(s) sur ' + r.nbCircuits + ' circuit(s) chauffage 20A du tableau (' + r.puissanceInstallee + ' W installés).' });
-  }
-  return alertes;
-}
 
 let __coherenceAcquittee = false;
 
@@ -2621,20 +2014,6 @@ function renderMetierSection(section, pieceIndex) {
 //  - BA13 / placo posé dans la pièce (métier isolation) -> impression sur ces m²
 //  - projet neuf / extension -> supports neufs, impression murs + plafond
 //  - rénovation sur support déjà peint -> aucune sous-couche automatique
-function detectionSousCouche(piece, ch, surfMurs, surfPlaf) {
-  const iso = (piece.config && piece.config.isolation) || {};
-  const m2Murs = (iso.PLA_BA13_MUR_COL||0) + (iso.PLA_BA13_MUR_OSS||0) + (iso.PLA_CLOISON_BA13||0) + (iso.ISO_LV_200_COMPLEX||0);
-  const m2Plaf = (iso.PLA_BA13_PLAF_OSS||0);
-  if (m2Murs + m2Plaf > 0) {
-    const surf = Math.min(m2Murs, surfMurs || m2Murs) + Math.min(m2Plaf, surfPlaf || m2Plaf);
-    return { surf, raison: 'du BA13 / placo neuf est posé dans cette pièce (' + (m2Murs + m2Plaf).toFixed(0) + ' m²) — le plâtre nu boit la peinture, une impression est indispensable pour la finition' };
-  }
-  if (ch && (ch.typeProjet === 'neuf' || ch.typeProjet === 'extension')) {
-    const surf = (surfMurs || 0) + (surfPlaf || 0);
-    if (surf > 0) return { surf, raison: 'construction neuve / extension : supports neufs jamais peints, sous-couche d\'impression nécessaire sur murs et plafond' };
-  }
-  return null;
-}
 
 // ===== MOTEUR D'ÉVALUATION DES SUPPORTS (aide à la décision peinture) =====
 // Fonction pure : croise les informations DÉJÀ connues du devis pour déduire
@@ -2644,91 +2023,12 @@ function detectionSousCouche(piece, ch, surfMurs, surfPlaf) {
 const NIVEAU_PEINT_LABEL = { less: 'simple rafraîchissement', std: 'préparation standard', fort: 'préparation importante' };
 const NIVEAU_PEINT_RANG = { less: 0, std: 1, fort: 2 };
 
-function evaluationSupport(piece, ch) {
-  ch = ch || {};
-  piece = piece || {};
-  const raisons = [];
-  let rang = 0; // on retient le niveau le plus exigeant justifié
-
-  // Support neuf (BA13 posé dans la pièce ou projet neuf/extension) -> standard suffit (plâtre sain)
-  const iso = (piece.config && piece.config.isolation) || {};
-  const placoNeuf = ((iso.PLA_BA13_MUR_COL||0)+(iso.PLA_BA13_MUR_OSS||0)+(iso.PLA_CLOISON_BA13||0)+(iso.PLA_BA13_PLAF_OSS||0)+(iso.ISO_LV_200_COMPLEX||0)) > 0;
-  const projetNeuf = (ch.typeProjet === 'neuf' || ch.typeProjet === 'extension');
-  if (placoNeuf || projetNeuf) {
-    rang = Math.max(rang, 1);
-    raisons.push(placoNeuf ? 'placo neuf dans la pièce (support sain, mais impression + finition soignée nécessaires)' : 'construction neuve / extension (supports neufs à préparer)');
-  }
-
-  // État déclaré des lieux
-  if (ch.etatLieux === 'bon') raisons.push('état déclaré : bon');
-  else if (ch.etatLieux === 'moyen') { rang = Math.max(rang, 1); raisons.push('état déclaré : moyen'); }
-  else if (ch.etatLieux === 'mauvais') { rang = Math.max(rang, 2); raisons.push('état déclaré : mauvais / à rénover'); }
-
-  // Âge du bâti : ancien / très ancien -> supports souvent dégradés
-  if (ch.ageBati === 'ancien') { rang = Math.max(rang, 1); raisons.push('bâtiment ancien (30–50 ans)'); }
-  else if (ch.ageBati === 'tres_ancien') { rang = Math.max(rang, 2); raisons.push('bâtiment très ancien (+ de 50 ans)'); }
-
-  // Papier peint présent -> au minimum préparation standard après décollage
-  if (piece.peintPapier === 'oui') { rang = Math.max(rang, 1); raisons.push('papier peint à décoller (support à reprendre)'); }
-
-  // Bien locatif / préparation à la vente -> le rafraîchissement suffit souvent (usage locatif)
-  if ((ch.typeLogement === 'locatif' || ch.typeLogement === 'vente') && rang < 2) {
-    raisons.push('usage ' + (ch.typeLogement === 'locatif' ? 'locatif' : 'mise en vente') + ' (rafraîchissement souvent suffisant)');
-  }
-
-  const niveau = ['less','std','fort'][rang];
-  return { niveau, raisons };
-}
 
 // ===== CONTRÔLE DES OUBLIS COURANTS (peinture) — aide à la décision, jamais imposé =====
 // Détecte des compléments fréquemment oubliés à partir des données déjà connues.
 // Chaque suggestion propose une quantité calculée ; rien n'est ajouté sans clic « Oui ».
-function controlesOublisPeinture(piece) {
-  const d = piece.dims || {};
-  const cfg = (piece.config && piece.config.peinture) || {};
-  const ign = piece._oublisIgnores || {};
-  const projetNeuf = chantier && (chantier.typeProjet === 'neuf' || chantier.typeProjet === 'extension');
-  const list = [];
-  const add = (code, qty, question, unite) => {
-    qty = Math.round((qty || 0) * 10) / 10;
-    if (qty <= 0 || cfg[code] || ign[code]) return; // déjà ajouté ou déjà refusé
-    list.push({ code, qty, question, unite });
-  };
-  // Portes intérieures (2 faces) — d'après le nombre de portes de la pièce
-  add(projetNeuf ? 'PEINT_PORTE_NEUVE' : 'PEINT_PORTE_EXIST', d.portes || 0,
-      'Vous n\'avez pas prévu de peindre les ' + (d.portes || 0) + ' porte(s) intérieure(s). Souhaitez-vous les ajouter ?', 'U');
-  // Plinthes — périmètre de la pièce moins les passages de portes
-  if (d.l && d.la) {
-    const per = 2 * (d.l + d.la) - 0.8 * (d.portes || 0);
-    add('PEINT_PLINTHE', Math.max(0, per),
-        'Vous n\'avez pas prévu de peindre les plinthes (~' + Math.round(per) + ' ml). Souhaitez-vous les ajouter ?', 'ml');
-  }
-  // Coffres de volets roulants — d'après le nombre de fenêtres
-  add('PEINT_COFFRE_VR', d.fenetres || 0,
-      'Coffres de volets roulants (' + (d.fenetres || 0) + ') non prévus. Les peindre ?', 'U');
-  // Radiateurs — pièces de vie chauffées (hors SDB à sèche-serviette)
-  if (['salon','salle_manger','chambre','bureau','couloir','entree'].includes(piece.id)) {
-    add('PEINT_RAD', 1, 'Un radiateur à peindre dans cette pièce ? (à ajuster)', 'U');
-  }
-  // Tuyaux / canalisations apparents — pièces humides et techniques
-  if (['sdb','sde','wc','cuisine','cave','garage'].includes(piece.id)) {
-    add('PEINT_TUYAU', 2, 'Tuyaux apparents à peindre ? (~2 ml, à ajuster)', 'ml');
-  }
-  // Boiseries diverses — pièces de réception
-  if (['salon','salle_manger','entree'].includes(piece.id)) {
-    add('PEINT_BOISERIE', 1, 'Boiseries diverses à peindre (moulures, habillages) ?', 'm²');
-  }
-  return list;
-}
 
 // Contrôles informatifs : murs / plafond non chiffrés faute de dimensions (pas d'ajout possible)
-function controlesInfoPeinture(piece) {
-  const s = piece.surfaces || {};
-  const out = [];
-  if (!(s.murs > 0)) out.push('Les murs de cette pièce ne sont pas chiffrés (dimensions manquantes). Est-ce volontaire ?');
-  if (!(s.plafond > 0)) out.push('Le plafond de cette pièce n\'est pas chiffré (dimensions manquantes). Est-ce volontaire ?');
-  return out;
-}
 
 // Bandeau HTML du contrôle qualité (suggestions + éléments déjà ajoutés + infos)
 function oublisPeintureHtml(index) {
@@ -2882,17 +2182,6 @@ function renderSolsAuto(pieceIndex) {
 // ===== ÉVALUATION DU SUPPORT (sols) — aide à la décision, jamais imposée =====
 // Symétrique de evaluationSupport() côté peinture. Déduit si un ragréage est
 // conseillé à partir des données déjà connues (projet, état, âge, revêtement choisi).
-function evaluationSupportSol(piece, ch) {
-  ch = ch || {}; piece = piece || {};
-  const raisons = [];
-  if (ch.typeProjet === 'neuf' || ch.typeProjet === 'extension') raisons.push('construction neuve / extension (chape à dresser avant pose)');
-  if (ch.etatLieux === 'mauvais') raisons.push('état déclaré : mauvais (sol probablement irrégulier)');
-  if (ch.ageBati === 'ancien' || ch.ageBati === 'tres_ancien') raisons.push('bâtiment ancien (support souvent inégal)');
-  const type = piece.solType;
-  if (type === 'pvc' || type === 'lino') raisons.push('revêtement souple (PVC / lino) : exige un support parfaitement lisse');
-  else if (type === 'parq_flot' || type === 'stratifie') raisons.push('pose flottante : tolère mal les défauts de planéité');
-  return { ragreageConseille: raisons.length > 0, raisons };
-}
 
 // Bandeau de recommandation (vide si non pertinent ou ragréage déjà ajouté)
 function recoSupportSolHtml(piece) {
@@ -2921,55 +2210,8 @@ function recoSupportSolHtml(piece) {
 }
 
 // ===== CONTRÔLE DES OUBLIS COURANTS (sols) — suggestions non imposées =====
-function controlesOublisSol(piece) {
-  const d = piece.dims || {};
-  const cfg = (piece.config && piece.config.sols) || {};
-  const ign = piece._oublisIgnoresSol || {};
-  const type = piece.solType;
-  const list = [];
-  if (!type) return list; // rien à suggérer tant qu'aucun revêtement n'est choisi
-  const add = (code, qty, question, unite) => {
-    qty = Math.round((qty || 0) * 10) / 10;
-    if (qty <= 0 || cfg[code] || ign[code]) return;
-    list.push({ code, qty, question, unite });
-  };
-  // Plinthes assorties au revêtement — périmètre moins les passages de portes
-  if (d.l && d.la) {
-    const per = 2 * (d.l + d.la) - 0.8 * (d.portes || 0);
-    const codePlinthe = (type === 'parq_flot') ? 'SOL_PLINT_BOIS' : 'SOL_PLINT_STR';
-    add(codePlinthe, Math.max(0, per),
-        'Vous n\'avez pas prévu de plinthes (~' + Math.round(per) + ' ml). Souhaitez-vous les ajouter ?', 'ml');
-  }
-  // Barres de seuil — une par passage de porte
-  add('SOL_SEUIL', d.portes || 0,
-      'Barres de seuil aux ' + (d.portes || 0) + ' passage(s) de porte non prévues. Les ajouter ?', 'U');
-  // Ragréage — si le support le justifie
-  const ev = evaluationSupportSol(piece, chantier);
-  if (ev.ragreageConseille && d.l && d.la) {
-    add('SOL_RAGREAGE', d.l * d.la,
-        'Ragréage du sol non prévu (support plan avant pose). L\'ajouter ?', 'm²');
-  }
-  // Dépose de l'ancien revêtement — proposée en rénovation
-  if (chantier && chantier.typeProjet === 'renov' && d.l && d.la) {
-    add('SOL_DEPOSE', d.l * d.la,
-        'Dépose de l\'ancien revêtement non prévue (rénovation). L\'ajouter ?', 'm²');
-  }
-  // Joint à froid pour lino
-  if (type === 'lino' && d.l && d.la) {
-    add('SOL_JOINT_LINO', Math.max(d.l, d.la),
-        'Joint à froid pour lino non prévu (~' + Math.round(Math.max(d.l, d.la)) + ' ml). L\'ajouter ?', 'ml');
-  }
-  return list;
-}
 
 // Contrôle informatif : revêtement choisi mais sol non chiffré (dimensions manquantes)
-function controlesInfoSol(piece) {
-  const out = [];
-  if (piece.solType && !((piece.surfaces || {}).sol > 0)) {
-    out.push('Un revêtement est choisi mais le sol n\'est pas chiffré (dimensions manquantes). Est-ce volontaire ?');
-  }
-  return out;
-}
 
 function oublisSolHtml(index) {
   const piece = piecesSelectionnees[index];
@@ -3030,41 +2272,6 @@ function retirerOubliSol(index, code) {
 // Fonction pure : analyse la cohérence du devis sols avant validation. Détecte :
 // surface manquante, référence catalogue absente, dépose non tarifable,
 // sous-couche recommandée mais refusée, incohérence de quantités / doublon inter-métier.
-function verifierSols(pieces, metiers) {
-  metiers = metiers || (typeof metiersActifs !== 'undefined' ? metiersActifs : []);
-  const alertes = [];
-  if (!metiers.includes('sols')) return alertes;
-  const CODES_SOL = { parq_flot:'SOL_PARQ_FLOT', stratifie:'SOL_STRATIFIE', pvc:'SOL_PVC', moquette:'SOL_MOQUETTE', lino:'SOL_LINO' };
-  const existe = code => { try { return getMoyenPrixFor(code, {}) > 0; } catch (e) { return false; } };
-  (pieces || []).forEach(p => {
-    const type = p.solType;
-    if (!type) return; // aucun revêtement -> rien à vérifier
-    const d = p.dims || {};
-    const surf = (d.l || 0) * (d.la || 0);
-    const sols = (p.config && p.config.sols) || {};
-    const car = (p.config && p.config.carrelage) || {};
-
-    // 1. Surface manquante
-    if (!(surf > 0)) alertes.push({ niveau:'attention', texte: p.nom + ' : revêtement choisi mais surface non calculée (dimensions manquantes) — sol compté à 0 €.' });
-    // 2. Référence catalogue absente
-    const code = CODES_SOL[type];
-    if (code && !existe(code)) alertes.push({ niveau:'attention', texte: p.nom + ' : référence de revêtement « ' + code + ' » absente du catalogue.' });
-    // 3. Dépose détectée mais non tarifable
-    if ((sols.SOL_DEPOSE || 0) > 0 && !existe('SOL_DEPOSE')) alertes.push({ niveau:'attention', texte: p.nom + ' : dépose demandée mais non tarifable (référence catalogue manquante).' });
-    // 4. Sous-couche recommandée mais refusée (avertissement simple)
-    const flottant = (type === 'parq_flot' || type === 'stratifie');
-    if (flottant && (!p.solSousCouche || p.solSousCouche === 'non')) alertes.push({ niveau:'info', texte: p.nom + ' : sous-couche recommandée sous un sol flottant mais non retenue — à confirmer.' });
-    // 5. Incohérence / doublon inter-métier : un sol ne peut être à la fois revêtement sols ET carrelage sol
-    if ((car.CAR_POSE_SOL || 0) > 0 || (car.CAR_POSE_SOL_GRAND || 0) > 0) {
-      alertes.push({ niveau:'attention', texte: p.nom + ' : un revêtement de sol ET un carrelage au sol sont configurés — un seul revêtement par sol, doublon probable.' });
-    }
-    // Ragréage compté à la fois côté sols et côté carrelage
-    if ((sols.SOL_RAGREAGE || 0) > 0 && (car.CAR_RAGREAGE || 0) > 0) {
-      alertes.push({ niveau:'info', texte: p.nom + ' : ragréage compté côté sols ET côté carrelage — vérifiez le doublon.' });
-    }
-  });
-  return alertes;
-}
 
 // ===== SÉLECTEURS POSE / GAMME (par pièce) =====
 const _SEL_SS = 'width:100%;margin-top:6px;padding:10px 14px;border-radius:12px;border:1.5px solid var(--border);background:var(--surface);color:var(--text);font-size:0.95rem;';
@@ -3178,110 +2385,12 @@ function getMoyenPrixFor(code, piece) {
 
 // ===== NF C 15-100 — équipement minimum par pièce (verrouillé) =====
 // Éclairage selon nombre de portes : 1 accès = simple, 2 = va-et-vient, 3+ = télérupteur
-function normeMin(pieceId, portes, surface) {
-  portes = portes || 1;
-  surface = surface || 0;
-  // Commande d'éclairage : nb de portes = nb d'accès (approximation).
-  // Pièces de passage (couloir, escalier) : minimum va-et-vient — on commande
-  // aux deux extrémités même si une seule « porte » est saisie (escalier = haut + bas).
-  const passage = (pieceId === 'couloir' || pieceId === 'escalier');
-  const acces = Math.max(portes, passage ? 2 : 1);
-  const light = acces >= 3 ? 'ELEC_PL_3BP' : (acces === 2 ? 'ELEC_PL_VV' : 'ELEC_PL_SA');
-  const min = {};
-  // 1 point lumineux minimum par pièce (NF C 15-100) — sauf jardin/allée :
-  // aucun éclairage imposé par la norme en pleine parcelle (proposé en conseil, retirable).
-  // Terrasse, façade, carport conservent leur point (éclairage des accès du bâti).
-  if (pieceId !== 'jardin') min[light] = 1;
-  if (pieceId === 'cuisine') { min.ELEC_PRISE10 = 6; min.ELEC_PRISE32 = 1; min.ELEC_PRISE20 = 2; }
-  else if (pieceId === 'salon' || pieceId === 'salle_manger') { min.ELEC_PRISE10 = surface > 28 ? 7 : 5; min.ELEC_RJ45 = 1; min.ELEC_TV = 1; } // NF C 15-100 (A5) : 5 socles si séjour ≤ 28 m², 7 au-delà
-  else if (pieceId === 'chambre') { min.ELEC_PRISE10 = 3; min.ELEC_RJ45 = 1; min.ELEC_TV = 1; }
-  else if (pieceId === 'sdb') { min.ELEC_PRISE10 = 1; min.ELEC_LIAISON_EQUI = 1; } // sèche-serviette = conseil DS.BAT (non exigé par la norme)
-  else if (pieceId === 'sde') { min.ELEC_PRISE10 = 1; }
-  else if (pieceId === 'wc') { /* éclairage seul */ }
-  else if (pieceId === 'entree') { min.ELEC_PRISE10 = 1; } // sonnette = conseil DS.BAT (non exigé par la norme)
-  else if (pieceId === 'bureau') { min.ELEC_PRISE10 = 3; } // usage pièce principale : aligné sur la chambre (3 socles)
-  else if (pieceId === 'terrasse' || pieceId === 'jardin' || pieceId === 'facade' || pieceId === 'carport') { /* extérieur : aucun socle imposé par la NF C 15-100 — prise étanche en option, jamais verrouillée */ }
-  else { min.ELEC_PRISE10 = 1; } // autres locaux intérieurs (couloir, escalier, cave/buanderie, garage, dressing, véranda) : 1 socle
-  // Chauffage électrique -> sortie de câble radiateur (fil pilote) dans les pièces de vie
-  if (chantier && chantier.chauffage === 'electrique' && ['salon','salle_manger','chambre','bureau'].includes(pieceId)) min.ELEC_SC20_FP = 1;
-  return min;
-}
 
 // ===== CONSEILS DS.BAT — recommandations métier AU-DESSUS de la norme =====
 // Symétrique de normeMin() : fonction pure, retourne { code: { qte, raison } }.
 // Affiché en badge 💡 « Conseil DS.BAT » avec sa justification.
 // IMPORTANT : jamais pré-ajouté aux quantités — le pré-remplissage arrivera
 // avec le mode projet (mise aux normes / standard / confort).
-function recoDSBAT(pieceId, dims, ch, niveau) {
-  dims = dims || {};
-  niveau = niveau || 'standard';
-  const surface = (dims.l || 0) * (dims.la || 0);
-  const reco = {};
-
-  // --- Conseils standard (expérience terrain) ---
-  if ((pieceId === 'salon' || pieceId === 'salle_manger') && surface >= 20) {
-    const nSup = surface >= 40 ? 2 : 1;
-    reco.ELEC_PL_SA = { qte: nSup, raison: 'Séjour de ' + surface.toFixed(0) + ' m² : ' + (nSup > 1 ? nSup + ' points lumineux supplémentaires permettent' : 'un 2e point lumineux permet') + ' de zoner l\'éclairage' };
-  }
-  if (pieceId === 'cuisine' && surface >= 15) {
-    reco.ELEC_PL_SUP = { qte: 1, raison: 'Grande cuisine / cuisine ouverte de ' + surface.toFixed(0) + ' m² : second point lumineux (zone repas ou plan de travail) sur la même commande' };
-  }
-  if (pieceId === 'couloir') {
-    const longueur = Math.max(dims.l || 0, dims.la || 0);
-    if (longueur >= 5) {
-      const nSup = Math.min(3, Math.floor(longueur / 5));
-      reco.ELEC_PL_SUP = { qte: nSup, raison: 'Couloir de ' + longueur + ' m : ' + nSup + ' point(s) lumineux supplémentaire(s) sur la même commande (un point tous les ~5 m)' };
-    }
-  }
-  if (pieceId === 'escalier') {
-    reco.ELEC_PL_SUP = { qte: 1, raison: 'Escalier : second point lumineux pour éclairer le haut et le bas sur la même commande' };
-  }
-  if (pieceId === 'jardin') {
-    reco.ELEC_PL_SA = { qte: 1, raison: 'Éclairage de l\'allée / du jardin conseillé (non imposé par la norme)' };
-  }
-  if (pieceId === 'salon' && (dims.fenetres || 0) >= 2) {
-    reco.ELEC_VOLET = { qte: dims.fenetres, raison: dims.fenetres + ' fenêtres : commandes de volets roulants recommandées' };
-  }
-  if (pieceId === 'chambre') {
-    reco.ELEC_PRISED = { qte: 1, raison: 'Prise double supplémentaire côté lit (chevets, chargeurs)' };
-  }
-  if (pieceId === 'bureau') {
-    reco.ELEC_PRISE10 = { qte: 2, raison: 'Télétravail : 2 prises supplémentaires au poste de travail' };
-    reco.ELEC_RJ45 = { qte: 1, raison: 'Télétravail : liaison réseau filaire, plus stable que le Wi-Fi' };
-  }
-  if (pieceId === 'cuisine') {
-    reco.ELEC_PRISED = { qte: 1, raison: 'Prise double supplémentaire sur le plan de travail (petit électroménager)' };
-  }
-  if (pieceId === 'sdb') {
-    reco.ELEC_SECH_SERV = { qte: 1, raison: 'Sèche-serviette recommandé (confort salle de bain — non imposé par la norme)' };
-  }
-  if (pieceId === 'entree') {
-    reco.ELEC_SONETTE = { qte: 1, raison: 'Sonnette / interphone recommandé à l\'entrée (non imposé par la norme)' };
-  }
-  if (pieceId === 'sdb' || pieceId === 'sde') {
-    reco.ELEC_PL_APP = { qte: 1, raison: 'Double allumage conseillé : plafonnier (norme) + applique au-dessus du lavabo pour l\'éclairage du miroir' };
-  }
-
-  // --- Niveau confort : équipements d'usage et d'évolutivité ---
-  if (niveau === 'confort') {
-    const piecesDeVie = ['salon','salle_manger','chambre','bureau'];
-    if (piecesDeVie.includes(pieceId)) {
-      const cur = reco.ELEC_PRISED ? reco.ELEC_PRISED.qte : 0;
-      reco.ELEC_PRISED = { qte: cur + 1, raison: (reco.ELEC_PRISED ? reco.ELEC_PRISED.raison + ' · ' : '') + 'Confort : prise double supplémentaire (évolutivité des usages)' };
-    }
-    if (piecesDeVie.includes(pieceId) && (dims.fenetres || 0) >= 1 && !reco.ELEC_VOLET) {
-      reco.ELEC_VOLET = { qte: dims.fenetres, raison: 'Confort : motorisation des volets (' + dims.fenetres + ' fenêtre(s))' };
-    }
-    if (pieceId === 'salon') {
-      reco.ELEC_RJ45 = { qte: 1, raison: 'Confort : RJ45 supplémentaire (TV connectée, box, console)' };
-      if (ch && ch.chauffage === 'electrique') {
-        reco.ELEC_THERMO = { qte: 1, raison: 'Confort : thermostat d\'ambiance pour piloter le chauffage électrique' };
-      }
-    }
-  }
-
-  return reco;
-}
 
 // Applique/actualise le minimum réglementaire (jamais en dessous), gère le changement de portes
 function appliquerNorme(index) {
