@@ -42,6 +42,7 @@ window.axeptioSettings = {
 <link rel="stylesheet" href="styles.css">
 <script src="config.js"></script>
 <script src="prix.js"></script>
+<script src="js/pricing.js"></script>
 <!-- MISSION 026 — Modularisation : nouveaux moteurs autonomes (dossier /js) -->
 <script src="js/moteur-devis.js"></script>
 <script src="js/moteur-piece.js"></script>
@@ -2243,24 +2244,6 @@ function majPrixMetier(i, metier) {
 }
 
 // Prix d'une prestation en tenant compte des choix de la pièce (pose/gamme)
-function getPrixPrestFor(code, piece) {
-  for (const cat of Object.values(PRIX)) {
-    const f = cat.find(p => p.code === code);
-    if (f) {
-      if (f.renov) return f.renov;
-      if (f.prix) return f.prix;
-      if (f.pose && f.app && typeof prixElec === 'function')
-        return prixElec(f, (piece && piece.elecMethode) || 'saignee', (piece && piece.elecGamme) || 'dooxie');
-      if (f.pose && f.four && typeof prixPlomberie === 'function')
-        return prixPlomberie(f, (piece && piece.ploGamme) || 'standard');
-    }
-  }
-  return null;
-}
-function getMoyenPrixFor(code, piece) {
-  const p = getPrixPrestFor(code, piece);
-  return p ? (p.min + p.max) / 2 : 0;
-}
 
 // ===== NF C 15-100 — équipement minimum par pièce (verrouillé) =====
 // Éclairage selon nombre de portes : 1 accès = simple, 2 = va-et-vient, 3+ = télérupteur
@@ -2927,23 +2910,7 @@ function envoyerEmail(subject, fields, pdfBlob, nomPdf) {
 
 // ===== NOTIFICATIONS (WhatsApp + email automatique vers DS.BAT) =====
 // Temps unitaire d'un poste depuis le catalogue (h/U ou h/m²) — dossier technique / futur planning
-function tempsUnitaire(code) {
-  for (const cat of Object.values(PRIX)) {
-    if (!Array.isArray(cat)) continue;
-    const f = cat.find(p => p.code === code);
-    if (f) return f.temps || 0;
-  }
-  return 0;
-}
 
-function findPrestLabel(code) {
-  for (const cat of Object.values(PRIX)) {
-    if (!Array.isArray(cat)) continue;
-    const f = cat.find(p => p.code === code);
-    if (f) return f.label;
-  }
-  return code;
-}
 
 function construireRecapTexte(numero, totalHT, tva, ttc, clientData) {
   const L = [];
