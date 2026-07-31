@@ -862,15 +862,14 @@ function getPrestationsPourPiece(pieceId, metiersActifs) {
     const prests = getPlombPourPiece(pieceId);
     if (prests.length > 0) sections.push({ metier:'plomberie', icon:'🚿', label:'Plomberie', prests });
   }
-  if (metiersActifs.includes('peinture')) {
-    sections.push({ metier:'peinture', icon:'🎨', label:'Peinture', prests: [], auto: true, autoType: 'peinture' });
+  // Familles harmonisées (MISSION 052) : le carrelage/faïence n'est plus un métier
+  // séparé — le carrelage sol rejoint « Revêtement de sol », la faïence rejoint
+  // « Revêtement mural ». Une famille apparaît si son métier OU le carrelage est actif.
+  if (metiersActifs.includes('peinture') || metiersActifs.includes('carrelage')) {
+    sections.push({ metier:'peinture', icon:'🎨', label:'Revêtement mural', prests: [], auto: true, autoType: 'peinture' });
   }
-  if (metiersActifs.includes('sols')) {
-    sections.push({ metier:'sols', icon:'🪵', label:'Revêtement sols', prests: [], auto: true, autoType: 'sols' });
-  }
-  if (metiersActifs.includes('carrelage')) {
-    const prests = getCarrelagePourPiece(pieceId);
-    if (prests.length > 0) sections.push({ metier:'carrelage', icon:'🔲', label:'Carrelage / Faïence', prests });
+  if (metiersActifs.includes('sols') || metiersActifs.includes('carrelage')) {
+    sections.push({ metier:'sols', icon:'🪵', label:'Revêtement de sol', prests: [], auto: true, autoType: 'sols' });
   }
   if (metiersActifs.includes('isolation')) {
     const prests = getIsolationPourPiece(pieceId);
@@ -2001,27 +2000,142 @@ function retirerOubliPeint(index, code) {
   recalcPiece(index);
 }
 
+// ===== MISSION 052 — REVÊTEMENTS HARMONISÉS (interface uniquement) =====
+// Deux familles : « Revêtement de sol » et « Revêtement mural ». Le choix du
+// matériau appelle automatiquement le bon moteur EXISTANT : sols souples via le
+// sols-auto de moteur-piece (piece.solType), carrelage/faïence via les prix
+// catalogue (piece.config.carrelage.CAR_POSE_SOL / CAR_POSE_MUR). Toutes les
+// surfaces sont déduites des dimensions déjà connues — plus aucune saisie
+// manuelle de surface. AUCUN moteur / prix / formule / cohérence n'est modifié :
+// recalcPiece alimente simplement le modèle avant l'appel au moteur pur.
+const _r2 = v => Math.round((v || 0) * 100) / 100;
+
+const SOL_MATERIAUX = [
+  { val:'carrelage',       label:'Carrelage (fourniture + pose)',      kind:'carrelage', code:'CAR_POSE_SOL' },
+  { val:'carrelage_grand', label:'Carrelage grand format',             kind:'carrelage', code:'CAR_POSE_SOL_GRAND' },
+  { val:'parq_flot',       label:'Parquet flottant (pose seule)',      kind:'souple' },
+  { val:'stratifie',       label:'Sol stratifié (fourniture + pose)',  kind:'souple' },
+  { val:'pvc',             label:'Sol PVC (fourniture + pose)',         kind:'souple' },
+  { val:'moquette',        label:'Moquette (fourniture + pose)',        kind:'souple' },
+  { val:'lino',            label:'Linoléum (fourniture + pose)',        kind:'souple' },
+];
+function solMateriauxDispo() {
+  // Le carrelage n'est proposé que si le métier carrelage est actif.
+  return SOL_MATERIAUX.filter(m => m.kind !== 'carrelage' || metiersActifs.includes('carrelage'));
+}
+function deriveSolMateriau(piece) {
+  if (piece.solMateriau !== undefined && piece.solMateriau !== null) return piece.solMateriau;
+  const carr = (piece.config && piece.config.carrelage) || {};
+  if (carr.CAR_POSE_SOL_GRAND > 0) return 'carrelage_grand';
+  if (carr.CAR_POSE_SOL > 0) return 'carrelage';
+  return piece.solType || '';
+}
+
+// --- Faïence : dimensionnement automatique par type de pièce (hauteur ajustable) ---
+const FAIENCE_PARAMS = {
+  hauteurDefaut: { zone: 2.1, soubassement: 1.2, credence: 0.6 }, // m ; 'murs' = pleine hauteur (s.murs)
+  zoneLongueur: 3.0 // ml : alcôve douche/bain 1,2 m + 2 retours 0,9 m
+};
+function faienceModeDefaut(id) {
+  if (id === 'sdb' || id === 'sde') return 'zone';
+  if (id === 'wc') return 'soubassement';
+  if (id === 'cuisine') return 'credence';
+  return 'non';
+}
+function faienceModesDispo(id) {
+  const lbl = { zone:'Zone douche / bain (toute hauteur)', soubassement:'Soubassement', credence:'Crédence', murs:'Murs entiers', non:'Aucune faïence' };
+  let modes;
+  if (id === 'sdb' || id === 'sde') modes = ['zone','murs','non'];
+  else if (id === 'wc') modes = ['soubassement','murs','non'];
+  else if (id === 'cuisine') modes = ['credence','murs','non'];
+  else modes = ['non','murs'];
+  return modes.map(m => ({ val:m, label:lbl[m] }));
+}
+function faienceLongueur(piece, mode) {
+  const d = piece.dims || {}; const l = d.l || 0, la = d.la || 0, por = d.portes || 0;
+  if (mode === 'zone') return FAIENCE_PARAMS.zoneLongueur;
+  if (mode === 'soubassement') return Math.max(0, 2 * (l + la) - 0.8 * por);
+  if (mode === 'credence') return Math.max(l, la);
+  return 0;
+}
+function faienceSurfaceBase(piece, mode, hauteur, surfMurs) {
+  if (!mode || mode === 'non') return 0;
+  if (mode === 'murs') return _r2(surfMurs || 0);
+  const h = (hauteur != null && !isNaN(hauteur)) ? hauteur : (FAIENCE_PARAMS.hauteurDefaut[mode] || 1);
+  return _r2(faienceLongueur(piece, mode) * h);
+}
+function deriveFaience(piece) {
+  if (piece.faienceMode !== undefined && piece.faienceMode !== null) return;
+  const carr = (piece.config && piece.config.carrelage) || {};
+  if (carr.CAR_POSE_MUR > 0 || carr.CAR_POSE_MUR_PETIT > 0) {
+    piece.faienceMode = 'murs';
+    piece.faienceSurface = carr.CAR_POSE_MUR_PETIT > 0 ? carr.CAR_POSE_MUR_PETIT : carr.CAR_POSE_MUR;
+    if (carr.CAR_POSE_MUR_PETIT > 0) piece.faienceFormat = 'mosaique';
+  } else {
+    piece.faienceMode = faienceModeDefaut(piece.id);
+  }
+}
+
+// Alimente piece.solType + piece.config.carrelage à partir des choix de revêtement
+// et des SURFACES déjà calculées. N'écrit QUE les codes de pose gérés ici ; les
+// compléments ajoutés via les oublis (fourniture, colle, plinthes…) restent intacts.
+function appliquerRevetements(piece, surfaces) {
+  surfaces = surfaces || { sol:0, murs:0, plafond:0 };
+  if (!piece.config.carrelage) piece.config.carrelage = {};
+  const carr = piece.config.carrelage;
+
+  // --- SOL ---
+  const mat = deriveSolMateriau(piece); piece.solMateriau = mat;
+  const def = SOL_MATERIAUX.find(m => m.val === mat);
+  delete carr.CAR_POSE_SOL; delete carr.CAR_POSE_SOL_GRAND;
+  if (def && def.kind === 'souple') { piece.solType = mat; }
+  else if (def && def.kind === 'carrelage' && metiersActifs.includes('carrelage')) { piece.solType = ''; if (surfaces.sol > 0) carr[def.code] = _r2(surfaces.sol); }
+  else { piece.solType = ''; }
+
+  // --- FAÏENCE (mural) ---
+  if (metiersActifs.includes('carrelage')) {
+    deriveFaience(piece);
+    const mode = piece.faienceMode;
+    delete carr.CAR_POSE_MUR; delete carr.CAR_POSE_MUR_PETIT;
+    if (mode && mode !== 'non') {
+      const h = piece.faienceHauteur != null ? piece.faienceHauteur : FAIENCE_PARAMS.hauteurDefaut[mode];
+      const base = faienceSurfaceBase(piece, mode, h, surfaces.murs);
+      const ovr = piece.faienceSurface;
+      const surf = (ovr != null && ovr !== '' && !isNaN(ovr)) ? Number(ovr) : base;
+      const code = piece.faienceFormat === 'mosaique' ? 'CAR_POSE_MUR_PETIT' : 'CAR_POSE_MUR';
+      if (surf > 0) carr[code] = _r2(surf);
+    }
+  }
+  // Nettoyage : ne pas laisser un objet carrelage vide polluer le modèle
+  if (Object.keys(carr).length === 0) delete piece.config.carrelage;
+}
+
 function renderPeintureAuto(pieceIndex) {
-  // Persistance : mêmes principes que l'électricité (elecMethode/elecGamme) —
-  // les choix mémorisés sur la pièce priment sur les défauts issus de l'état des lieux.
+  // Famille « Revêtement mural » : peinture (si métier actif) + faïence (si carrelage actif).
+  // Persistance : les choix mémorisés sur la pièce priment sur les défauts.
   const piece = piecesSelectionnees[pieceIndex] || {};
-  const defMur = piece.peintMur || ({ bon:'less', moyen:'std', mauvais:'fort' })[(chantier && chantier.etatLieux)] || 'std';
-  const defPlaf = piece.peintPlaf || (defMur === 'less' ? 'less' : 'std');
-  const defPap = piece.peintPapier || 'non';
-  const gammes = [
-    { val:'less', label:'Rafraîchissement (2 couches sur bon état)' },
-    { val:'std', label:'Standard (égrenage + 2 couches)' },
-    { val:'fort', label:'Travaux importants (enduit + 2 couches)' },
-  ];
-  return `
+  const paintOn = metiersActifs.includes('peinture');
+  const carrOn = metiersActifs.includes('carrelage');
+  let html = '';
+
+  if (paintOn) {
+    const defMur = piece.peintMur || ({ bon:'less', moyen:'std', mauvais:'fort' })[(chantier && chantier.etatLieux)] || 'std';
+    const defPlaf = piece.peintPlaf || (defMur === 'less' ? 'less' : 'std');
+    const defPap = piece.peintPapier || 'non';
+    const gammes = [
+      { val:'less', label:'Rafraîchissement (2 couches sur bon état)' },
+      { val:'std', label:'Standard (égrenage + 2 couches)' },
+      { val:'fort', label:'Travaux importants (enduit + 2 couches)' },
+    ];
+    html += `
     <div style="margin-bottom:14px;">
-      <label style="font-size:0.82rem;font-weight:700;color:var(--text-light);text-transform:uppercase;">Gamme murs</label>
+      <label style="font-size:0.82rem;font-weight:700;color:var(--text-light);text-transform:uppercase;">Peinture — gamme murs</label>
       <select id="peint_mur_${pieceIndex}" onchange="recalcPiece(${pieceIndex})" style="width:100%;margin-top:6px;padding:10px 14px;border-radius:12px;border:1.5px solid var(--border);background:var(--surface);color:var(--text);font-size:0.95rem;">
         ${gammes.map(g => `<option value="${g.val}" ${g.val===defMur?'selected':''}>${g.label}</option>`).join('')}
       </select>
     </div>
     <div style="margin-bottom:14px;">
-      <label style="font-size:0.82rem;font-weight:700;color:var(--text-light);text-transform:uppercase;">Gamme plafond</label>
+      <label style="font-size:0.82rem;font-weight:700;color:var(--text-light);text-transform:uppercase;">Peinture — gamme plafond</label>
       <select id="peint_plaf_${pieceIndex}" onchange="recalcPiece(${pieceIndex})" style="width:100%;margin-top:6px;padding:10px 14px;border-radius:12px;border:1.5px solid var(--border);background:var(--surface);color:var(--text);font-size:0.95rem;">
         <option value="less" ${defPlaf==='less'?'selected':''}>Rafraîchissement plafond</option>
         <option value="std" ${defPlaf==='std'?'selected':''}>Standard plafond</option>
@@ -2036,8 +2150,72 @@ function renderPeintureAuto(pieceIndex) {
     </div>
     <div id="souscouche_info_${pieceIndex}" style="font-size:0.8rem;color:var(--accent);margin-top:8px;"></div>
     <div id="reco_support_${pieceIndex}" style="margin-top:10px;"></div>
-    <div id="oublis_peinture_${pieceIndex}"></div>
-  `;
+    <div id="oublis_peinture_${pieceIndex}"></div>`;
+  }
+
+  if (carrOn) html += renderFaienceBlock(pieceIndex, piece);
+  return html || '<p style="font-size:0.85rem;color:var(--text-light);">Aucune finition murale à configurer.</p>';
+}
+
+// Bloc faïence : mode par type de pièce (pré-rempli), hauteur et surface ajustables,
+// bascule libre vers « murs entiers ». La surface est calculée automatiquement ;
+// l'override manuel reste possible sans limitation.
+function renderFaienceBlock(pieceIndex, piece) {
+  deriveFaience(piece);
+  const mode = piece.faienceMode || 'non';
+  const modes = faienceModesDispo(piece.id);
+  const hShown = (mode === 'zone' || mode === 'soubassement' || mode === 'credence');
+  const hVal = piece.faienceHauteur != null ? piece.faienceHauteur : (FAIENCE_PARAMS.hauteurDefaut[mode] != null ? FAIENCE_PARAMS.hauteurDefaut[mode] : '');
+  const fmt = piece.faienceFormat || 'standard';
+  const ovr = (piece.faienceSurface != null && piece.faienceSurface !== '') ? piece.faienceSurface : '';
+  return `
+    <div style="margin-top:14px;padding-top:12px;border-top:1px dashed var(--border);">
+      <label style="font-size:0.82rem;font-weight:700;color:var(--text-light);text-transform:uppercase;">Faïence murale</label>
+      <select id="faience_mode_${pieceIndex}" onchange="onFaienceMode(${pieceIndex})" style="${_SEL_SS}">
+        ${modes.map(m => `<option value="${m.val}" ${m.val===mode?'selected':''}>${m.label}</option>`).join('')}
+      </select>
+      <div id="faience_params_${pieceIndex}" style="margin-top:8px;${mode==='non'?'display:none;':'display:grid;'}grid-template-columns:1fr 1fr;gap:8px;">
+        <div style="${hShown?'':'visibility:hidden;'}">
+          <label style="font-size:0.72rem;color:var(--text-light);">Hauteur (m)</label>
+          <input type="number" step="0.1" min="0" id="faience_h_${pieceIndex}" value="${hShown ? hVal : ''}" oninput="onFaienceHeight(${pieceIndex})" style="${_SEL_SS}">
+        </div>
+        <div>
+          <label style="font-size:0.72rem;color:var(--text-light);">Format</label>
+          <select id="faience_format_${pieceIndex}" onchange="recalcPiece(${pieceIndex})" style="${_SEL_SS}">
+            <option value="standard" ${fmt==='standard'?'selected':''}>Faïence standard</option>
+            <option value="mosaique" ${fmt==='mosaique'?'selected':''}>Mosaïque / petit format</option>
+          </select>
+        </div>
+      </div>
+      <div id="faience_est_${pieceIndex}" style="font-size:0.78rem;color:var(--accent);margin-top:6px;"></div>
+      <div id="faience_ovr_wrap_${pieceIndex}" style="margin-top:6px;${mode==='non'?'display:none;':''}">
+        <label style="font-size:0.72rem;color:var(--text-light);">Ajuster la surface manuellement (m²) — optionnel</label>
+        <input type="number" step="0.1" min="0" id="faience_surf_${pieceIndex}" value="${ovr}" placeholder="auto" oninput="recalcPiece(${pieceIndex})" style="${_SEL_SS}">
+      </div>
+    </div>`;
+}
+
+function onFaienceMode(index) {
+  const piece = piecesSelectionnees[index];
+  const mode = document.getElementById(`faience_mode_${index}`).value;
+  piece.faienceMode = mode;
+  piece.faienceSurface = undefined;
+  piece.faienceHauteur = (FAIENCE_PARAMS.hauteurDefaut[mode] != null) ? FAIENCE_PARAMS.hauteurDefaut[mode] : undefined;
+  const hShown = (mode === 'zone' || mode === 'soubassement' || mode === 'credence');
+  const hEl = document.getElementById(`faience_h_${index}`);
+  if (hEl) { hEl.value = hShown ? (FAIENCE_PARAMS.hauteurDefaut[mode] || '') : ''; if (hEl.parentElement) hEl.parentElement.style.visibility = hShown ? 'visible' : 'hidden'; }
+  const sEl = document.getElementById(`faience_surf_${index}`); if (sEl) sEl.value = '';
+  const params = document.getElementById(`faience_params_${index}`); if (params) params.style.display = (mode === 'non') ? 'none' : 'grid';
+  const ovr = document.getElementById(`faience_ovr_wrap_${index}`); if (ovr) ovr.style.display = (mode === 'non') ? 'none' : 'block';
+  recalcPiece(index);
+}
+function onFaienceHeight(index) {
+  const piece = piecesSelectionnees[index];
+  const h = parseFloat(document.getElementById(`faience_h_${index}`).value);
+  piece.faienceHauteur = isNaN(h) ? undefined : h;
+  piece.faienceSurface = undefined; // la hauteur pilote la surface tant qu'aucun override n'est saisi
+  const sEl = document.getElementById(`faience_surf_${index}`); if (sEl) sEl.value = '';
+  recalcPiece(index);
 }
 
 // Construit le bandeau de recommandation support (chaîne HTML, vide si le choix est cohérent).
@@ -2058,32 +2236,26 @@ function recoSupportHtml(piece) {
 }
 
 function renderSolsAuto(pieceIndex) {
-  // Persistance : mêmes principes que l'électricité et la peinture —
-  // les choix mémorisés sur la pièce priment (restaurés au re-rendu / rechargement).
+  // Famille « Revêtement de sol » : un seul choix de matériau (souple OU carrelage).
+  // La surface = Longueur × Largeur, calculée automatiquement (aucune saisie manuelle).
   const piece = piecesSelectionnees[pieceIndex] || {};
-  const defType = piece.solType || '';
-  // Sous-couche recommandée par défaut sous un sol flottant (retirable) — jamais imposée :
-  // un choix explicite mémorisé (y compris « non ») prime toujours.
-  const _flottant = (defType === 'parq_flot' || defType === 'stratifie');
+  const mat = deriveSolMateriau(piece);
+  const _flottant = (mat === 'parq_flot' || mat === 'stratifie');
   const defSC = piece.solSousCouche || (_flottant ? 'std' : 'non');
-  const types = [
-    { val:'parq_flot', label:'Parquet flottant (pose seule)' },
-    { val:'stratifie', label:'Sol stratifié (fourniture + pose)' },
-    { val:'pvc', label:'Sol PVC (fourniture + pose)' },
-    { val:'moquette', label:'Moquette (fourniture + pose)' },
-    { val:'lino', label:'Linoléum (fourniture + pose)' },
-  ];
+  const mats = solMateriauxDispo();
+  const carrOn = metiersActifs.includes('carrelage');
   return `
     <div style="margin-bottom:14px;">
-      <label style="font-size:0.82rem;font-weight:700;color:var(--text-light);text-transform:uppercase;">Type de revêtement</label>
-      <select id="sol_type_${pieceIndex}" onchange="recalcPiece(${pieceIndex})" style="width:100%;margin-top:6px;padding:10px 14px;border-radius:12px;border:1.5px solid var(--border);background:var(--surface);color:var(--text);font-size:0.95rem;">
-        <option value="" ${defType===''?'selected':''}>-- Choisir --</option>
-        ${types.map(t => `<option value="${t.val}" ${t.val===defType?'selected':''}>${t.label}</option>`).join('')}
+      <label style="font-size:0.82rem;font-weight:700;color:var(--text-light);text-transform:uppercase;">Matériau du sol</label>
+      <select id="sol_materiau_${pieceIndex}" onchange="recalcPiece(${pieceIndex})" style="${_SEL_SS}">
+        <option value="" ${mat===''?'selected':''}>-- Choisir --</option>
+        ${mats.map(m => `<option value="${m.val}" ${m.val===mat?'selected':''}>${m.label}</option>`).join('')}
       </select>
+      <span style="display:block;margin-top:4px;font-size:0.72rem;color:var(--text-light);">📐 Surface = Longueur × Largeur, calculée automatiquement depuis vos dimensions.</span>
     </div>
     <div>
       <label style="font-size:0.82rem;font-weight:700;color:var(--text-light);text-transform:uppercase;">Sous-couche ?</label>
-      <select id="sol_souscouche_${pieceIndex}" onchange="recalcPiece(${pieceIndex})" style="width:100%;margin-top:6px;padding:10px 14px;border-radius:12px;border:1.5px solid var(--border);background:var(--surface);color:var(--text);font-size:0.95rem;">
+      <select id="sol_souscouche_${pieceIndex}" onchange="recalcPiece(${pieceIndex})" style="${_SEL_SS}">
         <option value="non" ${defSC==='non'?'selected':''}>Non</option>
         <option value="std" ${defSC==='std'?'selected':''}>Standard</option>
         <option value="liege" ${defSC==='liege'?'selected':''}>Liège</option>
@@ -2091,6 +2263,7 @@ function renderSolsAuto(pieceIndex) {
     </div>
     <div id="reco_support_sol_${pieceIndex}" style="margin-top:10px;"></div>
     <div id="oublis_sols_${pieceIndex}"></div>
+    ${carrOn ? `<div id="reco_support_carr_${pieceIndex}" style="margin-top:10px;"></div><div id="oublis_carr_${pieceIndex}"></div>` : ''}
   `;
 }
 
@@ -2447,14 +2620,34 @@ function recalcPiece(index) {
     if (plafGamme !== undefined) piece.peintPlaf = plafGamme;
     if (papier !== undefined) piece.peintPapier = papier;
   }
-  if (metiersActifs.includes('sols')) {
-    const solType = document.getElementById(`sol_type_${index}`)?.value;
+  // Revêtement de sol (matériau unique : souple OU carrelage) + sous-couche
+  if (metiersActifs.includes('sols') || metiersActifs.includes('carrelage')) {
+    const mat = document.getElementById(`sol_materiau_${index}`)?.value;
     const sousCouche = document.getElementById(`sol_souscouche_${index}`)?.value;
-    if (solType !== undefined) piece.solType = solType;
+    if (mat !== undefined) piece.solMateriau = mat;
     if (sousCouche !== undefined) piece.solSousCouche = sousCouche;
   }
+  // Faïence murale (mode par type de pièce, hauteur / surface ajustables)
+  if (metiersActifs.includes('carrelage')) {
+    const fMode = document.getElementById(`faience_mode_${index}`)?.value;
+    const fFmt = document.getElementById(`faience_format_${index}`)?.value;
+    const fhEl = document.getElementById(`faience_h_${index}`);
+    const fSurfEl = document.getElementById(`faience_surf_${index}`);
+    if (fMode !== undefined) piece.faienceMode = fMode;
+    if (fFmt !== undefined) piece.faienceFormat = fFmt;
+    if (fhEl && fhEl.value !== '') piece.faienceHauteur = parseFloat(fhEl.value);
+    if (fSurfEl) piece.faienceSurface = (fSurfEl.value !== '' ? parseFloat(fSurfEl.value) : undefined);
+  }
 
-  // 2) CALCUL PUR (aucun accès au DOM) — cœur du calcul par pièce
+  // 2) CALCUL PUR (aucun accès au DOM) — cœur du calcul par pièce.
+  //    a) 1er passage : obtient les SURFACES depuis les dimensions.
+  //    b) on en déduit les quantités de revêtements (sol carrelé, faïence) — plus
+  //       aucune saisie manuelle de surface (règle DSBAT).
+  //    c) 2e passage : chiffrage final avec ces quantités.
+  calculerPiece(piece, chantier, metiersActifs);
+  if (metiersActifs.includes('sols') || metiersActifs.includes('carrelage')) {
+    appliquerRevetements(piece, piece.surfaces || { sol:0, murs:0, plafond:0 });
+  }
   const R = calculerPiece(piece, chantier, metiersActifs);
 
   // 3) AFFICHER les résultats retournés
@@ -2491,6 +2684,18 @@ function recalcPiece(index) {
     if (recoCarrEl) recoCarrEl.innerHTML = recoSupportCarrHtml(piece);
     const oublisCarrEl = document.getElementById(`oublis_carr_${index}`);
     if (oublisCarrEl) oublisCarrEl.innerHTML = oublisCarrHtml(index);
+    // Estimation faïence (surface auto ou ajustée)
+    const estEl = document.getElementById(`faience_est_${index}`);
+    if (estEl) {
+      const mode = piece.faienceMode;
+      const carr = piece.config.carrelage || {};
+      const surf = (carr.CAR_POSE_MUR || 0) + (carr.CAR_POSE_MUR_PETIT || 0);
+      if (!mode || mode === 'non' || surf <= 0) { estEl.textContent = ''; }
+      else {
+        const code = piece.faienceFormat === 'mosaique' ? 'CAR_POSE_MUR_PETIT' : 'CAR_POSE_MUR';
+        estEl.innerHTML = '🔲 Faïence estimée : <strong>' + surf.toFixed(1) + ' m²</strong> — ' + formatEuro(getMoyenPrixFor(code, piece) * surf) + '.';
+      }
+    }
   }
 
   // Recommandation support + contrôle des oublis isolation (aide à la décision, non imposés)
@@ -2557,6 +2762,16 @@ function updateSectionTotals(index, piece) {
       if (s.autoType === 'peinture' || s.autoType === 'sols') {
         const extras = piece.config[s.autoType] || {};
         for (const [code, qty] of Object.entries(extras)) v += getMoyenPrixFor(code, piece) * qty;
+      }
+      // Carrelage/faïence réparti (MISSION 052) : la faïence + ses fournitures/finitions
+      // dans « Revêtement mural », le carrelage sol + ses compléments dans « Revêtement de sol ».
+      const carr = piece.config.carrelage || {};
+      const CODES_MURAL = ['CAR_POSE_MUR', 'CAR_POSE_MUR_PETIT', 'CAR_FOURN_FAIENCE', 'CAR_PROFILE', 'CAR_ETANCHEITE'];
+      for (const [code, qty] of Object.entries(carr)) {
+        const estMural = CODES_MURAL.includes(code);
+        if ((s.autoType === 'peinture' && estMural) || (s.autoType === 'sols' && !estMural)) {
+          v += getMoyenPrixFor(code, piece) * qty;
+        }
       }
       totalEl.textContent = formatEuro(v);
       return;
