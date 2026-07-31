@@ -1363,7 +1363,7 @@ function saveEtat() {
   try {
     sessionStorage.setItem(ETAT_KEY, JSON.stringify({
       compteurs: compteurs,
-      dimsParType: dimsParType,
+      dimsParPiece: dimsParPiece,
       pieces: piecesSelectionnees,
       objectif: objectifProjet
     }));
@@ -1379,7 +1379,19 @@ function restaurerEtat() {
   if (!etat || !etat.compteurs) return false;
 
   Object.assign(compteurs, etat.compteurs);
-  Object.assign(dimsParType, etat.dimsParType || {});
+  Object.assign(dimsParPiece, etat.dimsParPiece || {});
+  // Migration ascendante : anciennes sessions sauvegardées PAR TYPE -> on initialise
+  // chaque instance à partir de la valeur de type (une seule fois, sans écraser un
+  // éventuel staging par instance déjà présent).
+  if (etat.dimsParType) {
+    Object.keys(etat.dimsParType).forEach(id => {
+      const nb = (etat.compteurs && etat.compteurs[id]) || 0;
+      for (let i = 1; i <= nb; i++) {
+        const k = dimKey(id, i);
+        if (!dimsParPiece[k]) dimsParPiece[k] = Object.assign({ l: 0, la: 0, h: 2.5, fenetres: 1, portes: 1 }, etat.dimsParType[id]);
+      }
+    });
+  }
   piecesSelectionnees = Array.isArray(etat.pieces) ? etat.pieces : [];
   normaliserGammesIP44(); // migration des sessions sauvegardées avant la règle IP44
   if (etat.objectif) objectifProjet = etat.objectif;
@@ -1392,12 +1404,7 @@ function restaurerEtat() {
     const card = document.getElementById('card_' + id);
     if (card) card.classList.toggle('selected', nb > 0);
     const dims = document.getElementById('pdims_' + id);
-    if (dims) dims.style.display = nb > 0 ? 'block' : 'none';
-    const d = dimsParType[id];
-    if (d) {
-      const set = (suf, val) => { const inp = document.getElementById('pdim_' + suf + '_' + id); if (inp && val) inp.value = val; };
-      set('l', d.l); set('la', d.la); set('h', d.h); set('fen', d.fenetres); set('por', d.portes);
-    }
+    if (dims) { renderDimBlocks(id); dims.style.display = nb > 0 ? 'block' : 'none'; }
   });
 
   return Object.keys(compteurs).some(id => (compteurs[id] || 0) > 0);
@@ -1451,15 +1458,7 @@ function renderGrid(containerId, pieceDefs) {
         <span class="counter-val" id="count_${p.id}">0</span>
         <button class="counter-btn" onclick="event.stopPropagation(); changerCompteur('${p.id}', 1)">+</button>
       </div>
-      <div class="piece-dims" id="pdims_${p.id}" onclick="event.stopPropagation()" style="display:none;margin-top:12px;text-align:left;">
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:0.72rem;color:var(--text-light);">
-          <label>Longueur (m)<input type="number" step="0.1" min="0" placeholder="ex 4.5" id="pdim_l_${p.id}" oninput="setDimType('${p.id}','l',this.value)" style="width:100%;padding:5px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);"></label>
-          <label>Largeur (m)<input type="number" step="0.1" min="0" placeholder="ex 3.5" id="pdim_la_${p.id}" oninput="setDimType('${p.id}','la',this.value)" style="width:100%;padding:5px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);"></label>
-          <label>Hauteur (m)<input type="number" step="0.1" min="2" value="2.5" id="pdim_h_${p.id}" oninput="setDimType('${p.id}','h',this.value)" style="width:100%;padding:5px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);"></label>
-          <label>Fenêtres<input type="number" min="0" value="1" id="pdim_fen_${p.id}" oninput="setDimType('${p.id}','fenetres',this.value)" style="width:100%;padding:5px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);"></label>
-          <label>Portes<input type="number" min="0" value="1" id="pdim_por_${p.id}" oninput="setDimType('${p.id}','portes',this.value)" style="width:100%;padding:5px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);"></label>
-        </div>
-      </div>
+      <div class="piece-dims" id="pdims_${p.id}" onclick="event.stopPropagation()" style="display:none;margin-top:12px;text-align:left;"></div>
     </div>
   `).join('');
 }
@@ -1467,18 +1466,55 @@ function renderGrid(containerId, pieceDefs) {
 // Compteurs pièces
 const compteurs = {};
 
-// Dimensions par type de pièce (saisies à l'étape Pièces)
-const dimsParType = {};
-function ensureDims(id) {
-  if (!dimsParType[id]) dimsParType[id] = { l: 0, la: 0, h: 2.5, fenetres: 1, portes: 1 };
-  return dimsParType[id];
+// Dimensions PAR INSTANCE de pièce (saisies à l'étape Pièces).
+// MISSION 051 : chaque pièce a ses propres cotes, même si plusieurs pièces
+// partagent le même type. Clé de staging = id#numero (ex. "chambre#1", "chambre#2").
+const dimsParPiece = {};
+function dimKey(id, numero) { return id + '#' + numero; }
+function ensureDims(id, numero) {
+  const k = dimKey(id, numero);
+  if (!dimsParPiece[k]) dimsParPiece[k] = { l: 0, la: 0, h: 2.5, fenetres: 1, portes: 1 };
+  return dimsParPiece[k];
 }
-function setDimType(id, field, value) {
-  const d = ensureDims(id);
+function setDimPiece(id, numero, field, value) {
+  const d = ensureDims(id, numero);
   const v = parseFloat(value);
   d[field] = isNaN(v) ? (field === 'h' ? 2.5 : 0) : v;
   __coherenceAcquittee = false; // nouvelle saisie -> les contrôles se réarment
   saveEtat();
+}
+
+// Définition d'une pièce (icône/nom) par son id, tous groupes confondus.
+function pieceDefById(id) {
+  const all = [...PIECES_DEF.vie, ...PIECES_DEF.sanitaires, ...PIECES_DEF.circulations, ...PIECES_DEF.exterieur];
+  return all.find(p => p.id === id) || { icon: '', nom: id };
+}
+
+// Génère un bloc de saisie de dimensions PAR INSTANCE (Chambre 1, Chambre 2, ...).
+// Rendu dynamiquement selon le compteur du type : chaque instance est indépendante.
+function renderDimBlocks(id) {
+  const cont = document.getElementById('pdims_' + id);
+  if (!cont) return;
+  const nb = compteurs[id] || 0;
+  const def = pieceDefById(id);
+  const S = 'width:100%;padding:5px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);';
+  let html = '';
+  for (let i = 1; i <= nb; i++) {
+    const d = ensureDims(id, i);
+    const titre = nb > 1 ? `${def.icon} ${def.nom} ${i}` : `${def.icon} ${def.nom}`;
+    html += `
+      <div style="margin-bottom:10px;padding-top:8px;${i > 1 ? 'border-top:1px dashed var(--border);' : ''}">
+        <div style="font-weight:600;font-size:0.72rem;color:var(--text);margin-bottom:5px;">${titre}</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:0.72rem;color:var(--text-light);">
+          <label>Longueur (m)<input type="number" step="0.1" min="0" placeholder="ex 4.5" value="${d.l || ''}" oninput="setDimPiece('${id}',${i},'l',this.value)" style="${S}"></label>
+          <label>Largeur (m)<input type="number" step="0.1" min="0" placeholder="ex 3.5" value="${d.la || ''}" oninput="setDimPiece('${id}',${i},'la',this.value)" style="${S}"></label>
+          <label>Hauteur (m)<input type="number" step="0.1" min="2" value="${d.h != null ? d.h : 2.5}" oninput="setDimPiece('${id}',${i},'h',this.value)" style="${S}"></label>
+          <label>Fenêtres<input type="number" min="0" value="${d.fenetres != null ? d.fenetres : 1}" oninput="setDimPiece('${id}',${i},'fenetres',this.value)" style="${S}"></label>
+          <label>Portes<input type="number" min="0" value="${d.portes != null ? d.portes : 1}" oninput="setDimPiece('${id}',${i},'portes',this.value)" style="${S}"></label>
+        </div>
+      </div>`;
+  }
+  cont.innerHTML = html;
 }
 
 // ===== GÉNÉRATION AUTOMATIQUE DES PIÈCES (typologie + surface) =====
@@ -1531,7 +1567,7 @@ function appliquerTypologie() {
     const card = document.getElementById('card_' + id);
     if (card) card.classList.add('selected');
     const dims = document.getElementById('pdims_' + id);
-    if (dims) { ensureDims(id); dims.style.display = 'block'; }
+    if (dims) { renderDimBlocks(id); dims.style.display = 'block'; }
   });
 
   afficherPropositionTypologie(res.compo, res.raisons);
@@ -1606,7 +1642,7 @@ function changerCompteur(id, delta) {
   const card = document.getElementById('card_' + id);
   if (card) card.classList.toggle('selected', newVal > 0);
   const dims = document.getElementById('pdims_' + id);
-  if (dims) { if (newVal > 0) ensureDims(id); dims.style.display = newVal > 0 ? 'block' : 'none'; }
+  if (dims) { renderDimBlocks(id); dims.style.display = newVal > 0 ? 'block' : 'none'; }
   __coherenceAcquittee = false; // la composition change -> les contrôles se réarment
   saveEtat();
 }
@@ -1661,7 +1697,7 @@ function validerPieces() {
       if (existante) {
         // Pièce déjà configurée : on met à jour nom + dimensions, on garde le reste
         existante.nom = nb > 1 ? `${p.nom} ${i}` : p.nom;
-        existante.dims = Object.assign({ l: 0, la: 0, h: 2.5, fenetres: 1, portes: 1 }, existante.dims, dimsParType[p.id] || {});
+        existante.dims = Object.assign({ l: 0, la: 0, h: 2.5, fenetres: 1, portes: 1 }, existante.dims, dimsParPiece[dimKey(p.id, i)] || {});
         nouvelles.push(existante);
       } else {
         nouvelles.push({
@@ -1669,7 +1705,7 @@ function validerPieces() {
           nom: nb > 1 ? `${p.nom} ${i}` : p.nom,
           icon: p.icon,
           numero: i,
-          dims: Object.assign({ l: 0, la: 0, h: 2.5, fenetres: 1, portes: 1 }, dimsParType[p.id] || {}),
+          dims: Object.assign({ l: 0, la: 0, h: 2.5, fenetres: 1, portes: 1 }, dimsParPiece[dimKey(p.id, i)] || {}),
           config: {},
           elecMethode: poseParDefaut(chantier),
           elecGamme: gammeElecParDefaut(chantier),
