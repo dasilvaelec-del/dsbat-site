@@ -44,6 +44,7 @@ window.axeptioSettings = {
 <script src="prix.js"></script>
 <!-- MISSION 026 — Modularisation : nouveaux moteurs autonomes (dossier /js) -->
 <script src="js/moteur-devis.js"></script>
+<script src="js/moteur-piece.js"></script>
 <script src="js/moteur-recommandations.js"></script>
 <script src="menu.js"></script>
 <script src="js/moteurs/electricite.js"></script>
@@ -2538,143 +2539,54 @@ function changerQty(pieceIndex, code, metier, delta) {
 function recalcPiece(index) {
   const piece = piecesSelectionnees[index];
 
-  const d = piece.dims || {};
-  const l = d.l || 0;
-  const la = d.la || 0;
-  const h = d.h || 2.5;
-  const fen = d.fenetres || 0;
-  const por = d.portes || 0;
-
+  // Électricité : appliquer la norme (minimums verrouillés) puis synchroniser l'affichage
   if (metiersActifs.includes('electricite')) { appliquerNorme(index); syncElecDOM(index); }
 
-  const surfSol = l * la;
-  const surfPlaf = surfSol;
-  const surfMursTotal = 2 * (l + la) * h;
-  const surfOuvertures = (fen * 1.5) + (por * 2.0);
-  const surfMursNette = Math.max(0, surfMursTotal - surfOuvertures);
-
-  // Afficher surfaces
-  const s = (v) => v > 0 ? v.toFixed(1) + ' m²' : '— m²';
-  const setSurf = (id, val) => { const el = document.getElementById(id); if(el) el.textContent = val; };
-  setSurf(`surf_sol_${index}`, s(surfSol));
-  setSurf(`surf_murs_${index}`, s(surfMursNette));
-  setSurf(`surf_plaf_${index}`, s(surfPlaf));
-
-  piece.surfaces = { sol: surfSol, murs: surfMursNette, plafond: surfPlaf };
-
-  let totalPiece = 0;
-  // ===== TEMPS DE CHANTIER (dossier technique / futur planning — aucun impact prix) =====
-  let tempsPiece = 0;
-  const tempsParMetier = {};
-  const addTemps = (metier, h) => { if (h > 0) { tempsPiece += h; tempsParMetier[metier] = (tempsParMetier[metier] || 0) + h; } };
-
-  // Calcul peinture auto
+  // 1) RÉCUPÉRER les choix de l'interface et les mémoriser sur la pièce (persistance)
   if (metiersActifs.includes('peinture')) {
     const murGamme = document.getElementById(`peint_mur_${index}`)?.value;
     const plafGamme = document.getElementById(`peint_plaf_${index}`)?.value;
     const papier = document.getElementById(`peint_papier_${index}`)?.value;
-
-    // Persistance des choix sur la pièce (sérialisés par saveEtat, comme l'électricité).
-    // Garde : ne pas écraser une valeur mémorisée quand les selects ne sont pas dans le DOM.
     if (murGamme !== undefined) piece.peintMur = murGamme;
     if (plafGamme !== undefined) piece.peintPlaf = plafGamme;
     if (papier !== undefined) piece.peintPapier = papier;
-
-    // Prix exclusivement depuis le catalogue PRIX.peinture (moyenne min-max,
-    // comme partout dans le moteur) — plus aucun tarif en dur.
-    const CODES_PEINT_MUR = { less: 'PEINT_MUR_LESS', std: 'PEINT_MUR_STD', fort: 'PEINT_MUR_FORT' };
-    const CODES_PEINT_PLAF = { less: 'PEINT_PLAF_LESS', std: 'PEINT_PLAF_STD' };
-    const pMur = CODES_PEINT_MUR[murGamme] ? getMoyenPrixFor(CODES_PEINT_MUR[murGamme], piece) * surfMursNette : 0;
-    const pPlaf = CODES_PEINT_PLAF[plafGamme] ? getMoyenPrixFor(CODES_PEINT_PLAF[plafGamme], piece) * surfPlaf : 0;
-    const pPapier = papier === 'oui' ? getMoyenPrixFor('PREP_DCOL_PAP', piece) * surfMursNette : 0;
-
-    // Sous-couche automatique (support neuf / BA13) — ajoutée et expliquée au client
-    const sc = detectionSousCouche(piece, chantier, surfMursNette, surfPlaf);
-    const pSousCouche = sc ? getMoyenPrixFor('PEINT_SOUS_COUCHE', piece) * sc.surf : 0;
-    const scInfo = document.getElementById(`souscouche_info_${index}`);
-    if (scInfo) scInfo.innerHTML = sc
-      ? '🖌️ <strong>Sous-couche d\'impression ajoutée automatiquement</strong> (' + sc.surf.toFixed(1) + ' m² · ' + formatEuro(pSousCouche) + ') : ' + sc.raison + '.'
-      : '';
-
-    // Recommandation support (aide à la décision, non imposée)
-    const recoEl = document.getElementById(`reco_support_${index}`);
-    if (recoEl) recoEl.innerHTML = recoSupportHtml(piece);
-
-    // Contrôle qualité des oublis courants (suggestions non imposées)
-    const oublisEl = document.getElementById(`oublis_peinture_${index}`);
-    if (oublisEl) oublisEl.innerHTML = oublisPeintureHtml(index);
-
-    // Quantités de peinture (informatif — devis technique uniquement, aucun impact prix)
-    piece.peintureQuantites = (typeof quantitesPeinture === 'function' && (surfMursNette > 0 || surfPlaf > 0))
-      ? quantitesPeinture(surfMursNette, surfPlaf, sc ? sc.surf : 0)
-      : null;
-
-    const totalPeinture = pMur + pPlaf + pPapier + pSousCouche;
-
-    // Temps peinture depuis le champ « temps » du catalogue (h/m²)
-    addTemps('peinture',
-      (CODES_PEINT_MUR[murGamme] ? tempsUnitaire(CODES_PEINT_MUR[murGamme]) * surfMursNette : 0)
-      + (CODES_PEINT_PLAF[plafGamme] ? tempsUnitaire(CODES_PEINT_PLAF[plafGamme]) * surfPlaf : 0)
-      + (papier === 'oui' ? tempsUnitaire('PREP_DCOL_PAP') * surfMursNette : 0)
-      + (sc ? tempsUnitaire('PEINT_SOUS_COUCHE') * sc.surf : 0));
-    const secTot = document.getElementById(`sec_${index}_peinture_total`);
-    if (secTot) secTot.textContent = formatEuro(totalPeinture);
-    totalPiece += totalPeinture;
-    piece.config['peinture_auto'] = totalPeinture;
   }
-
-  // Calcul sols auto
   if (metiersActifs.includes('sols')) {
     const solType = document.getElementById(`sol_type_${index}`)?.value;
     const sousCouche = document.getElementById(`sol_souscouche_${index}`)?.value;
-
-    // Persistance des choix sur la pièce (sérialisés par saveEtat, comme la peinture).
-    // Garde : ne pas écraser une valeur mémorisée quand les selects ne sont pas dans le DOM.
     if (solType !== undefined) piece.solType = solType;
     if (sousCouche !== undefined) piece.solSousCouche = sousCouche;
+  }
 
-    // Prix exclusivement depuis le catalogue PRIX.sols (moyenne min-max) — plus aucun tarif en dur.
-    const CODES_SOL = { parq_flot:'SOL_PARQ_FLOT', stratifie:'SOL_STRATIFIE', pvc:'SOL_PVC', moquette:'SOL_MOQUETTE', lino:'SOL_LINO' };
-    const CODES_SC = { std:'SOL_SOUSC', liege:'SOL_SOUSC_LIEGE' };
-    const codeSol = CODES_SOL[piece.solType];
-    const codeSC = CODES_SC[piece.solSousCouche];
-    // Pertes / chutes (SOLS_PARAMS) appliquées UNIQUEMENT à la part fourniture du
-    // prix combiné, jamais à la main-d'œuvre (MISSION 033). Le parquet flottant est
-    // en fourniture client (fraction 0) -> aucune perte sur notre prix.
-    let perte = 0, frac = 1;
-    if (typeof SOLS_PARAMS !== 'undefined') {
-      perte = (SOLS_PARAMS.pertes[piece.solType] || 0);
-      if (piece.solPose === 'diagonale') perte += (SOLS_PARAMS.perteDiagonale || 0);
-      const f = SOLS_PARAMS.fournitureFraction[piece.solType];
-      frac = (f === undefined) ? 1 : f; // par défaut, pertes sur tout le prix
-    }
-    // €/m² effectif = pose (sans pertes) + fourniture (avec pertes)
-    const majoration = (1 - frac) + frac * (1 + perte);
-    const pSol = codeSol ? getMoyenPrixFor(codeSol, piece) * surfSol * majoration : 0;
-    const pSC = codeSC ? getMoyenPrixFor(codeSC, piece) * surfSol : 0;
-    const totalSols = pSol + pSC;
-    totalPiece += totalSols;
-    piece.config['sols_auto'] = totalSols;
+  // 2) CALCUL PUR (aucun accès au DOM) — cœur du calcul par pièce
+  const R = calculerPiece(piece, chantier, metiersActifs);
 
-    // Temps de chantier sols depuis le champ « temps » du catalogue (h/m²)
-    addTemps('sols',
-      (codeSol ? tempsUnitaire(codeSol) * surfSol : 0)
-      + (codeSC ? tempsUnitaire(codeSC) * surfSol : 0));
+  // 3) AFFICHER les résultats retournés
+  const s = (v) => v > 0 ? v.toFixed(1) + ' m²' : '— m²';
+  const setSurf = (id, val) => { const el = document.getElementById(id); if(el) el.textContent = val; };
+  setSurf(`surf_sol_${index}`, s(R.surfaces.sol));
+  setSurf(`surf_murs_${index}`, s(R.surfaces.murs));
+  setSurf(`surf_plaf_${index}`, s(R.surfaces.plafond));
 
-    // Recommandation support + contrôle des oublis (aide à la décision, non imposés)
+  if (metiersActifs.includes('peinture')) {
+    const sc = R.peinture.sousCouche;
+    const scInfo = document.getElementById(`souscouche_info_${index}`);
+    if (scInfo) scInfo.innerHTML = sc
+      ? '🖌️ <strong>Sous-couche d\'impression ajoutée automatiquement</strong> (' + sc.surf.toFixed(1) + ' m² · ' + formatEuro(R.peinture.sousCouchePrix) + ') : ' + sc.raison + '.'
+      : '';
+    const recoEl = document.getElementById(`reco_support_${index}`);
+    if (recoEl) recoEl.innerHTML = recoSupportHtml(piece);
+    const oublisEl = document.getElementById(`oublis_peinture_${index}`);
+    if (oublisEl) oublisEl.innerHTML = oublisPeintureHtml(index);
+    const secTot = document.getElementById(`sec_${index}_peinture_total`);
+    if (secTot) secTot.textContent = formatEuro(piece.config['peinture_auto'] || 0);
+  }
+
+  if (metiersActifs.includes('sols')) {
     const recoSolEl = document.getElementById(`reco_support_sol_${index}`);
     if (recoSolEl) recoSolEl.innerHTML = recoSupportSolHtml(piece);
     const oublisSolEl = document.getElementById(`oublis_sols_${index}`);
     if (oublisSolEl) oublisSolEl.innerHTML = oublisSolHtml(index);
-  }
-
-  // Calcul prestations manuelles
-  for (const [metier, prestations] of Object.entries(piece.config)) {
-    if (metier === 'peinture_auto' || metier === 'sols_auto') continue;
-    for (const [code, qty] of Object.entries(prestations)) {
-      totalPiece += getMoyenPrixFor(code, piece) * qty;
-      addTemps(metier, tempsUnitaire(code) * qty);
-    }
   }
 
   // Recommandation support + contrôle des oublis carrelage (aide à la décision, non imposés)
@@ -2717,21 +2629,16 @@ function recalcPiece(index) {
     if (oublisVmcEl) oublisVmcEl.innerHTML = oublisVmcHtml(index);
   }
 
-  // Temps de chantier de la pièce (heures, arrondi 0,1) — persisté avec le devis
-  piece.tempsChantier = Math.round(tempsPiece * 10) / 10;
-  piece.tempsParMetier = Object.fromEntries(Object.entries(tempsParMetier).map(([m, h]) => [m, Math.round(h * 10) / 10]));
-
-  // Mettre à jour les totaux de section
+  // Mettre à jour les totaux de section (lit piece.config renseigné par calculerPiece)
   updateSectionTotals(index, piece);
 
-  // Total pièce
-  piece.totalHT = totalPiece;
+  // Total pièce (calculé par calculerPiece — piece.totalHT)
   const el = document.getElementById(`total_piece_${index}`);
-  if (el) el.textContent = formatEuro(totalPiece);
+  if (el) el.textContent = formatEuro(piece.totalHT);
 
   // Marquer l'onglet comme "en cours"
   const tab = document.getElementById(`tab_${index}`);
-  if (tab && totalPiece > 0) {
+  if (tab && piece.totalHT > 0) {
     tab.querySelector('.tab-check').style.display = 'flex';
   }
 
