@@ -43,6 +43,7 @@ window.axeptioSettings = {
 <script src="config.js"></script>
 <script src="prix.js"></script>
 <script src="js/pricing.js"></script>
+<script src="js/moteur-tva.js"></script>
 <!-- MISSION 026 — Modularisation : nouveaux moteurs autonomes (dossier /js) -->
 <script src="js/moteur-devis.js"></script>
 <script src="js/moteur-piece.js"></script>
@@ -2771,18 +2772,7 @@ function scoreCompletudeHtml(pieces, ch, metiers) {
 }
 
 // ===== TVA selon le type de projet (neuf/extension : 20 % — rénovation logement >2 ans : 10 %) =====
-function tauxTVA() {
-  const ch = chantier || {};
-  // Locaux non-habitation (commercial / bureau) -> 20 %
-  if (ch.typeBien === 'local') return 0.20;
-  // Construction neuve ou extension/agrandissement -> 20 %
-  if (ch.typeProjet === 'neuf' || ch.typeProjet === 'extension') return 0.20;
-  // Rénovation d'un logement de + de 2 ans -> 10 %
-  return 0.10;
-}
-function labelTVA() {
-  return tauxTVA() === 0.20 ? 'TVA 20 % (neuf / extension / local pro)' : 'TVA 10 % (rénovation logement)';
-}
+// ===== MISSION A04 : tauxTVA + labelTVA deplaces vers js/moteur-tva.js =====
 
 // ===== MOTEUR DE CALCUL UNIFIÉ (MISSION 021) — MODULARISÉ (MISSION 026) =====
 // La fonction calculerDevis() vit désormais dans js/moteur-devis.js
