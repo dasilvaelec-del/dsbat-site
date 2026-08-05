@@ -4,8 +4,10 @@
 // Déplacé VERBATIM depuis devis-configurateur.html (bloc « const _r2 … appliquerRevetements »).
 // AUCUNE logique, quantité, surface, règle ou prix modifiés — simple déplacement de code.
 // Fonctions PURES : aucun accès au DOM, aucun affichage.
-// Dépendance résolue à l'APPEL : metiersActifs (global). Chargé comme <script src> (script
-// classique) : les symboles restent globaux et accessibles depuis le script inline du HTML.
+// A05 (Phase 2) : `metiers` est désormais un PARAMÈTRE de solMateriauxDispo() et
+// appliquerRevetements(), avec repli sur la globale `metiersActifs` (compat navigateur).
+// Le module peut ainsi s'exécuter SANS état global si l'appelant fournit `metiers`.
+// Chargé comme <script src> (script classique) : les symboles restent globaux.
 // =====================================================================
 
 const _r2 = v => Math.round((v || 0) * 100) / 100;
@@ -19,9 +21,11 @@ const SOL_MATERIAUX = [
   { val:'moquette',        label:'Moquette (fourniture + pose)',        kind:'souple' },
   { val:'lino',            label:'Linoléum (fourniture + pose)',        kind:'souple' },
 ];
-function solMateriauxDispo() {
+function solMateriauxDispo(metiers) {
+  // A05 : metiers reçu en paramètre ; repli sur la globale metiersActifs (compat navigateur).
+  metiers = metiers || (typeof metiersActifs !== 'undefined' ? metiersActifs : []);
   // Le carrelage n'est proposé que si le métier carrelage est actif.
-  return SOL_MATERIAUX.filter(m => m.kind !== 'carrelage' || metiersActifs.includes('carrelage'));
+  return SOL_MATERIAUX.filter(m => m.kind !== 'carrelage' || metiers.includes('carrelage'));
 }
 function deriveSolMateriau(piece) {
   if (piece.solMateriau !== undefined && piece.solMateriau !== null) return piece.solMateriau;
@@ -79,8 +83,10 @@ function deriveFaience(piece) {
 // Alimente piece.solType + piece.config.carrelage à partir des choix de revêtement
 // et des SURFACES déjà calculées. N'écrit QUE les codes de pose gérés ici ; les
 // compléments ajoutés via les oublis (fourniture, colle, plinthes…) restent intacts.
-function appliquerRevetements(piece, surfaces) {
+function appliquerRevetements(piece, surfaces, metiers) {
   surfaces = surfaces || { sol:0, murs:0, plafond:0 };
+  // A05 : metiers reçu en paramètre ; repli sur la globale metiersActifs (compat navigateur).
+  metiers = metiers || (typeof metiersActifs !== 'undefined' ? metiersActifs : []);
   if (!piece.config.carrelage) piece.config.carrelage = {};
   const carr = piece.config.carrelage;
 
@@ -89,11 +95,11 @@ function appliquerRevetements(piece, surfaces) {
   const def = SOL_MATERIAUX.find(m => m.val === mat);
   delete carr.CAR_POSE_SOL; delete carr.CAR_POSE_SOL_GRAND;
   if (def && def.kind === 'souple') { piece.solType = mat; }
-  else if (def && def.kind === 'carrelage' && metiersActifs.includes('carrelage')) { piece.solType = ''; if (surfaces.sol > 0) carr[def.code] = _r2(surfaces.sol); }
+  else if (def && def.kind === 'carrelage' && metiers.includes('carrelage')) { piece.solType = ''; if (surfaces.sol > 0) carr[def.code] = _r2(surfaces.sol); }
   else { piece.solType = ''; }
 
   // --- FAÏENCE (mural) ---
-  if (metiersActifs.includes('carrelage')) {
+  if (metiers.includes('carrelage')) {
     deriveFaience(piece);
     const mode = piece.faienceMode;
     delete carr.CAR_POSE_MUR; delete carr.CAR_POSE_MUR_PETIT;

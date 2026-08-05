@@ -2144,7 +2144,7 @@ function renderSolsAuto(pieceIndex) {
   const mat = deriveSolMateriau(piece);
   const _flottant = (mat === 'parq_flot' || mat === 'stratifie');
   const defSC = piece.solSousCouche || (_flottant ? 'std' : 'non');
-  const mats = solMateriauxDispo();
+  const mats = solMateriauxDispo(metiersActifs);
   const carrOn = metiersActifs.includes('carrelage');
   return `
     <div style="margin-bottom:14px;">
@@ -2548,7 +2548,7 @@ function recalcPiece(index) {
   //    c) 2e passage : chiffrage final avec ces quantités.
   calculerPiece(piece, chantier, metiersActifs);
   if (metiersActifs.includes('sols') || metiersActifs.includes('carrelage')) {
-    appliquerRevetements(piece, piece.surfaces || { sol:0, murs:0, plafond:0 });
+    appliquerRevetements(piece, piece.surfaces || { sol:0, murs:0, plafond:0 }, metiersActifs);
   }
   const R = calculerPiece(piece, chantier, metiersActifs);
 
