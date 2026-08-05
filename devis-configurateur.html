@@ -2175,20 +2175,9 @@ function renderSolsAuto(pieceIndex) {
 
 // Bandeau de recommandation (vide si non pertinent ou ragréage déjà ajouté)
 function recoSupportSolHtml(piece) {
-  if (!piece.solType) return '';
-  const ev = evaluationSupportSol(piece, chantier);
-  const sols = (piece.config && piece.config.sols) || {};
-  const messages = [];
-  // Ragréage si le support le justifie et non déjà prévu
-  if (ev.ragreageConseille && !(sols.SOL_RAGREAGE > 0)) {
-    messages.push('un <strong>ragréage</strong> est généralement conseillé pour un support plan (' + ev.raisons.join(', ') + ')');
-  }
-  // Sous-couche pour les sols flottants (parquet flottant / stratifié) — recommandée, jamais imposée
-  const flottant = (piece.solType === 'parq_flot' || piece.solType === 'stratifie');
-  const sansSousCouche = !piece.solSousCouche || piece.solSousCouche === 'non';
-  if (flottant && sansSousCouche) {
-    messages.push('une <strong>sous-couche</strong> est recommandée sous un sol flottant (confort et isolation phonique) — sélectionnez-la ci-dessus, vous pouvez toujours la retirer');
-  }
+  // A07 : la DÉCISION métier (quelles recommandations) vit dans js/moteurs/sols.js
+  // (recommandationsSol). Cette fonction n'est plus qu'un ADAPTATEUR de rendu.
+  const messages = recommandationsSol(piece, chantier);
   if (!messages.length) return '';
   return `
     <div style="display:flex;gap:10px;align-items:flex-start;background:#fef9ec;border:1px solid #f59e0b;border-radius:12px;padding:12px;margin-top:10px;">

@@ -101,4 +101,34 @@ function verifierSols(pieces, metiers) {
 }
 
 
-if (typeof module !== "undefined" && module.exports) module.exports = { evaluationSupportSol, controlesOublisSol, controlesInfoSol, verifierSols };
+// =====================================================================
+// DOMAINE — recommandations de support (sols) — A07
+// =====================================================================
+// Décide QUELLES recommandations de support s'appliquent à une pièce (donnée
+// métier), sans aucun rendu. Extrait verbatim de recoSupportSolHtml (le résidu
+// de logique métier encore inline dans le configurateur). Retourne la LISTE des
+// messages applicables ; le rendu HTML (wrapper « Recommandation DS.BAT ») reste
+// dans devis-configurateur.html, simple adaptateur autour de cette liste.
+//   • ragréage : si le support le justifie (evaluationSupportSol) et non déjà prévu
+//   • sous-couche : sous un sol flottant (parquet flottant / stratifié) non retenue
+// Recommandations, jamais imposées. Aucun prix, aucun code catalogue.
+function recommandationsSol(piece, chantier) {
+  if (!piece || !piece.solType) return [];
+  const ev = evaluationSupportSol(piece, chantier);
+  const sols = (piece.config && piece.config.sols) || {};
+  const messages = [];
+  // Ragréage si le support le justifie et non déjà prévu
+  if (ev.ragreageConseille && !(sols.SOL_RAGREAGE > 0)) {
+    messages.push('un <strong>ragréage</strong> est généralement conseillé pour un support plan (' + ev.raisons.join(', ') + ')');
+  }
+  // Sous-couche pour les sols flottants (parquet flottant / stratifié) — recommandée, jamais imposée
+  const flottant = (piece.solType === 'parq_flot' || piece.solType === 'stratifie');
+  const sansSousCouche = !piece.solSousCouche || piece.solSousCouche === 'non';
+  if (flottant && sansSousCouche) {
+    messages.push('une <strong>sous-couche</strong> est recommandée sous un sol flottant (confort et isolation phonique) — sélectionnez-la ci-dessus, vous pouvez toujours la retirer');
+  }
+  return messages;
+}
+
+
+if (typeof module !== "undefined" && module.exports) module.exports = { evaluationSupportSol, controlesOublisSol, controlesInfoSol, verifierSols, recommandationsSol };
