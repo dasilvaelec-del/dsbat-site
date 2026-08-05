@@ -26,6 +26,15 @@ function calculerDevis() {
   let totalGlobalHT = 0;
   piecesSelectionnees.forEach(p => { totalGlobalHT += p.totalHT || 0; });
 
+  // A06 (Phase 2) : le moteur ne DÉPEND plus de window. Les résultats intermédiaires
+  // sont publiés vers window UNIQUEMENT s'il existe (compat consommateurs HTML :
+  // explications, PDF). La SOURCE DE VÉRITÉ est l'objet retourné par la fonction.
+  const _pub = (typeof window !== 'undefined') ? function (k, v) { window[k] = v; } : function () {};
+  // Non initialisées (undefined) pour reproduire EXACTEMENT l'ancien comportement :
+  // window.__besoins* n'était renseigné que si le métier concerné était actif ; sinon
+  // le retour portait `undefined` (clé omise en JSON). Ne pas mettre null ici.
+  let besoinsTableau, besoinsVMC, besoinsPlomberie;
+
   // ----- Chauffage électrique (calculé AVANT le tableau pour en piloter les circuits) -----
   // Émetteurs dimensionnés par pièce ; le nombre de circuits/sorties fil pilote qui en
   // découle est injecté dans le tableau électrique (cohérence chauffage <-> tableau).
@@ -34,7 +43,7 @@ function calculerDevis() {
     chauffage = dimensionnementChauffage(piecesSelectionnees, chantier);
     if (chauffage) totalGlobalHT += chauffage.prixTotalHT;
   }
-  window.__chauffageAuto = chauffage;
+  _pub('__chauffageAuto', chauffage);
 
   // ----- Tableau électrique auto (NF C 15-100) -----
   let tableau = null;
@@ -72,9 +81,9 @@ function calculerDevis() {
       tableau = dimensionnementTableau(b);
       totalGlobalHT += tableau.prixTotalHT;
     }
-    window.__besoinsTableau = b;
+    besoinsTableau = b; _pub('__besoinsTableau', b);
   }
-  window.__tableauAuto = tableau;
+  _pub('__tableauAuto', tableau);
 
   // ----- Ballon d'eau chaude auto (garde anti-double facturation) -----
   const ballonDejaConfigure = piecesSelectionnees.some(p => {
@@ -87,7 +96,7 @@ function calculerDevis() {
     const itB = (PRIX.plomberie_divers || []).find(x => x.code === codeB);
     if (itB) { ballon = { label: itB.label, prix: Math.round((itB.prix.min + itB.prix.max) / 2) }; totalGlobalHT += ballon.prix; }
   }
-  window.__ballon = ballon;
+  _pub('__ballon', ballon);
 
   // ----- VMC : dimensionnement auto de la centrale (caisson + gaines + rejet toiture) -----
   // Les bouches / entrées d'air sont déjà chiffrées par pièce ; on ajoute ici les
@@ -107,9 +116,9 @@ function calculerDevis() {
       vmc = dimensionnementVMC({ bouches, entreesAir, debitTotal });
       totalGlobalHT += vmc.prixTotalHT;
     }
-    window.__besoinsVMC = { bouches, entreesAir, debitTotal };
+    besoinsVMC = { bouches, entreesAir, debitTotal }; _pub('__besoinsVMC', besoinsVMC);
   }
-  window.__vmcAuto = vmc;
+  _pub('__vmcAuto', vmc);
 
   // ----- Plomberie : dimensionnement auto des réseaux EF/ECS + évacuations -----
   // Les appareils sont chiffrés par pièce ; on ajoute les réseaux manquants
@@ -137,9 +146,9 @@ function calculerDevis() {
       plomberie = dimensionnementPlomberie(besoins);
       if (plomberie) totalGlobalHT += plomberie.prixTotalHT;
     }
-    window.__besoinsPlomberie = besoins;
+    besoinsPlomberie = besoins; _pub('__besoinsPlomberie', besoins);
   }
-  window.__plomberieAuto = plomberie;
+  _pub('__plomberieAuto', plomberie);
 
   // ----- Forfait accès + majoration logement occupé + coefficient de zone -----
   let forfaitAcces = 0;
@@ -149,7 +158,7 @@ function calculerDevis() {
   else if (chantier.accessSup === 'copro') forfaitAcces += 120;
   if (chantier.accessSup === 'occupé') totalGlobalHT = Math.round(totalGlobalHT * 1.088);
   totalGlobalHT += forfaitAcces;
-  window.__forfaitAcces = forfaitAcces;
+  _pub('__forfaitAcces', forfaitAcces);
 
   const coefZ = (typeof coefZone === 'function') ? coefZone(chantier.codePostal) : 1;
   totalGlobalHT = Math.round(totalGlobalHT * coefZ);
@@ -162,9 +171,7 @@ function calculerDevis() {
   return {
     totalHT: totalGlobalHT, taux, tva, ttc,
     tableau, ballon, vmc, plomberie, chauffage, forfaitAcces, coefZ,
-    besoinsTableau: window.__besoinsTableau,
-    besoinsVMC: window.__besoinsVMC,
-    besoinsPlomberie: window.__besoinsPlomberie,
+    besoinsTableau, besoinsVMC, besoinsPlomberie,
     acomptes: { a1: ttc * 0.40, a2: ttc * 0.30, a3: ttc * 0.30 }
   };
 }
