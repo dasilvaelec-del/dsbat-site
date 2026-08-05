@@ -1,0 +1,284 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ds.bat/contrats/projet-dsbat/1.0.0.json",
+  "title": "Projet / Dossier DSBAT",
+  "description": "Contrat officiel représentant un Projet DSBAT. Source de vérité partagée par le configurateur web, la future API, le mobile, les franchisés, les sauvegardes et les imports/exports. Ce contrat décrit une STRUCTURE de données ; il ne contient aucune logique de calcul.",
+  "type": "object",
+  "required": ["$contrat", "versionContrat", "identite", "chantier", "metiers", "pieces", "versions"],
+  "additionalProperties": false,
+  "properties": {
+    "$contrat": { "const": "dsbat.projet", "description": "Discriminant de type. Toujours 'dsbat.projet'." },
+    "versionContrat": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$", "description": "Version SemVer du présent contrat (ex. 1.0.0)." },
+
+    "identite": {
+      "type": "object",
+      "description": "Identité stable et cycle de vie du dossier.",
+      "required": ["id", "statut", "creeLe"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "description": "Identifiant unique et stable du projet (UUID). Ne change jamais." },
+        "reference": { "type": ["string", "null"], "description": "Référence lisible (ex. DSBAT-2026-000123). Peut être attribuée par la franchise." },
+        "statut": { "enum": ["brouillon", "configure", "valide", "archive"], "description": "Étape du cycle de vie. 'valide' fige les résultats (immutabilité)." },
+        "creeLe": { "type": "string", "format": "date-time" },
+        "modifieLe": { "type": ["string", "null"], "format": "date-time" },
+        "valideLe": { "type": ["string", "null"], "format": "date-time" },
+        "auteur": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "properties": {
+            "id": { "type": ["string", "null"] },
+            "nom": { "type": ["string", "null"] },
+            "role": { "enum": ["client", "commercial", "franchise", "admin", "systeme", null] }
+          }
+        },
+        "franchise": {
+          "type": ["object", "null"],
+          "description": "Franchise propriétaire du dossier (multi-tenant).",
+          "additionalProperties": false,
+          "properties": {
+            "id": { "type": ["string", "null"] },
+            "nom": { "type": ["string", "null"] }
+          }
+        }
+      }
+    },
+
+    "client": {
+      "type": ["object", "null"],
+      "description": "Coordonnées du client. Minimisation des données (RGPD) : ne stocker que le nécessaire.",
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": ["string", "null"] },
+        "type": { "enum": ["particulier", "professionnel", null] },
+        "nom": { "type": ["string", "null"] },
+        "prenom": { "type": ["string", "null"] },
+        "email": { "type": ["string", "null"], "format": "email" },
+        "telephone": { "type": ["string", "null"] },
+        "adresse": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "properties": {
+            "ligne1": { "type": ["string", "null"] },
+            "ligne2": { "type": ["string", "null"] },
+            "codePostal": { "type": ["string", "null"] },
+            "ville": { "type": ["string", "null"] },
+            "pays": { "type": ["string", "null"], "default": "FR" }
+          }
+        },
+        "rgpd": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "properties": {
+            "consentement": { "type": ["boolean", "null"] },
+            "consentementLe": { "type": ["string", "null"], "format": "date-time" },
+            "finalite": { "type": ["string", "null"] }
+          }
+        }
+      }
+    },
+
+    "chantier": {
+      "type": "object",
+      "description": "Caractéristiques du chantier. Reprend les 19 champs actuels du configurateur, normalisés (ENTRÉE des moteurs).",
+      "additionalProperties": true,
+      "properties": {
+        "typeProjet": { "type": ["string", "null"], "description": "renov, neuf, extension…" },
+        "typeBien": { "type": ["string", "null"] },
+        "typeLogement": { "type": ["string", "null"] },
+        "statut": { "type": ["string", "null"], "description": "Occupé / vacant." },
+        "etatLieux": { "type": ["string", "null"] },
+        "ageBati": { "type": ["string", "null"] },
+        "surface": { "type": ["number", "string", "null"] },
+        "hauteurPlafond": { "type": ["number", "string", "null"] },
+        "pieces": { "type": ["integer", "string", "null"], "description": "Nombre de pièces déclaré (distinct de la liste 'pieces' détaillée)." },
+        "codePostal": { "type": ["string", "null"], "description": "Détermine le coefficient de zone (coefZone)." },
+        "chauffage": { "type": ["string", "null"] },
+        "eauChaude": { "type": ["string", "null"] },
+        "vmc": { "type": ["string", "null"] },
+        "tableauExistant": { "type": ["string", "null"] },
+        "borneVE": { "type": ["string", "null"] },
+        "domotique": { "type": ["string", "null"] },
+        "qualiteMateriaux": { "type": ["string", "null"] },
+        "accessibilite": { "type": ["string", "null"] },
+        "accessSup": { "type": ["string", "null"] }
+      }
+    },
+
+    "metiers": {
+      "type": "array",
+      "description": "Corps d'état actifs sur le projet (ex. peinture, sols, carrelage, plomberie, electricite, vmc, isolation, menuiserie, chauffage).",
+      "items": { "type": "string" }
+    },
+
+    "pieces": {
+      "type": "array",
+      "description": "Pièces détaillées du projet. Chaque pièce porte ses dimensions et ses décisions par métier (config).",
+      "items": {
+        "type": "object",
+        "required": ["id"],
+        "additionalProperties": true,
+        "properties": {
+          "id": { "type": "string", "description": "Identifiant de pièce (ex. salon, sdb). Détermine certains paramètres (débit VMC…)." },
+          "nom": { "type": ["string", "null"] },
+          "dims": {
+            "type": ["object", "null"],
+            "additionalProperties": false,
+            "properties": {
+              "l": { "type": ["number", "null"] },
+              "la": { "type": ["number", "null"] },
+              "h": { "type": ["number", "null"] },
+              "fenetres": { "type": ["number", "null"] },
+              "portes": { "type": ["number", "null"] }
+            }
+          },
+          "solType": { "type": ["string", "null"] },
+          "solSousCouche": { "type": ["string", "null"] },
+          "solPose": { "type": ["string", "null"] },
+          "config": {
+            "type": ["object", "null"],
+            "description": "Décisions de l'utilisateur par métier : { metier: { CODE_PRESTATION: quantite } }. C'est l'entrée principale du calcul par pièce.",
+            "additionalProperties": {
+              "type": "object",
+              "additionalProperties": { "type": ["number", "string", "boolean", "null"] }
+            }
+          }
+        }
+      }
+    },
+
+    "decisions": {
+      "type": ["object", "null"],
+      "description": "Choix explicites tracés au-delà des config : recommandations acceptées / refusées, options retenues.",
+      "additionalProperties": false,
+      "properties": {
+        "recommandationsAcceptees": { "type": "array", "items": { "type": "string" } },
+        "recommandationsRefusees": { "type": "array", "items": { "type": "string" } },
+        "notes": { "type": ["string", "null"] }
+      }
+    },
+
+    "resultats": {
+      "type": ["object", "null"],
+      "description": "SORTIE des moteurs. Reproductible à partir de (chantier + pieces + metiers + versions). Figée dès le statut 'valide'.",
+      "additionalProperties": false,
+      "properties": {
+        "devis": {
+          "type": ["object", "null"],
+          "description": "Objet retourné par calculerDevis (source unique de vérité des totaux).",
+          "additionalProperties": true,
+          "properties": {
+            "totalHT": { "type": ["number", "null"] },
+            "taux": { "type": ["number", "null"] },
+            "tva": { "type": ["number", "null"] },
+            "ttc": { "type": ["number", "null"] },
+            "coefZ": { "type": ["number", "null"] },
+            "forfaitAcces": { "type": ["number", "null"] },
+            "acomptes": { "type": ["object", "null"] },
+            "tableau": {}, "vmc": {}, "plomberie": {}, "chauffage": {}, "ballon": {}
+          }
+        },
+        "parPiece": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": true,
+            "properties": {
+              "id": { "type": ["string", "null"] },
+              "totalHT": { "type": ["number", "null"] },
+              "surfaces": {}, "tempsParMetier": {}
+            }
+          }
+        },
+        "calculeLe": { "type": ["string", "null"], "format": "date-time" },
+        "empreinte": { "type": ["string", "null"], "description": "Empreinte des résultats (contrôle d'intégrité)." },
+        "fige": { "type": "boolean", "default": false, "description": "true si les résultats sont immuables (projet validé)." }
+      }
+    },
+
+    "journaux": {
+      "type": "array",
+      "description": "Décisions observées (Journal de Décision). Aucun prix ni code catalogue (Constitution P3).",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "sequence": { "type": "integer" },
+          "horodatage": { "type": ["integer", "string"] },
+          "type": { "type": "string" },
+          "donnees": {}
+        }
+      }
+    },
+
+    "references": {
+      "type": ["object", "null"],
+      "description": "Fiches de savoir utilisées (Port). On stocke les IDENTIFIANTS et VERSIONS, jamais le contenu du Référentiel (source unique).",
+      "additionalProperties": false,
+      "properties": {
+        "fiches": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["identifiant"],
+            "additionalProperties": false,
+            "properties": {
+              "identifiant": { "type": "string" },
+              "famille": { "type": ["string", "null"] },
+              "version": { "type": ["string", "null"] },
+              "etat": { "type": ["string", "null"] },
+              "origine": { "type": ["string", "null"] }
+            }
+          }
+        }
+      }
+    },
+
+    "versions": {
+      "type": "object",
+      "description": "Versions de TOUTES les briques ayant produit les résultats — cœur de la reproductibilité et de la gouvernance.",
+      "required": ["contrat"],
+      "additionalProperties": false,
+      "properties": {
+        "contrat": { "type": "string", "description": "Version du présent contrat." },
+        "referentiel": { "type": ["string", "null"], "description": "Version du Référentiel de connaissances (ex. v0 / V1.5)." },
+        "moteur": { "type": ["string", "null"], "description": "Version du Moteur DSBAT (calcul)." },
+        "regles": { "type": ["string", "null"], "description": "Version du corpus de règles métier." },
+        "cataloguePrix": { "type": ["string", "null"], "description": "Version du catalogue de prix (identifiant de version, PAS les prix)." }
+      }
+    },
+
+    "metadonnees": {
+      "type": ["object", "null"],
+      "description": "Contexte non métier : origine, locale, appareil, étiquettes.",
+      "additionalProperties": true,
+      "properties": {
+        "source": { "enum": ["configurateur-web", "api", "mobile", "import", "systeme", null] },
+        "locale": { "type": ["string", "null"], "default": "fr-FR" },
+        "devise": { "type": ["string", "null"], "default": "EUR" },
+        "appareil": { "type": ["string", "null"] },
+        "tags": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+
+    "reproductibilite": {
+      "type": ["object", "null"],
+      "description": "Tout ce qu'il faut pour REJOUER un calcul à l'identique. Le moteur étant déterministe (P17), l'entrée + les versions suffisent.",
+      "additionalProperties": false,
+      "properties": {
+        "entree": {
+          "type": ["object", "null"],
+          "description": "Cliché de l'entrée exacte du calcul.",
+          "additionalProperties": false,
+          "properties": {
+            "chantier": { "type": ["object", "null"] },
+            "pieces": { "type": "array", "items": { "type": "object" } },
+            "metiers": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "versions": { "type": ["object", "null"], "description": "Copie des versions au moment du calcul." },
+        "empreinteEntree": { "type": ["string", "null"], "description": "Empreinte de l'entrée (chantier+pieces+metiers+versions)." },
+        "deterministe": { "type": "boolean", "default": true, "description": "Aucune source d'aléa dans le moteur." }
+      }
+    }
+  }
+}
