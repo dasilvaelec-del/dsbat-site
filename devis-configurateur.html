@@ -41,7 +41,11 @@ window.axeptioSettings = {
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
 <script src="config.js"></script>
-<script src="prix.js"></script>
+<!-- R10 — Le navigateur ne charge PLUS le catalogue prix.js (déplacé côté Runtime privé :
+     runtime/moteur-prive/prix.js). À la place : paramètres MÉTIER non-tarifaires (métrés,
+     rendements, pertes, seuils de dimensionnement) — aucun prix, aucune marge, aucune formule.
+     Le devis GLOBAL est calculé par le Runtime (voir bootstrap en bas de page). -->
+<script src="js/parametres-metier.js"></script>
 <!-- R09 — Le navigateur n'utilise plus js/pricing.js (déplacé côté Runtime privé :
      runtime/moteur-prive/pricing.js). Les 4 accesseurs de prix (getPrixPrestFor,
      getMoyenPrixFor, tempsUnitaire, findPrestLabel) proviennent de la VUE TARIFAIRE
@@ -2800,12 +2804,19 @@ function scoreCompletudeHtml(pieces, ch, metiers) {
 // Aucune logique ni aucun montant modifiés — simple déplacement de fichier.
 
 // ===== PHASE 3 — RÉCAPITULATIF =====
-function renderPhase3() {
+async function renderPhase3() {
   const container = document.getElementById('recapGlobal');
 
-  // ===== TOTAUX via le moteur de calcul unifié (MISSION 021) =====
-  // Plus aucun calcul de total ici : source unique = calculerDevis().
-  const D = calculerDevis();
+  // ===== TOTAUX — R10 : le devis GLOBAL est calculé par le Runtime DSBAT =====
+  // Le catalogue (prix, marges, formules, dimensionnements, zones) n'est plus dans
+  // le navigateur : le Runtime le calcule et renvoie le devis complet (mêmes chiffres,
+  // parité prouvée). __obtenirDevisRuntime republie aussi les effets window.__* utilisés
+  // par les explications (tableau/VMC/plomberie/chauffage) restées côté interface.
+  const D = await window.__obtenirDevisRuntime();
+  if (!D) {
+    if (container) container.innerHTML = '<div style="padding:28px;text-align:center;color:var(--text-light);line-height:1.6;">🔌 <strong>Devis en cours de calcul par le serveur DSBAT.</strong><br>Service momentanément indisponible.<br><button onclick="renderPhase3()" class="btn" style="margin-top:14px;padding:10px 22px;">Réessayer</button></div>';
+    return;
+  }
   const tableau = D.tableau;
   const ballon = D.ballon;
   const forfaitAcces = D.forfaitAcces;
@@ -3199,10 +3210,12 @@ function envoyerNotifications(numero, totalHT, tva, ttc, clientData, pdfBlob) {
 }
 
 // ===== PDF =====
-function genererPDFConfig() {
-  // ===== TOTAUX via le moteur de calcul unifié (MISSION 021) =====
-  // Plus aucun recalcul ici : mêmes chiffres que l'écran, garantis identiques.
-  const D = calculerDevis();
+async function genererPDFConfig() {
+  // ===== TOTAUX — R10 : devis GLOBAL calculé par le Runtime (catalogue privé) =====
+  // Mêmes chiffres que l'écran (empreinte mémoïsée). Les effets window.__* (tableau,
+  // besoins…) sont republiés par __obtenirDevisRuntime pour le rendu du PDF.
+  const D = await window.__obtenirDevisRuntime();
+  if (!D) { alert('Le devis est calculé par le serveur DSBAT, momentanément indisponible. Merci de réessayer dans un instant.'); return; }
   const totalGlobalHT = D.totalHT;
   const tva = D.tva;
   const ttc = D.ttc;
@@ -3545,6 +3558,63 @@ function genererPDFConfig() {
     window.__shadowDSBAT = shadow;      // console : __shadowDSBAT.rapport() (compat R03)
     try { console.info('[Moteur DSBAT] mode « ' + mode + ' » actif (devis + pièce) → Runtime ' + base + ' · retour arrière : __runtimeDSBAT.retourArriere()'); } catch (e) {}
   } catch (e) { /* le sélecteur ne perturbe JAMAIS le configurateur */ }
+})();
+</script>
+
+<!-- =====================================================================
+     R10 — DEVIS GLOBAL PAR LE RUNTIME (catalogue de prix privé)
+     Le navigateur ne détient plus le catalogue : le devis global (tableau, VMC,
+     plomberie, chauffage, zones, TVA) est calculé par le Runtime DSBAT et renvoyé
+     complet (mêmes chiffres, parité prouvée). Les prix PAR PRESTATION restent servis
+     hors-ligne par la vue auto-hébergée ; le calcul PAR PIÈCE reste local.
+     • __obtenirDevisRuntime() : appelle le Runtime, mémoïse par empreinte, republie
+       les effets window.__* utilisés par les explications (restées côté interface).
+     • Indisponible → renderPhase3/genererPDFConfig affichent un état « réessayer ».
+     • Retour arrière : CONFIG.runtime.sourceDevis='local' (nécessite prix.js restauré)
+       ou git revert. Le calcul par pièce et l'affichage ne sont pas impactés.
+     ===================================================================== -->
+<script>
+(function () {
+  function cfg() { return (typeof CONFIG !== 'undefined' && CONFIG.runtime) ? CONFIG.runtime : {}; }
+  function publierEffetsDevis(D) {
+    try {
+      window.__besoinsTableau = D.besoinsTableau; window.__tableauAuto = D.tableau; window.__ballon = D.ballon;
+      window.__besoinsVMC = D.besoinsVMC; window.__vmcAuto = D.vmc;
+      window.__besoinsPlomberie = D.besoinsPlomberie; window.__plomberieAuto = D.plomberie;
+      window.__chauffageAuto = D.chauffage; window.__forfaitAcces = D.forfaitAcces;
+    } catch (e) {}
+  }
+  window.__publierEffetsDevis = publierEffetsDevis;
+
+  // Devis global : Runtime par défaut (R10). Mémoïsation par empreinte pour que
+  // l'écran et le PDF partagent EXACTEMENT le même calcul (un seul appel réseau).
+  window.__obtenirDevisRuntime = function () {
+    try {
+      var c = cfg();
+      // Retour arrière explicite : calcul local historique (nécessite prix.js restauré).
+      if (c.sourceDevis === 'local') {
+        return Promise.resolve((typeof calculerDevis === 'function') ? calculerDevis() : null);
+      }
+      if (typeof RuntimeClientDSBAT === 'undefined' || typeof ModeleProjetDSBAT === 'undefined') return Promise.resolve(null);
+      var etat = {
+        chantier: (typeof chantier !== 'undefined') ? chantier : {},
+        pieces: (typeof piecesSelectionnees !== 'undefined') ? piecesSelectionnees : [],
+        metiers: (typeof metiersActifs !== 'undefined') ? metiersActifs : []
+      };
+      var emp;
+      try { emp = ModeleProjetDSBAT.empreinte({ chantier: etat.chantier, pieces: etat.pieces, metiers: etat.metiers }); } catch (e) { emp = null; }
+      if (emp && window.__devisEmpreinte === emp && window.__devisCache) { publierEffetsDevis(window.__devisCache); return Promise.resolve(window.__devisCache); }
+      if (!window.__rtClientDevis) window.__rtClientDevis = RuntimeClientDSBAT.creerClientRuntime({ base: (c.base || '').replace(/\/+$/, '') });
+      var projet = ModeleProjetDSBAT.creerProjetDSBAT({ chantier: etat.chantier, pieces: etat.pieces, metiers: etat.metiers, id: 'devis' });
+      return window.__rtClientDevis.calculer(projet).then(function (r) {
+        var D = r && r.devis;
+        if (!D) return null;
+        window.__devisEmpreinte = emp; window.__devisCache = D;
+        publierEffetsDevis(D);
+        return D;
+      }).catch(function () { return null; });
+    } catch (e) { return Promise.resolve(null); }
+  };
 })();
 </script>
 

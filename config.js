@@ -35,9 +35,19 @@ const CONFIG = {
   },
 
   // ----- PRIX -----
-  // ⚠️ OBSOLÈTE : les tarifs vivent exclusivement dans prix.js (catalogue PRIX).
-  // Ce bloc, jamais lu par le configurateur, est supprimé pour éviter toute
-  // confusion avec d'anciens montants contradictoires.
+  // ⚠️ Les tarifs vivent désormais EXCLUSIVEMENT côté Runtime privé
+  // (runtime/moteur-prive/). Le navigateur ne reçoit plus le catalogue :
+  //   • prix d'affichage par prestation → vue tarifaire auto-hébergée (R08/R09) ;
+  //   • devis GLOBAL (tableau, VMC, plomberie, chauffage, zones) → Runtime (R10).
+
+  // ----- RUNTIME DSBAT (R10) -----
+  // Le devis global est calculé par le Runtime, désormais dépendance officielle.
+  // ⚙️ Renseigner l'URL du Runtime DÉPLOYÉ (HTTPS + CORS autorisé pour ce domaine).
+  // Repli local historique : mettre `sourceDevis: 'local'` (nécessite prix.js — voir retour arrière R10).
+  runtime: {
+    base: "http://127.0.0.1:8787",   // ⚠️ à remplacer par l'URL de production déployée
+    sourceDevis: "runtime"           // 'runtime' (défaut R10) | 'local' (retour arrière)
+  },
 };
 
 // ===== APPLICATION AUTOMATIQUE DE LA CONFIG =====
