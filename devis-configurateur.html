@@ -64,6 +64,7 @@ window.axeptioSettings = {
 <script src="js/modele-projet.js"></script>
 <script src="js/runtime-client.js"></script>
 <script src="js/shadow.js"></script>
+<script src="js/moteur-mode.js"></script>
 
 <style>
 /* ===== CONFIGURATEUR PIÈCE PAR PIÈCE ===== */
@@ -3396,44 +3397,67 @@ function genererPDFConfig() {
 }
 </script>
 <!-- =====================================================================
-     Mode Shadow DSBAT (R03) — activation OPT-IN, désactivée par défaut.
-     Le configurateur reste la RÉFÉRENCE : le résultat du Runtime n'est jamais
-     montré à l'utilisateur. Ce bloc est un NO-OP total sauf si explicitement
-     activé (URL ?shadow=1  ou  localStorage 'dsbat_shadow'='1'). Toute erreur
-     est avalée : il ne peut jamais perturber la page.
+     Sélecteur de moteur DSBAT (R04) — feature flag OPT-IN, désactivé par défaut.
+     Modes : historique (défaut) · shadow · runtime · arret.
+       • Défaut (aucun flag)   → mode 'historique' : NO-OP total, calculerDevis
+         n'est pas enveloppé, comportement strictement identique.
+       • ?moteur=shadow  (ou ?shadow=1) → historique servi + comparaison Runtime
+         en tâche de fond (le résultat Runtime n'est jamais affiché).
+       • ?moteur=runtime → préparé : le service synchrone actuel retombe sur
+         l'historique (repli) ; la consommation asynchrone du Runtime est la
+         bascule R05. Le retour arrière reste immédiat.
+     Réversibilité : window.__moteurDSBAT.retourArriere()  ou retirer le flag.
+     Toute erreur est avalée : ne peut jamais perturber la page.
      ===================================================================== -->
 <script>
 (function () {
   try {
+    if (typeof MoteurModeDSBAT === 'undefined' || typeof calculerDevis !== 'function') return;
+    var mode = MoteurModeDSBAT.lireModeDepuisEnv(window.location, (function () { try { return window.localStorage; } catch (e) { return null; } })());
+    if (mode === 'historique') return; // ← comportement par défaut : STRICTEMENT rien.
+
+    if (typeof ModeleProjetDSBAT === 'undefined' || typeof RuntimeClientDSBAT === 'undefined' || typeof ShadowDSBAT === 'undefined') return;
+
     var params = new URLSearchParams(window.location.search);
-    var actif = params.get('shadow') === '1';
-    try { if (!actif && window.localStorage && localStorage.getItem('dsbat_shadow') === '1') actif = true; } catch (e) {}
-    if (!actif) return; // ← comportement par défaut : STRICTEMENT rien.
-
-    if (typeof ShadowDSBAT === 'undefined' || typeof RuntimeClientDSBAT === 'undefined' ||
-        typeof ModeleProjetDSBAT === 'undefined' || typeof calculerDevis !== 'function') return;
-
-    var base = params.get('shadowRuntime') || 'http://127.0.0.1:8787';
+    var base = params.get('runtimeBase') || params.get('shadowRuntime') || 'http://127.0.0.1:8787';
     var client = RuntimeClientDSBAT.creerClientRuntime({ base: base });
     var shadow = ShadowDSBAT.creerShadow({
       runtime: client.calculer, modele: ModeleProjetDSBAT, actif: true,
       onEcart: function (e) { try { console.warn('[Shadow écart]', e.gravite, e.chemin, 'local=', e.attendu, 'runtime=', e.obtenu); } catch (x) {} }
     });
 
-    // Enveloppe calculerDevis : le résultat LOCAL est rendu inchangé ; une
-    // comparaison Runtime est planifiée en tâche de fond (résultat jamais utilisé).
-    window.calculerDevis = shadow.envelopper(calculerDevis, function (devisLocal) {
+    function etatCourant(devisLocal) {
       return {
         chantier: (typeof chantier !== 'undefined') ? chantier : {},
         pieces: (typeof piecesSelectionnees !== 'undefined') ? piecesSelectionnees : [],
         metiers: (typeof metiersActifs !== 'undefined') ? metiersActifs : [],
         devisLocal: devisLocal, contexte: 'devis'
       };
+    }
+
+    var selecteur = MoteurModeDSBAT.creerSelecteurMoteur({
+      historique: function () { return calculerDevis.apply(null, arguments); },
+      // Consommation asynchrone du Runtime (branchée à la bascule R05).
+      runtimeAsync: function (etat) { return client.calculer(ModeleProjetDSBAT.creerProjetDSBAT({ chantier: etat.chantier, pieces: etat.pieces, metiers: etat.metiers, id: 'devis' })).then(function (r) { return r.devis; }); },
+      observer: function (etat, devisLocal) { shadow.observer(etatCourant(devisLocal)); },
+      mode: mode,
+      onRepli: function (raison) { try { console.info('[Moteur DSBAT] repli historique : ' + raison); } catch (e) {} }
     });
 
-    window.__shadowDSBAT = shadow; // console : __shadowDSBAT.rapport() / .texteRapport()
-    try { console.info('[Shadow DSBAT] activé (observation seule) → Runtime ' + base + ' · rapport via __shadowDSBAT.rapport()'); } catch (e) {}
-  } catch (e) { /* le Shadow ne perturbe JAMAIS le configurateur */ }
+    // Le rendu actuel appelle calculerDevis() de façon synchrone : le sélecteur
+    // sert donc l'historique (référence) et, en mode shadow, observe en parallèle.
+    var original = calculerDevis;
+    window.calculerDevis = function () {
+      var etatSansDevis = { chantier: (typeof chantier !== 'undefined') ? chantier : {}, pieces: (typeof piecesSelectionnees !== 'undefined') ? piecesSelectionnees : [], metiers: (typeof metiersActifs !== 'undefined') ? metiersActifs : [] };
+      var d = original.apply(this, arguments);           // référence historique, rendue inchangée
+      try { if (selecteur.getMode() === 'shadow') shadow.observer(etatCourant(d)); } catch (e) {}
+      return d;
+    };
+
+    window.__moteurDSBAT = selecteur;   // console : __moteurDSBAT.getMode() / setMode() / retourArriere() / rapport()
+    window.__shadowDSBAT = shadow;      // console : __shadowDSBAT.rapport() (compat R03)
+    try { console.info('[Moteur DSBAT] mode « ' + mode + ' » actif → Runtime ' + base + ' · retour arrière : __moteurDSBAT.retourArriere()'); } catch (e) {}
+  } catch (e) { /* le sélecteur ne perturbe JAMAIS le configurateur */ }
 })();
 </script>
 </body>
