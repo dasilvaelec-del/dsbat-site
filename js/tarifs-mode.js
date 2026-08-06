@@ -94,7 +94,51 @@
     return 'catalogue';
   }
 
-  var API = { creerControleurTarifs: creerControleurTarifs, lireModeDepuisEnv: lireModeDepuisEnv, MODES: MODES.slice() };
+  // -------------------------------------------------------------------
+  // creerAccesseursCatalogue(portee) — reconstruit les 4 accesseurs D'ORIGINE
+  //   (identiques à js/pricing.js) à partir du CATALOGUE encore présent
+  //   (portee.PRIX / prixElec / prixPlomberie). Sert de CHEMIN DE RETOUR ARRIÈRE
+  //   pour le mode 'catalogue' APRÈS le retrait de pricing.js du navigateur (R09).
+  //   Copie VERBATIM de la logique livrée — aucune règle / aucun prix modifié.
+  // -------------------------------------------------------------------
+  function creerAccesseursCatalogue(portee) {
+    portee = portee || global;
+    function P() { return portee.PRIX; }
+    function getPrixPrestFor(code, piece) {
+      var PRIX = P(); if (!PRIX) return null;
+      for (var k in PRIX) {
+        var cat = PRIX[k]; if (!Array.isArray(cat)) continue;
+        for (var i = 0; i < cat.length; i++) {
+          var f = cat[i];
+          if (f && f.code === code) {
+            if (f.renov) return f.renov;
+            if (f.prix) return f.prix;
+            if (f.pose && f.app && typeof portee.prixElec === 'function')
+              return portee.prixElec(f, (piece && piece.elecMethode) || 'saignee', (piece && piece.elecGamme) || 'dooxie');
+            if (f.pose && f.four && typeof portee.prixPlomberie === 'function')
+              return portee.prixPlomberie(f, (piece && piece.ploGamme) || 'standard');
+            return null;
+          }
+        }
+      }
+      return null;
+    }
+    function getMoyenPrixFor(code, piece) { var p = getPrixPrestFor(code, piece); return p ? (p.min + p.max) / 2 : 0; }
+    function tempsUnitaire(code) {
+      var PRIX = P(); if (!PRIX) return 0;
+      for (var k in PRIX) { var cat = PRIX[k]; if (!Array.isArray(cat)) continue; for (var i = 0; i < cat.length; i++) if (cat[i] && cat[i].code === code) return cat[i].temps || 0; }
+      return 0;
+    }
+    function findPrestLabel(code) {
+      var PRIX = P(); if (!PRIX) return code;
+      for (var k in PRIX) { var cat = PRIX[k]; if (!Array.isArray(cat)) continue; for (var i = 0; i < cat.length; i++) if (cat[i] && cat[i].code === code) return cat[i].label; }
+      return code;
+    }
+    return { getPrixPrestFor: getPrixPrestFor, getMoyenPrixFor: getMoyenPrixFor, tempsUnitaire: tempsUnitaire, findPrestLabel: findPrestLabel };
+  }
+
+  var API = { creerControleurTarifs: creerControleurTarifs, lireModeDepuisEnv: lireModeDepuisEnv,
+    creerAccesseursCatalogue: creerAccesseursCatalogue, MODES: MODES.slice() };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   if (global) global.TarifsModeDSBAT = API;
 

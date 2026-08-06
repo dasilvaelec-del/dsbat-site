@@ -42,7 +42,34 @@ window.axeptioSettings = {
 <link rel="stylesheet" href="styles.css">
 <script src="config.js"></script>
 <script src="prix.js"></script>
-<script src="js/pricing.js"></script>
+<!-- R09 — Le navigateur n'utilise plus js/pricing.js (déplacé côté Runtime privé :
+     runtime/moteur-prive/pricing.js). Les 4 accesseurs de prix (getPrixPrestFor,
+     getMoyenPrixFor, tempsUnitaire, findPrestLabel) proviennent de la VUE TARIFAIRE
+     auto-hébergée (dérivée, sans formule ni marge). Installés AVANT tout moteur.
+     Retour arrière : ?tarifs=catalogue ou __tarifsDSBAT.retourArriere() (relit prix.js). -->
+<script src="js/vue-tarifaire.js"></script>
+<script src="js/tarifs-mode.js"></script>
+<script src="js/vue-tarifaire-data.js"></script>
+<script>
+(function () {
+  function installVue() { try { return !!(window.VueTarifaireDSBAT && VueTarifaireDSBAT.installerDepuisEmbarque(window)); } catch (e) { return false; } }
+  function installCatalogue() { try { var a = TarifsModeDSBAT.creerAccesseursCatalogue(window);
+    window.getPrixPrestFor = a.getPrixPrestFor; window.getMoyenPrixFor = a.getMoyenPrixFor;
+    window.tempsUnitaire = a.tempsUnitaire; window.findPrestLabel = a.findPrestLabel; return true; } catch (e) { return false; } }
+  var mode;
+  try { var p = new URLSearchParams(window.location.search).get('tarifs');
+    mode = p || ((window.localStorage && localStorage.getItem('dsbat_tarifs')) || 'vue'); } catch (e) { mode = 'vue'; }
+  // Défaut R09 : la VUE auto-hébergée fournit les prix d'affichage (sans pricing.js, sans serveur).
+  // Ultime sécurité : si la vue échoue, on reconstruit les accesseurs depuis prix.js (encore présent).
+  if (mode === 'catalogue') { installCatalogue(); }
+  else if (!installVue()) { mode = 'catalogue'; installCatalogue(); }
+  window.__tarifsDSBAT = {
+    getMode: function () { return mode; },
+    retourArriere: function () { mode = 'catalogue'; installCatalogue(); return 'catalogue'; }, // ← rétablit prix.js
+    utiliserVue: function () { mode = 'vue'; installVue(); return 'vue'; }
+  };
+})();
+</script>
 <script src="js/moteur-tva.js"></script>
 <!-- MISSION 026 — Modularisation : nouveaux moteurs autonomes (dossier /js) -->
 <script src="js/moteur-devis.js"></script>
@@ -66,9 +93,6 @@ window.axeptioSettings = {
 <script src="js/runtime-client.js"></script>
 <script src="js/shadow.js"></script>
 <script src="js/moteur-mode.js"></script>
-<!-- R08 : vue tarifaire (accesseurs sans catalogue) + sélecteur de source tarifaire. Inertes par défaut. -->
-<script src="js/vue-tarifaire.js"></script>
-<script src="js/tarifs-mode.js"></script>
 
 <style>
 /* ===== CONFIGURATEUR PIÈCE PAR PIÈCE ===== */
@@ -3524,48 +3548,5 @@ function genererPDFConfig() {
 })();
 </script>
 
-<!-- =====================================================================
-     R08 — BOOTSTRAP SOURCE TARIFAIRE (flag ?tarifs=vue, sinon STRICTEMENT rien)
-     • Défaut 'catalogue' : les accesseurs restent ceux de js/pricing.js (prix.js).
-     • 'vue' : charge la vue tarifaire du Runtime (/v1/tarifs/vue) et remplace les
-       4 accesseurs d'affichage par des lectures de la VUE — le navigateur affiche
-       alors les prix SANS lire le catalogue. Repli automatique sur 'catalogue' à
-       la moindre erreur. Aucun rendu, aucune règle, aucun prix modifié.
-     Réversibilité : window.__tarifsDSBAT.retourArriere()  ou retirer le flag.
-     Toute erreur est avalée : ne peut jamais perturber la page.
-     ===================================================================== -->
-<script>
-(function () {
-  try {
-    if (typeof TarifsModeDSBAT === 'undefined' || typeof VueTarifaireDSBAT === 'undefined') return;
-    var mode = TarifsModeDSBAT.lireModeDepuisEnv(window.location, (function () { try { return window.localStorage; } catch (e) { return null; } })());
-    if (mode !== 'vue') return; // ← comportement par défaut : STRICTEMENT rien (accesseurs catalogue).
-
-    var params = new URLSearchParams(window.location.search);
-    var base = (params.get('runtimeBase') || params.get('tarifsRuntime') || 'http://127.0.0.1:8787').replace(/\/+$/, '');
-
-    var ctrl = TarifsModeDSBAT.creerControleurTarifs({
-      cible: window,
-      creerAccesseursVue: VueTarifaireDSBAT.creerAccesseursVue,
-      // Source de la vue : endpoint lecture seule du Runtime.
-      chargerVue: function () {
-        return fetch(base + '/v1/tarifs/vue').then(function (r) { return r.json(); })
-          .then(function (c) { if (!c || c.statut !== 'ok' || !c.vue) throw new Error('vue indisponible'); return c.vue; });
-      },
-      onRepli: function (raison) { try { console.info('[Tarifs DSBAT] repli catalogue : ' + raison); } catch (e) {} }
-    });
-
-    window.__tarifsDSBAT = ctrl; // console : __tarifsDSBAT.getMode() / retourArriere() / rapport()
-
-    // Active la vue puis rafraîchit l'affichage (les accesseurs sont déjà remplacés).
-    ctrl.activer().then(function (ok) {
-      try {
-        if (ok && typeof rerenderTarifs === 'function') rerenderTarifs();
-        console.info('[Tarifs DSBAT] source « ' + ctrl.getMode() + ' »' + (ok ? ' (vue Runtime, sans catalogue)' : ' (repli catalogue)') + ' · retour arrière : __tarifsDSBAT.retourArriere()');
-      } catch (e) {}
-    });
-  } catch (e) { /* le sélecteur tarifaire ne perturbe JAMAIS le configurateur */ }
-})();
-</script>
 </body>
 </html>

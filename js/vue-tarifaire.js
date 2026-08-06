@@ -152,9 +152,42 @@
              tempsUnitaire: tempsUnitaire, findPrestLabel: findPrestLabel };
   }
 
+  var NOMS_ACCESSEURS = ['getPrixPrestFor', 'getMoyenPrixFor', 'tempsUnitaire', 'findPrestLabel'];
+
+  // -------------------------------------------------------------------
+  // installerAccesseurs(cible, vue) — pose les 4 accesseurs de la VUE comme
+  //   globales de `cible` (window en navigateur). Renvoie un SNAPSHOT des
+  //   accesseurs précédents (pour restauration/retour arrière). C'est ce qui
+  //   permet au navigateur de lire les prix SANS pricing.js ni catalogue.
+  // -------------------------------------------------------------------
+  function installerAccesseurs(cible, vue) {
+    cible = cible || global;
+    var acc = creerAccesseursVue(vue || {});
+    var precedent = {};
+    for (var i = 0; i < NOMS_ACCESSEURS.length; i++) {
+      var n = NOMS_ACCESSEURS[i];
+      precedent[n] = cible[n];
+      cible[n] = acc[n];
+    }
+    return { accesseurs: acc, precedent: precedent };
+  }
+
+  // installerDepuisEmbarque(cible) — installe depuis la vue auto-hébergée
+  //   (js/vue-tarifaire-data.js publie global.__VUE_TARIFAIRE_DSBAT__).
+  //   Sans serveur : la vue est un actif statique du dépôt public (dérivé, non secret).
+  function installerDepuisEmbarque(cible) {
+    cible = cible || global;
+    var vue = cible.__VUE_TARIFAIRE_DSBAT__ || (global && global.__VUE_TARIFAIRE_DSBAT__);
+    if (!vue || !vue.prestations) return null;
+    return installerAccesseurs(cible, vue);
+  }
+
   var API = {
     construireVueTarifaire: construireVueTarifaire,
     creerAccesseursVue: creerAccesseursVue,
+    installerAccesseurs: installerAccesseurs,
+    installerDepuisEmbarque: installerDepuisEmbarque,
+    NOMS_ACCESSEURS: NOMS_ACCESSEURS.slice(),
     METHODES_ELEC: METHODES_ELEC.slice(),
     GAMMES_ELEC: GAMMES_ELEC.slice(),
     GAMMES_PLO: GAMMES_PLO.slice()
