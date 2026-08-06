@@ -45,12 +45,27 @@
       }).catch(function (e) { if (minuteur) clearTimeout(minuteur); throw e; });
     }
 
+    // R06 — calcul par pièce : { chantier, metiers, piece } -> { piece, resultat }
+    function calculerPiece(entree) {
+      if (typeof fetchImpl !== 'function') return Promise.reject(new Error('fetch indisponible'));
+      var ctrl = (typeof AbortController === 'function') ? new AbortController() : null;
+      var minuteur = ctrl ? setTimeout(function () { ctrl.abort(); }, delaiMs) : null;
+      return fetchImpl(base + '/v1/pieces/calcul', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(entree), signal: ctrl ? ctrl.signal : undefined
+      }).then(function (rep) { if (minuteur) clearTimeout(minuteur); return rep.json(); })
+        .then(function (corps) {
+          if (!corps || corps.statut === 'erreur') throw new Error('Runtime pièce : ' + ((corps && corps.erreur && corps.erreur.code) || 'réponse inattendue'));
+          return { piece: corps.piece, resultat: corps.resultat };
+        }).catch(function (e) { if (minuteur) clearTimeout(minuteur); throw e; });
+    }
+
     function sante() {
       if (typeof fetchImpl !== 'function') return Promise.reject(new Error('fetch indisponible'));
       return fetchImpl(base + '/v1/sante').then(function (r) { return r.json(); });
     }
 
-    return { calculer: calculer, sante: sante, base: base };
+    return { calculer: calculer, calculerPiece: calculerPiece, sante: sante, base: base };
   }
 
   var API = { creerClientRuntime: creerClientRuntime };

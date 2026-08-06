@@ -61,6 +61,7 @@ window.axeptioSettings = {
 <script src="js/coherence.js"></script>
 <!-- Runtime DSBAT (R03) — modules INERTES au chargement : le mode Shadow ne s'active
      qu'explicitement (voir bloc d'activation en bas de page). Aucun effet par défaut. -->
+<script src="js/moteur-piece-complet.js"></script>
 <script src="js/modele-projet.js"></script>
 <script src="js/runtime-client.js"></script>
 <script src="js/shadow.js"></script>
@@ -2537,15 +2538,11 @@ function recalcPiece(index) {
   }
 
   // 2) CALCUL PUR (aucun accès au DOM) — cœur du calcul par pièce.
-  //    a) 1er passage : obtient les SURFACES depuis les dimensions.
-  //    b) on en déduit les quantités de revêtements (sol carrelé, faïence) — plus
-  //       aucune saisie manuelle de surface (règle DSBAT).
-  //    c) 2e passage : chiffrage final avec ces quantités.
-  calculerPiece(piece, chantier, metiersActifs);
-  if (metiersActifs.includes('sols') || metiersActifs.includes('carrelage')) {
-    appliquerRevetements(piece, piece.surfaces || { sol:0, murs:0, plafond:0 }, metiersActifs);
-  }
-  const R = calculerPiece(piece, chantier, metiersActifs);
+  //    Séquence extraite dans calculerPieceComplet (js/moteur-piece-complet.js) :
+  //    a) 1er passage : surfaces ; b) revêtements si sols/carrelage ; c) 2e passage : chiffrage.
+  //    En mode Runtime (R06), cet appel est routé par le sélecteur (Runtime si amorcé,
+  //    sinon repli local immédiat) ; par défaut, exécution locale strictement identique.
+  const R = calculerPieceComplet(piece, chantier, metiersActifs);
 
   // 3) AFFICHER les résultats retournés
   const s = (v) => v > 0 ? v.toFixed(1) + ' m²' : '— m²';
@@ -3463,9 +3460,63 @@ function genererPDFConfig() {
       } catch (e) { try { return original.apply(this, arguments); } catch (x) { return; } }
     };
 
+    // --- R06 : bascule du CALCUL PAR PIÈCE (même mécanique que le devis) ---
+    var selPiece = null;
+    if (typeof calculerPieceComplet === 'function') {
+      var originalPC = calculerPieceComplet;
+      var localPiece = function (etat) {
+        var copie = JSON.parse(JSON.stringify(etat.piece)); if (!copie.config) copie.config = {};
+        var resultat = originalPC(copie, etat.chantier, etat.metiers);
+        return { piece: copie, resultat: resultat };
+      };
+      function fusionnerPiece(cible, source) {
+        try {
+          cible.surfaces = source.surfaces; cible.config = source.config;
+          cible.peintureQuantites = source.peintureQuantites;
+          cible.tempsChantier = source.tempsChantier; cible.tempsParMetier = source.tempsParMetier;
+          cible.totalHT = source.totalHT;
+        } catch (e) {}
+      }
+      selPiece = MoteurModeDSBAT.creerSelecteurMoteur({
+        historique: localPiece,
+        runtimeAsync: function (etat) { return client.calculerPiece({ chantier: etat.chantier, metiers: etat.metiers, piece: etat.piece }); },
+        empreinte: function (etat) { return ModeleProjetDSBAT.empreinte({ chantier: etat.chantier, metiers: etat.metiers, piece: etat.piece }); },
+        modele: ModeleProjetDSBAT, mode: mode,
+        onExecution: function (evt) { try { (window.__execPiece = window.__execPiece || []).push(evt); } catch (e) {} }
+      });
+      window.calculerPieceComplet = function (piece, chantier, metiers) {
+        try {
+          var m = selPiece.getMode();
+          if (m !== 'runtime' && m !== 'shadow') return originalPC(piece, chantier, metiers);
+          var etat = { chantier: chantier, metiers: metiers, piece: JSON.parse(JSON.stringify(piece)) };
+          if (m === 'shadow') {
+            var Rs = originalPC(piece, chantier, metiers);   // référence locale (pièce réelle mutée)
+            try {
+              client.calculerPiece({ chantier: chantier, metiers: metiers, piece: etat.piece }).then(function (res) {
+                try { var ec = ShadowDSBAT._diff({ piece: localPiece(etat).piece, resultat: Rs }, res, 'piece'); if (ec.length) console.warn('[Shadow pièce] ' + ec.length + ' écart(s)', ec.slice(0, 3)); } catch (e) {}
+              }).catch(function () {});
+            } catch (e) {}
+            return Rs;
+          }
+          // runtime : servir le Runtime si amorcé, sinon repli local (+ amorçage auto)
+          var out = selPiece.calculer(etat);        // { piece, resultat }
+          if (out && out.piece) fusionnerPiece(piece, out.piece);
+          return out ? out.resultat : originalPC(piece, chantier, metiers);
+        } catch (e) { try { return originalPC(piece, chantier, metiers); } catch (x) { return; } }
+      };
+      window.__moteurPieceDSBAT = selPiece;
+    }
+
+    // Retour arrière UNIFIÉ (devis + pièce) — réversibilité instantanée.
+    window.__runtimeDSBAT = {
+      retourArriere: function () { selecteur.retourArriere(); if (selPiece) selPiece.retourArriere(); return 'historique'; },
+      setMode: function (m) { selecteur.setMode(m); if (selPiece) selPiece.setMode(m); return m; },
+      rapport: function () { return { devis: selecteur.rapport(), piece: selPiece ? selPiece.rapport() : null }; }
+    };
+
     window.__moteurDSBAT = selecteur;   // console : __moteurDSBAT.getMode() / setMode() / retourArriere() / rapport()
     window.__shadowDSBAT = shadow;      // console : __shadowDSBAT.rapport() (compat R03)
-    try { console.info('[Moteur DSBAT] mode « ' + mode + ' » actif → Runtime ' + base + ' · retour arrière : __moteurDSBAT.retourArriere()'); } catch (e) {}
+    try { console.info('[Moteur DSBAT] mode « ' + mode + ' » actif (devis + pièce) → Runtime ' + base + ' · retour arrière : __runtimeDSBAT.retourArriere()'); } catch (e) {}
   } catch (e) { /* le sélecteur ne perturbe JAMAIS le configurateur */ }
 })();
 </script>
