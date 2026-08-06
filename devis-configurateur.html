@@ -66,6 +66,9 @@ window.axeptioSettings = {
 <script src="js/runtime-client.js"></script>
 <script src="js/shadow.js"></script>
 <script src="js/moteur-mode.js"></script>
+<!-- R08 : vue tarifaire (accesseurs sans catalogue) + sélecteur de source tarifaire. Inertes par défaut. -->
+<script src="js/vue-tarifaire.js"></script>
+<script src="js/tarifs-mode.js"></script>
 
 <style>
 /* ===== CONFIGURATEUR PIÈCE PAR PIÈCE ===== */
@@ -3518,6 +3521,50 @@ function genererPDFConfig() {
     window.__shadowDSBAT = shadow;      // console : __shadowDSBAT.rapport() (compat R03)
     try { console.info('[Moteur DSBAT] mode « ' + mode + ' » actif (devis + pièce) → Runtime ' + base + ' · retour arrière : __runtimeDSBAT.retourArriere()'); } catch (e) {}
   } catch (e) { /* le sélecteur ne perturbe JAMAIS le configurateur */ }
+})();
+</script>
+
+<!-- =====================================================================
+     R08 — BOOTSTRAP SOURCE TARIFAIRE (flag ?tarifs=vue, sinon STRICTEMENT rien)
+     • Défaut 'catalogue' : les accesseurs restent ceux de js/pricing.js (prix.js).
+     • 'vue' : charge la vue tarifaire du Runtime (/v1/tarifs/vue) et remplace les
+       4 accesseurs d'affichage par des lectures de la VUE — le navigateur affiche
+       alors les prix SANS lire le catalogue. Repli automatique sur 'catalogue' à
+       la moindre erreur. Aucun rendu, aucune règle, aucun prix modifié.
+     Réversibilité : window.__tarifsDSBAT.retourArriere()  ou retirer le flag.
+     Toute erreur est avalée : ne peut jamais perturber la page.
+     ===================================================================== -->
+<script>
+(function () {
+  try {
+    if (typeof TarifsModeDSBAT === 'undefined' || typeof VueTarifaireDSBAT === 'undefined') return;
+    var mode = TarifsModeDSBAT.lireModeDepuisEnv(window.location, (function () { try { return window.localStorage; } catch (e) { return null; } })());
+    if (mode !== 'vue') return; // ← comportement par défaut : STRICTEMENT rien (accesseurs catalogue).
+
+    var params = new URLSearchParams(window.location.search);
+    var base = (params.get('runtimeBase') || params.get('tarifsRuntime') || 'http://127.0.0.1:8787').replace(/\/+$/, '');
+
+    var ctrl = TarifsModeDSBAT.creerControleurTarifs({
+      cible: window,
+      creerAccesseursVue: VueTarifaireDSBAT.creerAccesseursVue,
+      // Source de la vue : endpoint lecture seule du Runtime.
+      chargerVue: function () {
+        return fetch(base + '/v1/tarifs/vue').then(function (r) { return r.json(); })
+          .then(function (c) { if (!c || c.statut !== 'ok' || !c.vue) throw new Error('vue indisponible'); return c.vue; });
+      },
+      onRepli: function (raison) { try { console.info('[Tarifs DSBAT] repli catalogue : ' + raison); } catch (e) {} }
+    });
+
+    window.__tarifsDSBAT = ctrl; // console : __tarifsDSBAT.getMode() / retourArriere() / rapport()
+
+    // Active la vue puis rafraîchit l'affichage (les accesseurs sont déjà remplacés).
+    ctrl.activer().then(function (ok) {
+      try {
+        if (ok && typeof rerenderTarifs === 'function') rerenderTarifs();
+        console.info('[Tarifs DSBAT] source « ' + ctrl.getMode() + ' »' + (ok ? ' (vue Runtime, sans catalogue)' : ' (repli catalogue)') + ' · retour arrière : __tarifsDSBAT.retourArriere()');
+      } catch (e) {}
+    });
+  } catch (e) { /* le sélecteur tarifaire ne perturbe JAMAIS le configurateur */ }
 })();
 </script>
 </body>
