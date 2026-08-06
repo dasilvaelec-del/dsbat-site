@@ -3397,15 +3397,16 @@ function genererPDFConfig() {
 }
 </script>
 <!-- =====================================================================
-     Sélecteur de moteur DSBAT (R04) — feature flag OPT-IN, désactivé par défaut.
-     Modes : historique (défaut) · shadow · runtime · arret.
+     Sélecteur de moteur DSBAT (R04 · bascule R05) — feature flag OPT-IN, désactivé
+     par défaut. Modes : historique (défaut) · shadow · runtime · arret.
        • Défaut (aucun flag)   → mode 'historique' : NO-OP total, calculerDevis
          n'est pas enveloppé, comportement strictement identique.
        • ?moteur=shadow  (ou ?shadow=1) → historique servi + comparaison Runtime
          en tâche de fond (le résultat Runtime n'est jamais affiché).
-       • ?moteur=runtime → préparé : le service synchrone actuel retombe sur
-         l'historique (repli) ; la consommation asynchrone du Runtime est la
-         bascule R05. Le retour arrière reste immédiat.
+       • ?moteur=runtime → BASCULE R05 : le devis est SERVI par le Runtime dès que
+         l'entrée est amorcée (cache par empreinte) ; sinon REPLI historique immédiat
+         + amorçage en arrière-plan pour les rendus suivants. Le Runtime ne fait que
+         changer le LIEU d'exécution — calculs/règles/prix inchangés.
      Réversibilité : window.__moteurDSBAT.retourArriere()  ou retirer le flag.
      Toute erreur est avalée : ne peut jamais perturber la page.
      ===================================================================== -->
@@ -3426,32 +3427,40 @@ function genererPDFConfig() {
       onEcart: function (e) { try { console.warn('[Shadow écart]', e.gravite, e.chemin, 'local=', e.attendu, 'runtime=', e.obtenu); } catch (x) {} }
     });
 
-    function etatCourant(devisLocal) {
+    function etatSansDevis() {
       return {
         chantier: (typeof chantier !== 'undefined') ? chantier : {},
         pieces: (typeof piecesSelectionnees !== 'undefined') ? piecesSelectionnees : [],
-        metiers: (typeof metiersActifs !== 'undefined') ? metiersActifs : [],
-        devisLocal: devisLocal, contexte: 'devis'
+        metiers: (typeof metiersActifs !== 'undefined') ? metiersActifs : []
       };
     }
+    function etatCourant(devisLocal) { var e = etatSansDevis(); e.devisLocal = devisLocal; e.contexte = 'devis'; return e; }
+
+    // IMPORTANT : capturer l'ORIGINAL avant d'envelopper (sinon récursion via le sélecteur).
+    var original = calculerDevis;
 
     var selecteur = MoteurModeDSBAT.creerSelecteurMoteur({
-      historique: function () { return calculerDevis.apply(null, arguments); },
-      // Consommation asynchrone du Runtime (branchée à la bascule R05).
+      historique: function () { return original.apply(null, arguments); },  // ← référence, jamais le wrapper
+      // Consommation asynchrone du Runtime (Orchestrateur/API) — alimente le cache d'amorçage.
       runtimeAsync: function (etat) { return client.calculer(ModeleProjetDSBAT.creerProjetDSBAT({ chantier: etat.chantier, pieces: etat.pieces, metiers: etat.metiers, id: 'devis' })).then(function (r) { return r.devis; }); },
-      observer: function (etat, devisLocal) { shadow.observer(etatCourant(devisLocal)); },
+      observer: function (etat, devisLocal) { try { shadow.observer(etatCourant(devisLocal)); } catch (e) {} },
+      modele: ModeleProjetDSBAT,
       mode: mode,
-      onRepli: function (raison) { try { console.info('[Moteur DSBAT] repli historique : ' + raison); } catch (e) {} }
+      onRepli: function (raison) { try { console.info('[Moteur DSBAT] repli historique : ' + raison); } catch (e) {} },
+      onExecution: function (evt) { try { (window.__execRuntime = window.__execRuntime || []).push(evt); } catch (e) {} }
     });
 
-    // Le rendu actuel appelle calculerDevis() de façon synchrone : le sélecteur
-    // sert donc l'historique (référence) et, en mode shadow, observe en parallèle.
-    var original = calculerDevis;
+    // calculerDevis routé par le sélecteur. En 'runtime' : Runtime si amorcé, sinon
+    // repli historique immédiat (+ amorçage auto). En 'shadow' : historique + observation.
+    // Ultime repli en cas d'imprévu : l'original. Le service n'est JAMAIS interrompu.
     window.calculerDevis = function () {
-      var etatSansDevis = { chantier: (typeof chantier !== 'undefined') ? chantier : {}, pieces: (typeof piecesSelectionnees !== 'undefined') ? piecesSelectionnees : [], metiers: (typeof metiersActifs !== 'undefined') ? metiersActifs : [] };
-      var d = original.apply(this, arguments);           // référence historique, rendue inchangée
-      try { if (selecteur.getMode() === 'shadow') shadow.observer(etatCourant(d)); } catch (e) {}
-      return d;
+      try {
+        var m = selecteur.getMode();
+        if (m === 'runtime') return selecteur.calculer(etatSansDevis());
+        var dl = original.apply(this, arguments);
+        if (m === 'shadow') { try { shadow.observer(etatCourant(dl)); } catch (e) {} }
+        return dl;
+      } catch (e) { try { return original.apply(this, arguments); } catch (x) { return; } }
     };
 
     window.__moteurDSBAT = selecteur;   // console : __moteurDSBAT.getMode() / setMode() / retourArriere() / rapport()
