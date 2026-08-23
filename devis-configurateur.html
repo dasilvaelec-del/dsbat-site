@@ -107,6 +107,9 @@ window.axeptioSettings = {
 <!-- AIC-001 / M7 : mapping intention→prestation (M7-A) + helpers d'affichage (M7-B) -->
 <script src="js/prestation-mapping.js"></script>
 <script src="js/prestation-ui.js"></script>
+<!-- AIC-001 / M8 + M9-A : objet AIC (synthèse pure) + restitution écran (rendu HTML pur) -->
+<script src="js/synthese-aic.js"></script>
+<script src="js/synthese-aic-ui.js"></script>
 
 <style>
 /* ===== CONFIGURATEUR PIÈCE PAR PIÈCE ===== */
@@ -827,6 +830,8 @@ window.axeptioSettings = {
 
   <!-- ===== PHASE 3 — RÉCAPITULATIF ===== -->
   <div id="phase3" style="display:none;">
+    <!-- AIC-001 / M9-A — Synthèse AIC (analyse) : rendue AVANT le devis, visible même Runtime indisponible -->
+    <div id="recapAIC"></div>
     <div class="recap-global" id="recapGlobal"></div>
   </div>
 
@@ -3375,9 +3380,72 @@ function afficherTransitionMaintenance(container) {
     + '</div>';
 }
 
+// ===== AIC-001 / M9-A — Restitution écran de la synthèse AIC (analyse) =====
+// Assemble l'entrée depuis les sources RÉELLES déjà présentes (aucune 2ᵉ source
+// de vérité), appelle le moteur PUR construireAIC() (M8) puis le rendu PUR
+// SyntheseAICUIDSBAT.rendre(). N'écrit QUE dans #recapAIC. Ne calcule aucun prix,
+// n'appelle aucun Runtime, ne modifie aucune donnée, ne crée aucune clé de stockage.
+function renderRecapAIC() {
+  var cible = document.getElementById('recapAIC');
+  if (!cible || typeof SyntheseAICDSBAT === 'undefined' || typeof SyntheseAICUIDSBAT === 'undefined') return;
+
+  // Interprétation (M4) + confirmations (M5), si le parcours descriptif a été utilisé
+  var interp = (typeof __interpretationM5B !== 'undefined' && __interpretationM5B) ? __interpretationM5B : null;
+  var confirmations = null;
+  try {
+    if (interp && typeof ConfirmationDescriptifDSBAT !== 'undefined') {
+      confirmations = ConfirmationDescriptifDSBAT.construireConfirmations(interp, __confReponses());
+    }
+  } catch (e) { confirmations = null; }
+
+  // Journal de modifications (M6) — clé existante configModifsV1 (LECTURE SEULE)
+  var modifications = [];
+  try { modifications = JSON.parse(sessionStorage.getItem(PROPMODIF_KEY) || '[]') || []; } catch (e) { modifications = []; }
+  if (!Array.isArray(modifications)) modifications = [];
+
+  // Décisions de prestations (M7) — clé existante configPrestationsV1 (LECTURE SEULE)
+  var prestationsDecisions = {};
+  try { prestationsDecisions = __prestDecisions() || {}; } catch (e) { prestationsDecisions = {}; }
+
+  // Alertes de cohérence réelles (même source que le récap, l. plus bas)
+  var alertes = [];
+  try { alertes = verifierCoherenceGlobale(piecesSelectionnees, chantier) || []; } catch (e) { alertes = []; }
+
+  // Libellés de prestation résolus via le CATALOGUE RÉEL uniquement (aucune invention)
+  var labels = {};
+  try {
+    Object.keys(prestationsDecisions).forEach(function (k) {
+      if (k.indexOf('inst|') === 0) return;
+      var d = prestationsDecisions[k]; if (!d || !d.code || !d.metier) return;
+      var pid = String(d.pieceRef || '').split('#')[0];
+      var cata = __cataloguePiece(d.metier, pid) || [];
+      for (var i = 0; i < cata.length; i++) { if (cata[i] && cata[i].code === d.code) { labels[d.code] = cata[i].label; break; } }
+    });
+  } catch (e) {}
+  var resolveLabel = function (code) { return (code && labels[code] != null) ? labels[code] : null; };
+
+  var input = {
+    chantier: (typeof chantier !== 'undefined' && chantier) ? chantier : {},
+    interpretation: interp || {},
+    confirmations: confirmations || { confirmations: [] },
+    piecesSelectionnees: (typeof piecesSelectionnees !== 'undefined' && piecesSelectionnees) ? piecesSelectionnees : [],
+    metiersActifs: (typeof metiersActifs !== 'undefined' && metiersActifs) ? metiersActifs : [],
+    modifications: modifications,
+    prestationsDecisions: prestationsDecisions,
+    alertesCoherence: alertes
+  };
+
+  var aic = SyntheseAICDSBAT.construireAIC(input, { now: new Date().toISOString(), resolveLabel: resolveLabel });
+  cible.innerHTML = SyntheseAICUIDSBAT.rendre(aic);
+}
+
 // ===== PHASE 3 — RÉCAPITULATIF =====
 async function renderPhase3() {
   const container = document.getElementById('recapGlobal');
+
+  // AIC-001 / M9-A : synthèse (analyse) rendue AVANT le verrou Runtime ci-dessous,
+  // afin de rester visible même si le devis Runtime est indisponible (transition).
+  try { renderRecapAIC(); } catch (e) {}
 
   // ===== TOTAUX — R10 : le devis GLOBAL est calculé par le Runtime DSBAT =====
   // Le catalogue (prix, marges, formules, dimensionnements, zones) n'est plus dans
