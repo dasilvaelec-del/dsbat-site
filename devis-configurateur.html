@@ -97,6 +97,13 @@ window.axeptioSettings = {
 <script src="js/runtime-client.js"></script>
 <script src="js/shadow.js"></script>
 <script src="js/moteur-mode.js"></script>
+<!-- AIC-001 / M5-B : interprétation (M4) + confirmation (M5) + helpers d'affichage (purs) -->
+<script src="js/interpretation-descriptif.js"></script>
+<script src="js/confirmation-descriptif.js"></script>
+<script src="js/confirmation-ui.js"></script>
+<!-- AIC-001 / M6-B : propositions de configuration (M6) + helpers d'affichage -->
+<script src="js/proposition-config.js"></script>
+<script src="js/proposition-ui.js"></script>
 
 <style>
 /* ===== CONFIGURATEUR PIÈCE PAR PIÈCE ===== */
@@ -756,6 +763,9 @@ window.axeptioSettings = {
     <!-- Bandeau de proposition automatique (rempli par appliquerTypologie) -->
     <div id="propositionTypologie"></div>
 
+    <!-- AIC-001/F2 : proposition d'espaces extérieurs si Maison (rempli par afficherPropositionExterieurs) -->
+    <div id="propositionExterieurs"></div>
+
     <!-- Panneau de cohérence (rempli par afficherCoherence, non bloquant) -->
     <div id="coherencePanel"></div>
 
@@ -796,11 +806,18 @@ window.axeptioSettings = {
     <div id="piecesConfigs"></div>
 
     <div style="text-align:center; margin-top:24px;">
-      <button class="btn-next" onclick="allerPhase(3)" style="background:var(--accent); color:white; border:none; padding:16px 36px; border-radius:var(--radius-xl); font-weight:700; font-size:1rem; cursor:pointer;">
+      <button class="btn-next" onclick="allerConfirmation()" style="background:var(--accent); color:white; border:none; padding:16px 36px; border-radius:var(--radius-xl); font-weight:700; font-size:1rem; cursor:pointer;">
         Voir le récapitulatif →
       </button>
     </div>
   </div>
+
+  <!-- ===== AIC-001 / M5-B — ÉTAPE INTERMÉDIAIRE « Voici ce que nous avons compris » ===== -->
+  <!-- Entre la phase 2 (configuration) et la phase 3 (récapitulatif). Remplie par renderConfirmation(). -->
+  <div id="phaseConfirmation" style="display:none;"></div>
+
+  <!-- ===== AIC-001 / M6-B — ÉTAPE « Modification proposée » (entre M5-B et la phase 3). Remplie par renderPropositions(). ===== -->
+  <div id="phaseProposition" style="display:none;"></div>
 
   <!-- ===== PHASE 3 — RÉCAPITULATIF ===== -->
   <div id="phase3" style="display:none;">
@@ -1476,6 +1493,7 @@ window.addEventListener('DOMContentLoaded', () => {
   const etatRestaure = restaurerEtat();
   if (!etatRestaure) appliquerTypologie();
   majObjectifUI();
+  afficherPropositionExterieurs(); // AIC-001/F2 : proposition d'extérieurs si Maison (non bloquant)
 });
 
 // ===== RENDU SÉLECTION PIÈCES =====
@@ -1568,8 +1586,9 @@ function compositionTypologie(nbPieces, surface) {
     '2': { salon:1, chambre:1, cuisine:1, sdb:1, wc:1, entree:1 },
     '3': { salon:1, chambre:2, cuisine:1, sdb:1, wc:1, entree:1 },
     '4': { salon:1, chambre:3, cuisine:1, sdb:1, wc:1, entree:1, couloir:1 },
-    '5': { salon:1, chambre:4, cuisine:1, sdb:1, wc:1, entree:1, couloir:1 },
-    '6': { salon:1, chambre:5, cuisine:1, sdb:1, wc:1, entree:1, couloir:1 }
+    // AIC-001/F1 : T5 et T6 proposent 2 pièces d'eau par défaut (salle de bain + salle d'eau), modifiables.
+    '5': { salon:1, chambre:4, cuisine:1, sdb:1, sde:1, wc:1, entree:1, couloir:1 },
+    '6': { salon:1, chambre:5, cuisine:1, sdb:1, sde:1, wc:1, entree:1, couloir:1 }
   };
   const base = map[String(nbPieces || '').trim()];
   if (!base) return null;
@@ -1580,6 +1599,7 @@ function compositionTypologie(nbPieces, surface) {
 
   raisons.push('Composition type d\'un T' + n + (surface ? ' de ' + surface + ' m²' : ''));
   if (base.couloir) raisons.push('Couloir ajouté : à partir du T4, les chambres sont desservies par un dégagement');
+  if (base.sde) raisons.push('2 pièces d\'eau (salle de bain + salle d\'eau) proposées par défaut à partir du T5 — modifiable');
 
   // Enrichissement selon la surface déclarée (règles volontairement prudentes)
   if (surface >= 110 && n >= 5 && !compo.sde) {
@@ -1640,6 +1660,47 @@ function afficherPropositionTypologie(compo, raisons) {
         <button onclick="document.getElementById('propositionTypologie').innerHTML=''" aria-label="Fermer" style="background:none;border:none;font-size:1.1rem;cursor:pointer;color:var(--text-light);">✕</button>
       </div>
     </div>`;
+}
+
+// ===== AIC-001/F2 — Proposition d'espaces extérieurs (si Maison) =====
+// PROPOSITION uniquement : rien n'est ajouté automatiquement. Le client confirme
+// chaque extérieur (clic « Ajouter ») → compteur +1, cotes à saisir. « Éclairage
+// extérieur » n'est pas une pièce (prestation élec des pièces extérieures existantes).
+const EXTERIEURS_PROPOSES = [
+  { id:'garage',   icon:'🚗', nom:'Garage' },
+  { id:'carport',  icon:'🅿️', nom:'Carport' },
+  { id:'terrasse', icon:'☀️', nom:'Terrasse' },
+  { id:'jardin',   icon:'🌳', nom:'Jardin / Allée' },
+  { id:'facade',   icon:'🏠', nom:'Façade extérieure' }
+];
+function afficherPropositionExterieurs() {
+  const zone = document.getElementById('propositionExterieurs');
+  if (!zone) return;
+  if (!chantier || chantier.typeBien !== 'maison') { zone.innerHTML = ''; return; } // proposé uniquement pour une maison
+  const boutons = EXTERIEURS_PROPOSES.map(function (p) {
+    const present = (compteurs[p.id] || 0) > 0;
+    return '<button type="button" onclick="ajouterExterieurPropose(\'' + p.id + '\')" ' + (present ? 'disabled' : '') +
+      ' style="background:' + (present ? 'var(--surface)' : 'var(--accent)') + ';color:' + (present ? 'var(--text-light)' : '#fff') +
+      ';border:1px solid var(--border);border-radius:16px;padding:6px 14px;font-size:0.82rem;font-weight:700;cursor:' + (present ? 'default' : 'pointer') + ';">' +
+      p.icon + ' ' + p.nom + (present ? ' ✓' : '') + '</button>';
+  }).join(' ');
+  zone.innerHTML =
+    '<div style="background:rgba(16,185,129,0.06);border:1.5px solid #10b981;border-radius:var(--radius-md);padding:16px 20px;margin-bottom:20px;">' +
+      '<div style="display:flex;align-items:flex-start;gap:12px;">' +
+        '<span style="font-size:1.4rem;">🏡</span>' +
+        '<div style="flex:1;">' +
+          '<strong style="color:#065f46;">Votre bien est une maison — souhaitez-vous configurer un espace extérieur ?</strong>' +
+          '<p style="margin:6px 0 10px;font-size:0.85rem;color:var(--text-light);">Proposition : rien n\'est ajouté sans votre confirmation.</p>' +
+          '<div style="display:flex;flex-wrap:wrap;gap:8px;">' + boutons + '</div>' +
+          '<p style="margin:10px 0 0;font-size:0.78rem;color:var(--text-light);">L\'éclairage extérieur se configure directement dans l\'électricité des pièces extérieures.</p>' +
+        '</div>' +
+        '<button onclick="document.getElementById(\'propositionExterieurs\').innerHTML=\'\'" aria-label="Fermer" style="background:none;border:none;font-size:1.1rem;cursor:pointer;color:var(--text-light);">✕</button>' +
+      '</div>' +
+    '</div>';
+}
+function ajouterExterieurPropose(id) {
+  changerCompteur(id, 1);         // confirmation client → ajoute la pièce (cotes à saisir)
+  afficherPropositionExterieurs(); // rafraîchit l'état des boutons (✓)
 }
 
 // ===== Pré-sélection depuis le formulaire chantier =====
@@ -1705,7 +1766,14 @@ function afficherCoherence(alertes) {
     <div style="background:#fef9ec;border:2px solid #f59e0b;border-radius:var(--radius-md);padding:20px 22px;margin-bottom:20px;">
       <h3 style="color:#92400e;margin:0 0 10px;font-size:1rem;">🔎 Contrôles de cohérence — rien n'est bloqué, on vérifie ensemble</h3>
       <ul style="margin:0 0 14px;padding-left:20px;font-size:0.88rem;color:#78350f;">
-        ${alertes.map(a => '<li style="margin-bottom:6px;">' + (a.niveau === 'attention' ? '⚠️ ' : 'ℹ️ ') + a.texte + '</li>').join('')}
+        ${alertes.map(a => {
+          // AIC-001/M1-B : niveau 'critique' (≥15 %) → triangle ROUGE avec point d'exclamation,
+          // ~18 % plus grand que le ⚠️ jaune. Niveaux jaunes (⚠️) et info (ℹ️) inchangés.
+          const TRI_ROUGE = '<svg viewBox="0 0 24 22" width="20" height="19" style="vertical-align:-4px;flex-shrink:0;" aria-hidden="true"><path d="M12 2L23 21H1Z" fill="#dc2626"/><rect x="10.7" y="7.5" width="2.6" height="6.5" rx="1.3" fill="#fff"/><circle cx="12" cy="17" r="1.4" fill="#fff"/></svg> ';
+          const ic = a.niveau === 'critique' ? TRI_ROUGE : (a.niveau === 'attention' ? '⚠️ ' : 'ℹ️ ');
+          const col = a.niveau === 'critique' ? 'color:#b91c1c;font-weight:600;' : '';
+          return '<li style="margin-bottom:6px;' + col + '">' + ic + a.texte + '</li>';
+        }).join('')}
       </ul>
       <div style="display:flex;gap:12px;flex-wrap:wrap;">
         <button onclick="masquerCoherence()" style="background:var(--primary);color:white;border:none;padding:12px 22px;border-radius:var(--radius-xl);font-weight:700;cursor:pointer;">✏️ Corriger mes saisies</button>
@@ -1725,7 +1793,9 @@ function masquerCoherence() {
 // ne doit JAMAIS effacer la configuration déjà saisie en phase 2.
 // Les pièces existantes sont retrouvées par (id + numero) et conservées
 // avec leur config, leur normeMin et leurs choix de pose/gamme.
-function validerPieces() {
+function validerPieces(apres) {
+  // AIC-001/M6-B : `apres` = continuation optionnelle. Sans callback, comportement
+  // historique inchangé (allerPhase(2)). Reconstruction/fusion ci-dessous INCHANGÉE.
   const allPieces = [...PIECES_DEF.vie, ...PIECES_DEF.sanitaires, ...PIECES_DEF.circulations, ...PIECES_DEF.exterieur];
   const nouvelles = [];
 
@@ -1759,7 +1829,7 @@ function validerPieces() {
 
   if (piecesSelectionnees.length === 0) {
     document.getElementById('erreur-pieces').style.display = 'block';
-    return;
+    return false;
   }
   document.getElementById('erreur-pieces').style.display = 'none';
 
@@ -1767,7 +1837,7 @@ function validerPieces() {
   const alertes = verifierCoherenceGlobale(piecesSelectionnees, chantier);
   if (alertes.length > 0 && !__coherenceAcquittee) {
     afficherCoherence(alertes);
-    return;
+    return false;
   }
   masquerCoherence();
 
@@ -1775,7 +1845,9 @@ function validerPieces() {
   piecesSelectionnees.forEach((p, i) => { appliquerNorme(i); appliquerObjectif(p); });
 
   saveEtat();
-  allerPhase(2);
+  // AIC-001/M6-B : continuation optionnelle — évite tout passage parasite par la phase 2.
+  if (typeof apres === 'function') apres(); else allerPhase(2);
+  return true;
 }
 
 // ===== NAVIGATION PHASES =====
@@ -1783,6 +1855,8 @@ function allerPhase(n) {
   document.getElementById('phase1').style.display = n === 1 ? 'block' : 'none';
   document.getElementById('phase2').style.display = n === 2 ? 'block' : 'none';
   document.getElementById('phase3').style.display = n === 3 ? 'block' : 'none';
+  var __pc = document.getElementById('phaseConfirmation'); if (__pc) __pc.style.display = 'none'; // AIC-001/M5-B
+  var __pp = document.getElementById('phaseProposition'); if (__pp) __pp.style.display = 'none'; // AIC-001/M6-B
 
   document.querySelectorAll('.phase-btn').forEach((btn, i) => {
     btn.classList.toggle('active', i + 1 === n);
@@ -1798,6 +1872,297 @@ function allerPhase(n) {
   }
 
   window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ===== AIC-001 / M5-B — Étape « Voici ce que nous avons compris » =====
+// Interface PURE de présentation entre phase 2 et phase 3. Lit M4 (interprétation)
+// et M5 (confirmations). Ne modifie NI pièces, NI métiers, NI quantités, NI gammes,
+// NI prix. Réponses indépendantes PAR ÉLÉMENT, persistées dans configConfirmationsV1.
+var CONF_KEY = 'configConfirmationsV1';
+var __interpretationM5B = null; // interprétation M4 courante (dérivée, lecture seule)
+
+function __confReponses() { try { return JSON.parse(sessionStorage.getItem(CONF_KEY) || '{}') || {}; } catch (e) { return {}; } }
+function __confSetReponse(id, action, texte) {
+  var r = __confReponses();
+  r[id] = (action === 'modifier') ? { action: 'modifier', texte: (texte || '') } : { action: action };
+  try { sessionStorage.setItem(CONF_KEY, JSON.stringify(r)); } catch (e) {}
+  // M5 reste la source de vérité des confirmations (reconstruites, non persistées ici)
+  if (typeof ConfirmationDescriptifDSBAT !== 'undefined' && __interpretationM5B) {
+    window.__confirmationsM5B = ConfirmationDescriptifDSBAT.construireConfirmations(__interpretationM5B, __confReponses());
+  }
+}
+
+function allerConfirmation() {
+  var desc = (typeof chantier !== 'undefined' && chantier && chantier.description) || '';
+  __interpretationM5B = (typeof InterpretationDescriptifDSBAT !== 'undefined')
+    ? InterpretationDescriptifDSBAT.interpreterDescriptif(desc, { piecesPresentes: piecesSelectionnees.map(function (p) { return p.id; }), metiersActifs: metiersActifs })
+    : { elementsDetectes: [], questionsAConfirmer: [] };
+  var vue = ConfirmationUIDSBAT.construireVueConfirmation(__interpretationM5B);
+  if (vue.vide) { allerPhase(3); return; } // §5 : rien à confirmer → aucune étape vide
+  document.getElementById('phase1').style.display = 'none';
+  document.getElementById('phase2').style.display = 'none';
+  document.getElementById('phase3').style.display = 'none';
+  var zone = document.getElementById('phaseConfirmation');
+  zone.style.display = 'block';
+  phaseActuelle = 'confirmation';
+  window.__confRestantAcquitte = false;
+  renderConfirmation();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function __badgeReponse(rep) {
+  if (!rep) return '<span style="color:var(--text-light);font-size:0.82rem;">— en attente de votre réponse —</span>';
+  if (rep.action === 'oui') return '<span style="color:#065f46;font-weight:700;font-size:0.85rem;">✓ Confirmé</span>';
+  if (rep.action === 'non') return '<span style="color:#6b7280;font-weight:700;font-size:0.85rem;">✕ Non retenu</span>';
+  if (rep.action === 'modifier') return '<span style="color:#1e3a8a;font-weight:700;font-size:0.85rem;">✎ Corrigé : « ' + ConfirmationUIDSBAT.echapperHtml(rep.texte) + ' »</span>';
+  return '';
+}
+function __boutonsConfirm(id) {
+  return '<span style="display:inline-flex;gap:6px;flex-wrap:wrap;">' +
+    '<button type="button" aria-label="Oui, c\'est ça" onclick="repConfirm(\'' + id + '\',\'oui\')" style="background:var(--accent);color:#fff;border:none;border-radius:16px;padding:8px 16px;font-size:0.85rem;font-weight:700;cursor:pointer;min-height:40px;">Oui, c\'est ça</button>' +
+    '<button type="button" aria-label="Modifier" onclick="ouvrirModifConfirm(\'' + id + '\')" style="background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:16px;padding:8px 16px;font-size:0.85rem;font-weight:700;cursor:pointer;min-height:40px;">Modifier</button>' +
+    '<button type="button" aria-label="Non" onclick="repConfirm(\'' + id + '\',\'non\')" style="background:var(--surface);color:var(--text-light);border:1px solid var(--border);border-radius:16px;padding:8px 16px;font-size:0.85rem;cursor:pointer;min-height:40px;">Non</button>' +
+    '</span>';
+}
+function __ligneConfirm(item) {
+  var rep = __confReponses()[item.id];
+  var modif = '<div id="modif_' + item.id + '" style="display:none;margin-top:8px;">' +
+      '<textarea id="modiftxt_' + item.id + '" rows="2" placeholder="Expliquez la correction…" style="width:100%;box-sizing:border-box;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:0.9rem;"></textarea>' +
+      '<div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap;">' +
+        '<button type="button" onclick="validerModifConfirm(\'' + item.id + '\')" style="background:var(--primary);color:#fff;border:none;border-radius:16px;padding:8px 16px;font-size:0.85rem;font-weight:700;cursor:pointer;">Enregistrer la correction</button>' +
+        '<button type="button" onclick="var d=document.getElementById(\'modif_' + item.id + '\');if(d)d.style.display=\'none\';" style="background:none;border:none;color:var(--text-light);font-size:0.85rem;cursor:pointer;">Annuler</button>' +
+      '</div></div>';
+  return '<li style="list-style:none;margin:0;padding:12px 0;border-bottom:1px dashed var(--border);">' +
+    '<div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:flex-start;">' +
+      '<span style="flex:1;min-width:200px;color:var(--text);line-height:1.4;">' + (item.incertain ? '🤔 ' : '') + ConfirmationUIDSBAT.echapperHtml(item.texte) + '</span>' +
+      __boutonsConfirm(item.id) +
+    '</div>' +
+    '<div style="margin-top:6px;">' + __badgeReponse(rep) + '</div>' + modif +
+    '</li>';
+}
+function renderConfirmation() {
+  var vue = ConfirmationUIDSBAT.construireVueConfirmation(__interpretationM5B);
+  var zone = document.getElementById('phaseConfirmation');
+  var html = '<div style="max-width:820px;margin:0 auto;">';
+  html += '<h2 style="color:var(--primary);margin-bottom:8px;">🧩 Voici ce que nous avons compris</h2>';
+  html += '<p style="color:var(--text-light);margin-bottom:20px;line-height:1.5;">À partir de ce que vous avez décrit, voici ce que nous avons compris de votre projet. Vérifiez les éléments ci-dessous et indiquez-nous si cela correspond bien à votre demande.</p>';
+  vue.groupes.forEach(function (g) {
+    var icone = (g.pieceId && typeof pieceDefById === 'function') ? (pieceDefById(g.pieceId).icon || '🏠') : '🧰';
+    html += '<div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-md);padding:18px 20px;margin-bottom:16px;">';
+    html += '<h3 style="color:var(--primary);margin:0 0 6px;">' + icone + ' ' + ConfirmationUIDSBAT.echapperHtml(g.titre) + '</h3>';
+    html += '<p style="font-size:0.85rem;color:var(--text-light);margin:0 0 6px;">Nous avons compris que vous souhaitez :</p>';
+    html += '<ul style="margin:0;padding:0;">' + g.elements.map(__ligneConfirm).join('') + '</ul>';
+    html += '</div>';
+  });
+  if (vue.questions.length) {
+    html += '<div style="background:#fef9ec;border:1px solid #f59e0b;border-radius:var(--radius-md);padding:18px 20px;margin-bottom:16px;">';
+    html += '<h3 style="color:#92400e;margin:0 0 6px;font-size:1rem;">❓ Quelques points à préciser</h3>';
+    html += '<ul style="margin:0;padding:0;">' + vue.questions.map(function (q) { return __ligneConfirm({ id: q.id, texte: q.texte }); }).join('') + '</ul>';
+    html += '</div>';
+  }
+  html += '<div id="confRestant"></div>';
+  html += '<div style="display:flex;justify-content:space-between;gap:12px;margin-top:20px;flex-wrap:wrap;">';
+  html += '<button type="button" onclick="allerPhase(2)" style="background:var(--surface-2);color:var(--text);border:2px solid var(--border);padding:14px 26px;border-radius:var(--radius-xl);font-weight:700;font-size:1rem;cursor:pointer;">← Étape précédente</button>';
+  html += '<button type="button" onclick="continuerApresConfirmation()" style="background:var(--accent);color:#fff;border:none;padding:14px 32px;border-radius:var(--radius-xl);font-weight:700;font-size:1rem;cursor:pointer;">Continuer →</button>';
+  html += '</div></div>';
+  zone.innerHTML = html;
+}
+function repConfirm(id, action) { __confSetReponse(id, action); renderConfirmation(); }
+function ouvrirModifConfirm(id) {
+  var d = document.getElementById('modif_' + id); if (!d) return;
+  d.style.display = 'block';
+  var t = document.getElementById('modiftxt_' + id); var rep = __confReponses()[id];
+  if (t) { if (rep && rep.action === 'modifier') t.value = rep.texte || ''; t.focus(); }
+}
+function validerModifConfirm(id) { var t = document.getElementById('modiftxt_' + id); __confSetReponse(id, 'modifier', t ? t.value : ''); renderConfirmation(); }
+function continuerApresConfirmation() {
+  var ids = ConfirmationUIDSBAT.idsConfirmation(__interpretationM5B);
+  var rep = __confReponses();
+  var restants = ids.filter(function (id) { return !rep[id]; });
+  if (restants.length > 0 && !window.__confRestantAcquitte) {
+    var el = document.getElementById('confRestant');
+    if (el) el.innerHTML = '<div style="background:#eff6ff;border:1px solid #3b82f6;border-radius:var(--radius-md);padding:14px 18px;margin-top:16px;color:#1e3a8a;">Il reste <strong>' + restants.length + '</strong> élément(s) à vérifier.' +
+      '<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">' +
+        '<button type="button" onclick="document.getElementById(\'phaseConfirmation\').scrollIntoView({behavior:\'smooth\',block:\'start\'});" style="background:var(--surface);color:var(--text);border:1px solid var(--border);padding:8px 16px;border-radius:16px;cursor:pointer;">Revenir aux éléments</button>' +
+        '<button type="button" onclick="window.__confRestantAcquitte=true;continuerApresConfirmation();" style="background:var(--accent);color:#fff;border:none;padding:8px 18px;border-radius:16px;font-weight:700;cursor:pointer;">Continuer quand même →</button>' +
+      '</div></div>';
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return;
+  }
+  document.getElementById('phaseConfirmation').style.display = 'none';
+  allerPropositions(); // AIC-001/M6-B : passer aux propositions de configuration (ou directement phase 3 si aucune)
+}
+
+// ===== AIC-001 / M6-B — Étape « Modification proposée » (confirmé → configuré) =====
+// Applique des PROPOSITIONS M6 à la configuration EXISTANTE (compteurs/metiersActifs)
+// via les mécanismes existants (changerCompteur, validerPieces). Rien d'automatique :
+// chaque modification exige une validation explicite. Aucun prix, aucune prestation.
+var __propositionsM6 = [];
+var __snapshotM6 = null;                 // instantané pour rétablissement complet
+var PROPMODIF_KEY = 'configModifsV1';    // journal de traçabilité
+
+function __toutesPiecesIds() { return [].concat(PIECES_DEF.vie, PIECES_DEF.sanitaires, PIECES_DEF.circulations, PIECES_DEF.exterieur).map(function (p) { return p.id; }); }
+function __labelPiece(id) { try { return (pieceDefById(id) || {}).nom || id; } catch (e) { return id; } }
+function __propDecisions() { try { return JSON.parse(sessionStorage.getItem('configPropDecisionsV1') || '{}') || {}; } catch (e) { return {}; } }
+function __propSetDecision(id, obj) { var d = __propDecisions(); if (obj === null) delete d[id]; else d[id] = obj; try { sessionStorage.setItem('configPropDecisionsV1', JSON.stringify(d)); } catch (e) {} }
+function __journalM6(entry) { var j; try { j = JSON.parse(sessionStorage.getItem(PROPMODIF_KEY) || '[]'); } catch (e) { j = []; } if (!Array.isArray(j)) j = []; j.push(entry); try { sessionStorage.setItem(PROPMODIF_KEY, JSON.stringify(j)); } catch (e) {} }
+function __clone(x) { return JSON.parse(JSON.stringify(x)); }
+
+function allerPropositions() {
+  if (typeof PropositionConfigDSBAT === 'undefined' || typeof ConfirmationDescriptifDSBAT === 'undefined' || !__interpretationM5B) { allerPhase(3); return; }
+  var conf = ConfirmationDescriptifDSBAT.construireConfirmations(__interpretationM5B, __confReponses());
+  var res = PropositionConfigDSBAT.construirePropositions(__interpretationM5B, conf, { compteurs: compteurs, metiersActifs: metiersActifs });
+  __propositionsM6 = res.propositions || [];
+  if (__propositionsM6.length === 0) { allerPhase(3); return; } // aucune proposition → pas d'étape vide
+  __snapshotM6 = { compteurs: __clone(compteurs), metiersActifs: metiersActifs.slice(), pieces: __clone(piecesSelectionnees) };
+  document.getElementById('phase1').style.display = 'none';
+  document.getElementById('phase2').style.display = 'none';
+  document.getElementById('phase3').style.display = 'none';
+  document.getElementById('phaseConfirmation').style.display = 'none';
+  document.getElementById('phaseProposition').style.display = 'block';
+  phaseActuelle = 'proposition';
+  renderPropositions();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function __btnP(onclick, label, primary) {
+  return '<button type="button" onclick="' + onclick + '" style="background:' + (primary ? 'var(--accent)' : 'var(--surface)') + ';color:' + (primary ? '#fff' : 'var(--text)') + ';border:' + (primary ? 'none' : '1px solid var(--border)') + ';border-radius:16px;padding:8px 16px;font-size:0.85rem;font-weight:700;cursor:pointer;min-height:40px;">' + label + '</button>';
+}
+function __avantApresHtml(resume) {
+  function bloc(titre, arr, coul) {
+    var items = arr.length ? arr.map(function (x) { return ConfirmationUIDSBAT.echapperHtml(__labelPiece(x.cle)) + ' : <strong>' + ConfirmationUIDSBAT.echapperHtml(String(x.val)) + '</strong>'; }).join('<br>') : '<span style="color:var(--text-light);">—</span>';
+    return '<div style="flex:1;min-width:130px;"><div style="font-size:0.72rem;text-transform:uppercase;color:var(--text-light);letter-spacing:.03em;">' + titre + '</div><div style="margin-top:4px;color:' + coul + ';">' + items + '</div></div>';
+  }
+  return '<div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin:10px 0;">' + bloc('Avant', resume.avant, 'var(--text)') + '<div style="color:var(--text-light);font-size:1.2rem;">→</div>' + bloc('Après', resume.apres, 'var(--primary)') + '</div>';
+}
+function __carteProp(prop) {
+  var dec = __propDecisions()[prop.id];
+  var resume = PropositionUIDSBAT.resumeAvantApres(prop);
+  var titres = { ajout_quantite: 'Ajouter des pièces', ajout_piece: 'Ajouter une pièce', reduction_quantite: 'Réduire une pièce', ajout_metier: 'Ajouter un corps de métier', preference_gamme: 'Préférence de finition' };
+  var h = '<div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-md);padding:18px 20px;margin-bottom:16px;">';
+  h += '<h3 style="color:var(--primary);margin:0 0 4px;font-size:1.05rem;">🛠️ ' + (titres[prop.type] || 'Modification proposée') + '</h3>';
+  h += '<p style="margin:0 0 6px;color:var(--text);line-height:1.4;">' + ConfirmationUIDSBAT.echapperHtml(prop.texte || '') + '</p>';
+  if (prop.type !== 'preference_gamme') h += __avantApresHtml(resume);
+  if (prop.necessiteDimensions) h += '<p style="font-size:0.8rem;color:#92400e;margin:4px 0;">📐 La nouvelle pièce devra être cotée (dimensions à renseigner).</p>';
+  if (dec && dec.etat === 'applique') h += __badgeApplique(prop.id, '✓ Appliqué');
+  else if (dec && dec.etat === 'transforme') h += __badgeApplique(prop.id, '✓ Transformé : ' + ConfirmationUIDSBAT.echapperHtml(__labelPiece(dec.source)) + ' → ' + ConfirmationUIDSBAT.echapperHtml(__labelPiece(prop.cible)));
+  else if (dec && dec.etat === 'conserve') h += '<div style="margin-top:6px;color:var(--text-light);font-weight:700;">Configuration conservée · <a href="javascript:void(0)" onclick="reinitProp(\'' + prop.id + '\')" style="color:var(--primary);">revenir</a></div>';
+  else {
+    h += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">';
+    if (prop.type === 'ajout_metier') { h += __btnP('appliquerProp(\'' + prop.id + '\')', 'Ajouter', true) + __btnP('conserverProp(\'' + prop.id + '\')', 'Ne pas ajouter', false); }
+    else if (prop.type === 'preference_gamme') { h += __btnP('conserverProp(\'' + prop.id + '\')', 'J\'ai compris', false); }
+    else {
+      h += __btnP('appliquerProp(\'' + prop.id + '\')', 'Appliquer', true);
+      if (prop.type === 'ajout_piece') h += __btnP('ouvrirTransfo(\'' + prop.id + '\')', 'Transformer une pièce existante', false);
+      h += __btnP('conserverProp(\'' + prop.id + '\')', 'Conserver', false);
+    }
+    h += '</div><div id="transfo_' + prop.id + '"></div>';
+  }
+  h += '</div>';
+  return h;
+}
+function __badgeApplique(id, label) {
+  return '<div style="margin-top:8px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;"><span style="color:#065f46;font-weight:700;">' + label + '</span><button type="button" onclick="annulerProp(\'' + id + '\')" style="background:none;border:1px solid var(--border);border-radius:16px;padding:6px 14px;font-size:0.82rem;cursor:pointer;min-height:36px;">Annuler</button></div>';
+}
+function renderPropositions() {
+  var zone = document.getElementById('phaseProposition');
+  var h = '<div style="max-width:820px;margin:0 auto;">';
+  h += '<h2 style="color:var(--primary);margin-bottom:8px;">🛠️ Modification proposée</h2>';
+  h += '<p style="color:var(--text-light);margin-bottom:20px;line-height:1.5;">D\'après ce que vous avez confirmé, voici les modifications possibles de votre configuration. <strong>Rien n\'est appliqué sans votre validation.</strong></p>';
+  h += __propositionsM6.map(__carteProp).join('');
+  h += '<div id="propRestant"></div>';
+  h += '<div style="display:flex;justify-content:space-between;gap:12px;margin-top:20px;flex-wrap:wrap;">';
+  h += '<button type="button" onclick="retablirConfigInitiale()" style="background:var(--surface-2);color:var(--text);border:2px solid var(--border);padding:14px 22px;border-radius:var(--radius-xl);font-weight:700;font-size:0.95rem;cursor:pointer;">↺ Rétablir la configuration initiale</button>';
+  h += '<button type="button" onclick="continuerApresPropositions()" style="background:var(--accent);color:#fff;border:none;padding:14px 32px;border-radius:var(--radius-xl);font-weight:700;font-size:1rem;cursor:pointer;">Continuer →</button>';
+  h += '</div></div>';
+  zone.innerHTML = h;
+}
+function __trouverProp(id) { return __propositionsM6.filter(function (p) { return p.id === id; })[0]; }
+function appliquerProp(propId) {
+  var prop = __trouverProp(propId); if (!prop) return;
+  var avant = { compteurs: __clone(compteurs), metiersActifs: metiersActifs.slice() };
+  if (prop.type === 'ajout_metier') {
+    if (metiersActifs.indexOf(prop.cible) === -1) { metiersActifs.push(prop.cible); try { sessionStorage.setItem('devisMetiers', JSON.stringify(metiersActifs)); } catch (e) {} }
+  } else if (typeof prop.delta === 'number' && prop.delta !== 0) {
+    changerCompteur(prop.cible, prop.delta);
+  }
+  __propSetDecision(propId, { etat: 'applique' });
+  __journalM6(PropositionConfigDSBAT.journaliser(prop, 'appliquer', avant, { compteurs: __clone(compteurs), metiersActifs: metiersActifs.slice() }, new Date().toISOString()));
+  renderPropositions();
+}
+function conserverProp(propId) { __propSetDecision(propId, { etat: 'conserve' }); __journalM6({ propositionId: propId, decision: 'conserver', horodatage: new Date().toISOString() }); renderPropositions(); }
+function reinitProp(propId) { __propSetDecision(propId, null); renderPropositions(); }
+function annulerProp(propId) {
+  var prop = __trouverProp(propId); if (!prop) return;
+  var dec = __propDecisions()[propId]; if (!dec) return;
+  if (dec.etat === 'transforme') { changerCompteur(dec.cible, -1); changerCompteur(dec.source, +1); }
+  else if (dec.etat === 'applique') {
+    if (prop.type === 'ajout_metier') { metiersActifs = metiersActifs.filter(function (m) { return m !== prop.cible; }); try { sessionStorage.setItem('devisMetiers', JSON.stringify(metiersActifs)); } catch (e) {} }
+    else if (typeof prop.delta === 'number' && prop.delta !== 0) { changerCompteur(prop.cible, -prop.delta); }
+  }
+  __propSetDecision(propId, null);
+  __journalM6({ propositionId: propId, decision: 'annuler', horodatage: new Date().toISOString() });
+  renderPropositions();
+}
+// --- Transformation : la pièce SOURCE est choisie EXPLICITEMENT par le client (aucune heuristique) ---
+function ouvrirTransfo(propId) {
+  var prop = __trouverProp(propId); if (!prop) return;
+  var sources = PropositionUIDSBAT.sourcesTransformation({ compteurs: compteurs }, prop.cible);
+  var zone = document.getElementById('transfo_' + propId); if (!zone) return;
+  if (!sources.length) { zone.innerHTML = '<p style="color:var(--text-light);font-size:0.85rem;margin-top:8px;">Aucune pièce existante à transformer.</p>'; return; }
+  zone.innerHTML = '<div style="margin-top:10px;padding:10px 12px;background:var(--surface);border:1px dashed var(--border);border-radius:12px;">' +
+    '<p style="margin:0 0 8px;font-weight:700;color:var(--text);">Quelle pièce souhaitez-vous transformer en « ' + ConfirmationUIDSBAT.echapperHtml(__labelPiece(prop.cible)) + ' » ?</p>' +
+    '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
+    sources.map(function (s) { return '<button type="button" onclick="choisirTransfo(\'' + propId + '\',\'' + s.id + '\')" style="background:var(--surface-2);border:1px solid var(--border);border-radius:16px;padding:8px 14px;font-size:0.85rem;font-weight:700;cursor:pointer;min-height:40px;">' + ConfirmationUIDSBAT.echapperHtml(__labelPiece(s.id)) + ' (×' + s.count + ')</button>'; }).join('') +
+    '</div></div>';
+}
+function choisirTransfo(propId, sourceId) {
+  var prop = __trouverProp(propId); if (!prop) return;
+  var tr = PropositionConfigDSBAT.construireTransformation(sourceId, prop.cible, { compteurs: compteurs });
+  var zone = document.getElementById('transfo_' + propId); if (!zone) return;
+  if (!tr.applicable) { zone.innerHTML = '<p style="color:#b91c1c;font-size:0.85rem;margin-top:8px;">' + ConfirmationUIDSBAT.echapperHtml(tr.texte) + '</p>'; return; }
+  zone.innerHTML = '<div style="margin-top:10px;">' + __avantApresHtml(PropositionUIDSBAT.resumeAvantApres(tr)) +
+    '<div style="display:flex;gap:8px;flex-wrap:wrap;">' + __btnP('appliquerTransfo(\'' + propId + '\',\'' + sourceId + '\')', 'Appliquer la transformation', true) + __btnP('ouvrirTransfo(\'' + propId + '\')', 'Changer de pièce', false) + '</div></div>';
+}
+function appliquerTransfo(propId, sourceId) {
+  var prop = __trouverProp(propId); if (!prop) return;
+  var avant = { compteurs: __clone(compteurs), metiersActifs: metiersActifs.slice() };
+  changerCompteur(sourceId, -1);
+  changerCompteur(prop.cible, +1);
+  __propSetDecision(propId, { etat: 'transforme', source: sourceId, cible: prop.cible });
+  __journalM6(PropositionConfigDSBAT.journaliser({ id: propId, type: 'transformation', refConfirmation: prop.refConfirmation, source: sourceId, cible: prop.cible }, 'appliquer', avant, { compteurs: __clone(compteurs) }, new Date().toISOString()));
+  renderPropositions();
+}
+function retablirConfigInitiale() {
+  if (!__snapshotM6) return;
+  __toutesPiecesIds().forEach(function (id) { delete compteurs[id]; });
+  Object.assign(compteurs, __snapshotM6.compteurs);
+  metiersActifs.length = 0; __snapshotM6.metiersActifs.forEach(function (m) { metiersActifs.push(m); });
+  try { sessionStorage.setItem('devisMetiers', JSON.stringify(metiersActifs)); } catch (e) {}
+  __toutesPiecesIds().forEach(function (id) {
+    var n = compteurs[id] || 0;
+    var el = document.getElementById('count_' + id); if (el) el.textContent = n;
+    var card = document.getElementById('card_' + id); if (card) card.classList.toggle('selected', n > 0);
+    var d = document.getElementById('pdims_' + id); if (d) { renderDimBlocks(id); d.style.display = n > 0 ? 'block' : 'none'; }
+  });
+  try { sessionStorage.removeItem('configPropDecisionsV1'); } catch (e) {}
+  saveEtat();
+  renderPropositions();
+}
+function continuerApresPropositions() {
+  __coherenceAcquittee = true;   // cohérence déjà vue en amont : ne pas rebloquer
+  var pp = document.getElementById('phaseProposition'); if (pp) pp.style.display = 'none';
+  // RÉCONCILIATION UNIQUE via la continuation → AUCUN passage parasite par la phase 2.
+  validerPieces(function () {
+    var manquantes = piecesSelectionnees.filter(function (p) { var d = p.dims || {}; return !(d.l && d.la); });
+    if (manquantes.length) {
+      allerPhase(1); // parcours EXISTANT de saisie des cotes
+      var cp = document.getElementById('coherencePanel');
+      if (cp) cp.innerHTML = '<div style="background:#eff6ff;border:1px solid #3b82f6;border-radius:var(--radius-md);padding:14px 18px;margin-bottom:16px;color:#1e3a8a;">📐 ' + manquantes.length + ' pièce(s) à coter : ' + manquantes.map(function (p) { return ConfirmationUIDSBAT.echapperHtml(p.nom); }).join(', ') + '. Renseignez leurs dimensions ci-dessous, puis poursuivez le parcours.</div>';
+      return;
+    }
+    allerPhase(3);
+  });
 }
 
 // ===== MISSION 024 — Capture des coordonnées en fin de parcours (parcours uniquement) =====
@@ -2803,6 +3168,27 @@ function scoreCompletudeHtml(pieces, ch, metiers) {
 // Elle reste globale et est appelée à l'identique par renderPhase3 et genererPDFConfig.
 // Aucune logique ni aucun montant modifiés — simple déplacement de fichier.
 
+// ===== MAINTENANCE-TEMP — Écran de transition (Runtime pas encore déployé) =====
+// TEMPORAIRE ET RÉVERSIBLE. Ne s'affiche QUE lorsque le Runtime DSBAT est
+// injoignable (__obtenirDevisRuntime → null), ce qui est le cas tant que
+// l'API n'est pas déployée sur Railway. Une fois le Runtime en prod
+// (CONFIG.runtime.base = URL de prod), un devis est renvoyé et cet écran ne
+// s'affiche plus — aucune suppression nécessaire (auto-réversible).
+// Pour le retirer complètement : supprimer cette fonction et remettre l'ancien
+// message dans les deux blocs `if (!D)` (renderPhase3 et genererPDFConfig).
+function afficherTransitionMaintenance(container) {
+  if (!container) return;
+  container.innerHTML =
+    '<div style="max-width:620px;margin:32px auto;padding:34px 28px;background:var(--surface);border:1px solid var(--border);border-radius:16px;text-align:center;line-height:1.7;color:var(--text);box-shadow:0 4px 20px rgba(0,0,0,0.06);">'
+    + '<div style="font-size:2.4rem;margin-bottom:12px;" aria-hidden="true">🛠️</div>'
+    + '<h3 style="margin:0 0 16px;color:var(--accent);font-size:1.2rem;">Le configurateur est actuellement en cours d\'évolution</h3>'
+    + '<p style="margin:0 0 12px;font-weight:600;">Votre demande a bien été prise en compte.</p>'
+    + '<p style="margin:0 0 12px;color:var(--text-light);">Nous finalisons actuellement la nouvelle version du moteur de calcul DSBAT afin de vous proposer des estimations encore plus précises.</p>'
+    + '<p style="margin:0 0 12px;color:var(--text-light);">Un conseiller DS.BAT vous recontactera rapidement avec votre devis personnalisé.</p>'
+    + '<p style="margin:16px 0 0;color:var(--text-light);font-style:italic;">Merci de votre compréhension.</p>'
+    + '</div>';
+}
+
 // ===== PHASE 3 — RÉCAPITULATIF =====
 async function renderPhase3() {
   const container = document.getElementById('recapGlobal');
@@ -2814,7 +3200,9 @@ async function renderPhase3() {
   // par les explications (tableau/VMC/plomberie/chauffage) restées côté interface.
   const D = await window.__obtenirDevisRuntime();
   if (!D) {
-    if (container) container.innerHTML = '<div style="padding:28px;text-align:center;color:var(--text-light);line-height:1.6;">🔌 <strong>Devis en cours de calcul par le serveur DSBAT.</strong><br>Service momentanément indisponible.<br><button onclick="renderPhase3()" class="btn" style="margin-top:14px;padding:10px 22px;">Réessayer</button></div>';
+    // MAINTENANCE-TEMP : Runtime pas encore déployé → écran de transition
+    // (pas d'erreur technique, pas de bouton « Réessayer »). Voir afficherTransitionMaintenance().
+    afficherTransitionMaintenance(container);
     return;
   }
   const tableau = D.tableau;
@@ -2985,6 +3373,14 @@ async function renderPhase3() {
 
   // Rappel des contrôles de cohérence non corrigés (informationnel)
   const alertesRecap = verifierCoherenceGlobale(piecesSelectionnees, chantier);
+  // AIC-001/M1-B : validation positive du métrage (👍) — récapitulatif uniquement, à 0 % d'écart.
+  const _surfDecl = parseFloat(chantier && chantier.surface) || 0;
+  const _surfSais = piecesSelectionnees.reduce((s, p) => s + (((p.dims || {}).l || 0) * ((p.dims || {}).la || 0)), 0);
+  const _pctSurf  = (_surfDecl > 0 && _surfSais > 0) ? Math.round(Math.abs(_surfSais - _surfDecl) / _surfDecl * 100) : null;
+  const surfaceOkHtml = (_pctSurf === 0) ? `
+    <div style="background:#ecfdf5;border:1px solid #10b981;border-radius:var(--radius-md);padding:12px 18px;margin:16px 0;font-size:0.9rem;color:#065f46;">
+      👍 Métrage cohérent : ${_surfDecl} m² déclarés · ${Math.round(_surfSais)} m² configurés · écart 0 m² (0 %).
+    </div>` : '';
   const alertesHtml = alertesRecap.length ? `
     <div style="background:#fef9ec;border:1px solid #f59e0b;border-radius:var(--radius-md);padding:14px 18px;margin:16px 0;font-size:0.85rem;color:#78350f;">
       <strong>🔎 Nous avons détecté quelques points à vérifier avant de générer votre devis :</strong>
@@ -2997,6 +3393,7 @@ async function renderPhase3() {
     ${scoreCompletudeHtml(piecesSelectionnees, chantier, metiersActifs)}
     <h2 style="color:var(--primary);margin-bottom:20px;">📊 Récapitulatif par pièce</h2>
     ${rowsHtml}
+    ${surfaceOkHtml}
     ${alertesHtml}
     ${tableauHtml}
     ${vmcHtml}
@@ -3215,7 +3612,8 @@ async function genererPDFConfig() {
   // Mêmes chiffres que l'écran (empreinte mémoïsée). Les effets window.__* (tableau,
   // besoins…) sont republiés par __obtenirDevisRuntime pour le rendu du PDF.
   const D = await window.__obtenirDevisRuntime();
-  if (!D) { alert('Le devis est calculé par le serveur DSBAT, momentanément indisponible. Merci de réessayer dans un instant.'); return; }
+  // MAINTENANCE-TEMP : Runtime pas encore déployé → écran de transition (aucune info technique). Voir afficherTransitionMaintenance().
+  if (!D) { afficherTransitionMaintenance(document.getElementById('recapGlobal')); return; }
   const totalGlobalHT = D.totalHT;
   const tva = D.tva;
   const ttc = D.ttc;
@@ -3569,7 +3967,8 @@ async function genererPDFConfig() {
      hors-ligne par la vue auto-hébergée ; le calcul PAR PIÈCE reste local.
      • __obtenirDevisRuntime() : appelle le Runtime, mémoïse par empreinte, republie
        les effets window.__* utilisés par les explications (restées côté interface).
-     • Indisponible → renderPhase3/genererPDFConfig affichent un état « réessayer ».
+     • Indisponible → renderPhase3/genererPDFConfig affichent l'écran de transition
+       professionnel (afficherTransitionMaintenance), sans info technique.
      • Retour arrière : CONFIG.runtime.sourceDevis='local' (nécessite prix.js restauré)
        ou git revert. Le calcul par pièce et l'affichage ne sont pas impactés.
      ===================================================================== -->

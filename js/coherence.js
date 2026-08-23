@@ -15,7 +15,10 @@ const SEUILS_COHERENCE = {
   portesMax: 4,
   fenetresMax: 5,
   ratioAllonge: 5,           // longueur / largeur au-delà duquel on doute
-  ecartSurfaceGlobal: 0.25,  // ±25 % entre surfaces saisies et surface déclarée
+  // AIC-001/M1-B : contrôle de surface progressif (bornes en % entier)
+  ecartSurfaceJaune: 1,      // 1–4 %  : avertissement jaune
+  ecartSurfaceRenforce: 5,   // 5–14 % : avertissement jaune renforcé
+  ecartSurfaceRouge: 15,     // ≥15 %  : avertissement rouge
   grandeSurface: 150,        // m² à partir desquels on questionne un faible nb de chambres
   chambresMinGrandeSurface: 3
 };
@@ -59,8 +62,11 @@ function controlesCoherence(pieces, ch) {
     const cfg = p.config || {};
     const configuree = !!cfg.electricite;
 
-    // Pièce avec 0 porte (hors extérieur) — conditionne la commande d'éclairage
-    if ((d.portes || 0) === 0 && !EXT.includes(p.id)) {
+    // Pièce avec 0 porte (hors extérieur) — conditionne la commande d'éclairage.
+    // AIC-001/M1 : contrôle à coloration ÉLECTRIQUE → rattaché au métier électricité
+    // (ne s'affiche plus si le client n'a pas sélectionné l'électricité). Règle inchangée.
+    if ((d.portes || 0) === 0 && !EXT.includes(p.id)
+        && typeof metiersActifs !== 'undefined' && metiersActifs.includes('electricite')) {
       alertes.push({ niveau:'info', texte: p.nom + ' : aucune porte indiquée — vérifiez la saisie (le nombre d\'accès détermine simple allumage / va-et-vient / télérupteur).' });
     }
 
@@ -99,14 +105,32 @@ function controlesCoherence(pieces, ch) {
   const surfDeclaree = parseFloat(ch && ch.surface) || 0;
   const surfSaisie = pieces.reduce((s, p) => s + (((p.dims || {}).l || 0) * ((p.dims || {}).la || 0)), 0);
   if (surfDeclaree > 0 && surfSaisie > 0) {
-    const ecart = (surfSaisie - surfDeclaree) / surfDeclaree;
-    if (Math.abs(ecart) > S.ecartSurfaceGlobal) {
-      alertes.push({ niveau:'attention', texte: 'Surface totale des pièces saisies (' + surfSaisie.toFixed(0) + ' m²) très éloignée de la surface déclarée au formulaire (' + surfDeclaree + ' m²). Pièce oubliée ou cote erronée ?' });
+    // AIC-001/M1-B : contrôle de surface PROGRESSIF (transversal, non bloquant).
+    // Bascule calée sur le POURCENTAGE AFFICHÉ. 0 % → aucun message ici
+    // (le 👍 vert est affiché au récapitulatif) ; 1–4 % jaune ; 5–14 % jaune renforcé ; ≥15 % rouge.
+    const diff = surfSaisie - surfDeclaree;                 // signé
+    const pct  = Math.round(Math.abs(diff) / surfDeclaree * 100);
+    if (pct >= S.ecartSurfaceJaune) {
+      const D = surfDeclaree, Sm = Math.round(surfSaisie), reste = Math.abs(Math.round(diff));
+      const chiffres = D + ' m² déclarés · ' + Sm + ' m² configurés · écart ' + reste + ' m² (' + pct + ' %). ';
+      const niveau = pct >= S.ecartSurfaceRouge ? 'critique' : 'attention';
+      let phrase;
+      if (diff < 0) {
+        phrase = (pct >= S.ecartSurfaceRouge)
+          ? 'Il reste environ ' + reste + ' m² à répartir — vérifiez vos métrés et la liste des pièces.'
+          : 'Il reste environ ' + reste + ' m² à répartir — vérifiez que tous les espaces ont été renseignés.';
+      } else {
+        phrase = (pct >= S.ecartSurfaceRouge)
+          ? 'Le métrage des pièces dépasse nettement la surface déclarée — vérifiez impérativement vos métrés.'
+          : 'Le métrage des pièces dépasse la surface déclarée — vérifiez vos surfaces.';
+      }
+      alertes.push({ niveau: niveau, texte: chiffres + phrase });
     }
   }
   const nbChambres = pieces.filter(p => p.id === 'chambre').length;
+  // AIC-001/M1 : contrôle TRANSVERSAL de vérification (non bloquant, vocabulaire neutre). Seuils inchangés.
   if (surfDeclaree >= S.grandeSurface && nbChambres > 0 && nbChambres < S.chambresMinGrandeSurface) {
-    alertes.push({ niveau:'info', texte: surfDeclaree + ' m² avec seulement ' + nbChambres + ' chambre(s) : composition inhabituelle, confirmez-la.' });
+    alertes.push({ niveau:'info', texte: 'Votre configuration comporte ' + nbChambres + ' chambre(s) pour ' + surfDeclaree + ' m². Vérifiez que toutes les pièces ont bien été renseignées.' });
   }
 
   // Contrôle final du moteur plomberie (doublons, incohérences, orphelins) — MISSION 030
