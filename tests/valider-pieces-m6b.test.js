@@ -44,6 +44,8 @@ global.ConfirmationUIDSBAT = CUI;
 global.__coherenceAcquittee = true;
 let allerPhaseCalls = [];
 global.allerPhase = (n) => { allerPhaseCalls.push(n); };
+let allerPrestationsCalls = 0;
+global.allerPrestations = () => { allerPrestationsCalls++; }; // AIC-001/M7-B : routage après réconciliation
 const dom = { style: {}, set innerHTML(v) {}, get innerHTML() { return ''; } };
 global.document = { getElementById: () => dom };
 
@@ -87,22 +89,22 @@ A(sdb && sdb.config.plomberie.PLO_EVIER === 1 && sdb.dims.l === 2 && sdb.elecGam
 const bureau = piecesSelectionnees.find(p => p.id === 'bureau');
 A(bureau && !bureau.dims.l && !bureau.dims.la && JSON.stringify(bureau.config) === '{}', '(4) bureau#1 : dimensions vides, config vierge');
 
-// (5a) routage : cotes manquantes (bureau) → phase 1, jamais phase 2
+// (5a) routage : cotes manquantes (bureau) → phase 1, jamais phase 2, pas de M7-B
 etatTransformation();
-allerPhaseCalls = [];
+allerPhaseCalls = []; allerPrestationsCalls = 0;
 continuerApresPropositions();
-A(allerPhaseCalls.indexOf(2) === -1 && allerPhaseCalls[allerPhaseCalls.length - 1] === 1, '(5a) cotes manquantes → phase 1, sans phase 2');
+A(allerPhaseCalls.indexOf(2) === -1 && allerPhaseCalls[allerPhaseCalls.length - 1] === 1 && allerPrestationsCalls === 0, '(5a) cotes manquantes → phase 1, sans phase 2 ni M7-B');
 
-// (5b) routage : toutes cotes présentes → phase 3, jamais phase 2
+// (5b) routage : toutes cotes présentes → M7-B (allerPrestations), jamais phase 2
 global.compteurs = { salon: 0, chambre: 2, bureau: 0, sdb: 1 };
 global.piecesSelectionnees = [
   pieceExistante('sdb', 1, { l: 2, la: 2, h: 2.5, fenetres: 1, portes: 1 }, {}, 'mosaic'),
   pieceExistante('chambre', 1, { l: 4, la: 3, h: 2.5, fenetres: 1, portes: 1 }, {}, 'mosaic'),
   pieceExistante('chambre', 2, { l: 3, la: 3, h: 2.5, fenetres: 1, portes: 1 }, {}, 'mosaic')
 ];
-allerPhaseCalls = [];
+allerPhaseCalls = []; allerPrestationsCalls = 0;
 continuerApresPropositions();
-A(allerPhaseCalls.indexOf(2) === -1 && allerPhaseCalls[allerPhaseCalls.length - 1] === 3, '(5b) toutes cotes présentes → phase 3, sans phase 2');
+A(allerPhaseCalls.indexOf(2) === -1 && allerPrestationsCalls === 1, '(5b) toutes cotes présentes → M7-B (allerPrestations), sans phase 2');
 
 // (6) non-régression : appelant historique sans callback → allerPhase(2)
 etatTransformation();

@@ -104,6 +104,9 @@ window.axeptioSettings = {
 <!-- AIC-001 / M6-B : propositions de configuration (M6) + helpers d'affichage -->
 <script src="js/proposition-config.js"></script>
 <script src="js/proposition-ui.js"></script>
+<!-- AIC-001 / M7 : mapping intention→prestation (M7-A) + helpers d'affichage (M7-B) -->
+<script src="js/prestation-mapping.js"></script>
+<script src="js/prestation-ui.js"></script>
 
 <style>
 /* ===== CONFIGURATEUR PIÈCE PAR PIÈCE ===== */
@@ -818,6 +821,9 @@ window.axeptioSettings = {
 
   <!-- ===== AIC-001 / M6-B — ÉTAPE « Modification proposée » (entre M5-B et la phase 3). Remplie par renderPropositions(). ===== -->
   <div id="phaseProposition" style="display:none;"></div>
+
+  <!-- ===== AIC-001 / M7-B — ÉTAPE « Prestations à retenir » (entre M6-B et la phase 3). Remplie par renderPrestations(). ===== -->
+  <div id="phasePrestation" style="display:none;"></div>
 
   <!-- ===== PHASE 3 — RÉCAPITULATIF ===== -->
   <div id="phase3" style="display:none;">
@@ -1857,6 +1863,7 @@ function allerPhase(n) {
   document.getElementById('phase3').style.display = n === 3 ? 'block' : 'none';
   var __pc = document.getElementById('phaseConfirmation'); if (__pc) __pc.style.display = 'none'; // AIC-001/M5-B
   var __pp = document.getElementById('phaseProposition'); if (__pp) __pp.style.display = 'none'; // AIC-001/M6-B
+  var __pr = document.getElementById('phasePrestation'); if (__pr) __pr.style.display = 'none'; // AIC-001/M7-B
 
   document.querySelectorAll('.phase-btn').forEach((btn, i) => {
     btn.classList.toggle('active', i + 1 === n);
@@ -2161,8 +2168,187 @@ function continuerApresPropositions() {
       if (cp) cp.innerHTML = '<div style="background:#eff6ff;border:1px solid #3b82f6;border-radius:var(--radius-md);padding:14px 18px;margin-bottom:16px;color:#1e3a8a;">📐 ' + manquantes.length + ' pièce(s) à coter : ' + manquantes.map(function (p) { return ConfirmationUIDSBAT.echapperHtml(p.nom); }).join(', ') + '. Renseignez leurs dimensions ci-dessous, puis poursuivez le parcours.</div>';
       return;
     }
-    allerPhase(3);
+    allerPrestations(); // AIC-001/M7-B : prestations chiffrables (ou phase 3 si aucun candidat)
   });
+}
+
+// ===== AIC-001 / M7-B — Étape « Prestations à retenir » (confirmé → chiffrable) =====
+// Transforme des prestations CANDIDATES (M7-A, issues du catalogue réel via getXPourPiece)
+// en lignes réellement retenues : piece.config[métier][CODE] = quantité, puis recalcul par
+// le moteur EXISTANT (calculerPieceComplet). Aucun prix recodé. Rien sans validation client.
+var __prestationsM7 = [];
+var PREST_KEY = 'configPrestationsV1';
+var METIERS_CATALOGUE = { electricite: 1, plomberie: 1, vmc: 1, isolation: 1, menuiserie: 1, carrelage: 1 };
+
+function __cataloguePiece(metier, pieceId) {
+  try {
+    if (metier === 'electricite' && typeof getElecPourPiece === 'function') return getElecPourPiece(pieceId);
+    if (metier === 'plomberie' && typeof getPlombPourPiece === 'function') return getPlombPourPiece(pieceId);
+    if (metier === 'vmc' && typeof getVmcPourPiece === 'function') return getVmcPourPiece(pieceId);
+    if (metier === 'isolation' && typeof getIsolationPourPiece === 'function') return getIsolationPourPiece(pieceId);
+    if (metier === 'menuiserie' && typeof getMenuiseriePourPiece === 'function') return getMenuiseriePourPiece(pieceId);
+    if (metier === 'carrelage' && typeof getCarrelagePourPiece === 'function') return getCarrelagePourPiece(pieceId);
+  } catch (e) {}
+  return [];
+}
+function __prestDecisions() { try { return JSON.parse(sessionStorage.getItem(PREST_KEY) || '{}') || {}; } catch (e) { return {}; } }
+function __prestSetDecision(id, obj) { var d = __prestDecisions(); if (obj === null) delete d[id]; else d[id] = obj; try { sessionStorage.setItem(PREST_KEY, JSON.stringify(d)); } catch (e) {} }
+
+function allerPrestations() {
+  if (typeof PrestationMappingDSBAT === 'undefined' || typeof ConfirmationDescriptifDSBAT === 'undefined' || !__interpretationM5B) { allerPhase(3); return; }
+  var conf = ConfirmationDescriptifDSBAT.construireConfirmations(__interpretationM5B, __confReponses());
+  var confirmes = {}; (conf.confirmations || []).forEach(function (c) { if (c.statut === 'confirme' && c.refElement) confirmes[c.refElement] = true; });
+  __prestationsM7 = [];
+  (__interpretationM5B.elementsDetectes || []).forEach(function (el) {
+    if (!confirmes[el.id] || !el.metier || !METIERS_CATALOGUE[el.metier] || !el.pieceId) return;
+    var instances = PrestationUIDSBAT.instancesDePiece(el.pieceId, piecesSelectionnees);
+    if (!instances.length) return; // pièce non présente dans la config (relève de M6-B)
+    var cata = __cataloguePiece(el.metier, el.pieceId);
+    var res = PrestationMappingDSBAT.proposerPrestations(el, el.pieceId, cata);
+    if ((res.candidats && res.candidats.length) || (res.aVerifierVisite && res.aVerifierVisite.length)) {
+      __prestationsM7.push({ element: el, pieceId: el.pieceId, metier: el.metier, instances: instances, candidats: res.candidats || [], aVerifierVisite: res.aVerifierVisite || [] });
+    }
+  });
+  if (!__prestationsM7.length) { allerPhase(3); return; } // aucun candidat → pas d'étape vide
+  document.getElementById('phase1').style.display = 'none';
+  document.getElementById('phase2').style.display = 'none';
+  document.getElementById('phase3').style.display = 'none';
+  document.getElementById('phaseConfirmation').style.display = 'none';
+  document.getElementById('phaseProposition').style.display = 'none';
+  document.getElementById('phasePrestation').style.display = 'block';
+  phaseActuelle = 'prestation';
+  renderPrestations();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function renderPrestations() {
+  var zone = document.getElementById('phasePrestation');
+  var dec = __prestDecisions();
+  var E = ConfirmationUIDSBAT.echapperHtml;
+  var h = '<div style="max-width:820px;margin:0 auto;">';
+  h += '<h2 style="color:var(--primary);margin-bottom:8px;">🧾 Prestations à retenir</h2>';
+  h += '<p style="color:var(--text-light);margin-bottom:20px;line-height:1.5;">À partir de votre description, voici les prestations que nous pouvons ajouter — <strong>uniquement issues du catalogue de chaque pièce</strong>. Choisissez la pièce, le rôle et la quantité. <strong>Rien n\'est ajouté sans votre validation.</strong></p>';
+  __prestationsM7.forEach(function (intent, i) {
+    var def = pieceDefById(intent.pieceId) || { icon: '🏠', nom: intent.pieceId };
+    h += '<div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-md);padding:18px 20px;margin-bottom:16px;">';
+    h += '<h3 style="color:var(--primary);margin:0 0 4px;font-size:1rem;">' + (def.icon || '🏠') + ' ' + E(def.nom || intent.pieceId) + ' — ' + E(intent.metier) + '</h3>';
+    h += '<p style="font-size:0.85rem;color:var(--text-light);margin:0 0 8px;">D\'après : « ' + E((intent.element.source && intent.element.source.extrait) || intent.element.element || '') + ' »</p>';
+    if (intent.instances.length > 1) {
+      var refChoisi = __prestInstanceRef(i);
+      h += '<div style="margin:0 0 10px;"><label style="font-size:0.82rem;color:var(--text-light);">Pièce concernée : </label><select id="prestInst_' + i + '" onchange="__prestChoisirInstance(' + i + ')" style="padding:6px 10px;border:1px solid var(--border);border-radius:8px;">' +
+        '<option value=""' + (!refChoisi ? ' selected' : '') + '>— Choisir la pièce —</option>' +
+        intent.instances.map(function (ins) { return '<option value="' + ins.ref + '"' + (refChoisi === ins.ref ? ' selected' : '') + '>' + E(ins.nom) + '</option>'; }).join('') + '</select>';
+      if (!refChoisi) h += '<p style="font-size:0.78rem;color:#92400e;margin:6px 0 0;">Sélectionnez la pièce concernée pour pouvoir ajouter une prestation.</p>';
+      h += '</div>';
+    } else {
+      h += '<input type="hidden" id="prestInst_' + i + '" value="' + intent.instances[0].ref + '"><p style="font-size:0.8rem;color:var(--text-light);margin:0 0 8px;">Pièce : ' + E(intent.instances[0].nom) + '</p>';
+    }
+    intent.candidats.forEach(function (cand) {
+      var key = intent.element.id + '|' + cand.code;
+      var d = dec[key];
+      h += '<div style="padding:10px 0;border-top:1px dashed var(--border);">';
+      h += '<div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center;"><span style="flex:1;min-width:180px;">' + E(cand.label || cand.code) + ' <span style="color:var(--text-light);font-size:0.76rem;">(' + E(cand.code) + ')</span></span>';
+      if (d && d.decision === 'appliquee') {
+        h += '<span style="color:#065f46;font-weight:700;">✓ Retenu ×' + d.quantite + ' (à installer) <button type="button" onclick="annulerPrest(' + i + ',\'' + cand.code + '\')" style="background:none;border:1px solid var(--border);border-radius:14px;padding:4px 10px;font-size:0.78rem;cursor:pointer;margin-left:8px;">Annuler</button></span>';
+      } else if (d && d.decision === 'a_verifier') {
+        h += '<span style="color:#92400e;font-weight:700;">🔎 À vérifier en visite <button type="button" onclick="annulerPrest(' + i + ',\'' + cand.code + '\')" style="background:none;border:1px solid var(--border);border-radius:14px;padding:4px 10px;font-size:0.78rem;cursor:pointer;margin-left:8px;">Revenir</button></span>';
+      } else {
+        var qv = (cand.qteParDefaut != null) ? cand.qteParDefaut : '';
+        h += '<span style="display:inline-flex;gap:6px;flex-wrap:wrap;align-items:center;">Qté <input type="number" min="0" step="any" id="prestQ_' + i + '_' + cand.code + '" value="' + qv + '" placeholder="?" style="width:66px;padding:6px;border:1px solid var(--border);border-radius:8px;">' +
+          '<button type="button" onclick="appliquerPrest(' + i + ',\'' + cand.code + '\')" style="background:var(--accent);color:#fff;border:none;border-radius:16px;padding:8px 14px;font-size:0.82rem;font-weight:700;cursor:pointer;min-height:40px;">À installer</button>' +
+          '<button type="button" onclick="deposePrest(' + i + ',\'' + cand.code + '\')" style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:8px 14px;font-size:0.82rem;cursor:pointer;min-height:40px;">À déposer (à vérifier)</button></span>';
+      }
+      h += '</div>';
+      if (cand.qteParDefaut == null && !(d && d.decision)) h += '<p style="font-size:0.76rem;color:#92400e;margin:4px 0 0;">Quantité non précisée dans votre demande — indiquez-la.</p>';
+      h += '</div>';
+    });
+    intent.aVerifierVisite.forEach(function (v) {
+      h += '<div style="margin-top:8px;padding:8px 10px;background:#fef9ec;border:1px solid #f59e0b;border-radius:10px;font-size:0.82rem;color:#78350f;">🔎 ' + E(v.texte) + '</div>';
+    });
+    h += '</div>';
+  });
+  h += '<div id="prestDoublon"></div>';
+  h += '<div style="display:flex;justify-content:flex-end;gap:12px;margin-top:20px;flex-wrap:wrap;"><button type="button" onclick="document.getElementById(\'phasePrestation\').style.display=\'none\';allerPhase(3);" style="background:var(--accent);color:#fff;border:none;padding:14px 32px;border-radius:var(--radius-xl);font-weight:700;font-size:1rem;cursor:pointer;">Continuer →</button></div>';
+  h += '</div>';
+  zone.innerHTML = h;
+}
+
+// AIC-001/M7-B (correctif) : l'instance choisie est PERSISTÉE (configPrestationsV1), jamais lue
+// d'un sélecteur DOM qui aurait pu être réinitialisé par un re-render.
+function __prestInstanceRef(i) {
+  var intent = __prestationsM7[i]; if (!intent) return null;
+  if (intent.instances.length === 1) return intent.instances[0].ref;   // mono : non ambigu
+  var d = __prestDecisions()['inst|' + intent.element.id];
+  return (d && d.ref) || null;                                          // multi : null tant que non choisi
+}
+function __prestChoisirInstance(i) {
+  var intent = __prestationsM7[i]; if (!intent) return;
+  var sel = document.getElementById('prestInst_' + i); if (!sel) return;
+  __prestSetDecision('inst|' + intent.element.id, sel.value ? { ref: sel.value } : null);
+  renderPrestations();
+}
+function __prestContexte(i, code, refExplicite) {
+  var intent = __prestationsM7[i]; if (!intent) return null;
+  var cand = intent.candidats.filter(function (c) { return c.code === code; })[0]; if (!cand) return null;
+  var key = intent.element.id + '|' + code;
+  var ref = refExplicite || __prestInstanceRef(i);                     // annul : pieceRef persistée ; appli : instance choisie
+  if (!ref) return { intent: intent, cand: cand, ref: null, piece: null, metier: intent.metier, key: key };
+  var ins = intent.instances.filter(function (x) { return x.ref === ref; })[0] || intent.instances[0];
+  return { intent: intent, cand: cand, ref: ref, piece: piecesSelectionnees[ins.index], metier: intent.metier, key: key };
+}
+function appliquerPrest(i, code) {
+  var c = __prestContexte(i, code); if (!c) return;
+  if (!c.ref || !c.piece) { alert('Choisissez d\'abord la pièce concernée.'); return; } // instance explicite obligatoire
+  var champ = document.getElementById('prestQ_' + i + '_' + code);
+  var q = champ ? parseFloat(champ.value) : NaN;
+  if (isNaN(q) || q <= 0) { alert('Indiquez une quantité (supérieure à 0) avant d\'ajouter cette prestation.'); return; } // jamais inventée
+  var doublon = PrestationUIDSBAT.etatDoublon(c.piece, c.metier, code);
+  if (doublon.existe) { __afficherDoublonPrest(i, code, q, doublon.quantiteActuelle); return; } // demander, jamais écraser en silence
+  __ecrirePrestation(i, code, q, null);
+}
+function __afficherDoublonPrest(i, code, q, actuelle) {
+  var el = document.getElementById('prestDoublon'); if (!el) return;
+  var E = ConfirmationUIDSBAT.echapperHtml;
+  el.innerHTML = '<div style="background:#eff6ff;border:1px solid #3b82f6;border-radius:var(--radius-md);padding:14px 18px;margin-top:8px;color:#1e3a8a;">Cette prestation (« ' + E(code) + ' ») est déjà présente pour cette pièce (×' + actuelle + '). Que faire ?' +
+    '<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">' +
+    '<button type="button" onclick="__ecrirePrestation(' + i + ',\'' + code + '\',' + q + ',\'remplacer\')" style="background:var(--accent);color:#fff;border:none;border-radius:16px;padding:8px 14px;font-weight:700;cursor:pointer;">Remplacer par ' + q + '</button>' +
+    '<button type="button" onclick="__ecrirePrestation(' + i + ',\'' + code + '\',' + q + ',\'additionner\')" style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:8px 14px;font-weight:700;cursor:pointer;">Additionner (+' + q + ')</button>' +
+    '<button type="button" onclick="document.getElementById(\'prestDoublon\').innerHTML=\'\'" style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:8px 14px;cursor:pointer;">Conserver l\'actuelle</button>' +
+    '</div></div>';
+}
+function __ecrirePrestation(i, code, q, modeDoublon) {
+  var c = __prestContexte(i, code); if (!c || !c.piece) return;
+  if (!c.piece.config[c.metier]) c.piece.config[c.metier] = {};
+  var avant = (typeof c.piece.config[c.metier][code] === 'number') ? c.piece.config[c.metier][code] : null;
+  var nouvelle = modeDoublon ? PrestationUIDSBAT.resoudreDoublon(modeDoublon, (avant || 0), q) : q;
+  c.piece.config[c.metier][code] = nouvelle;                                   // piece.config = UNIQUE source de vérité
+  if (typeof calculerPieceComplet === 'function') calculerPieceComplet(c.piece, chantier, metiersActifs); // recalcul par le moteur EXISTANT
+  saveEtat();
+  __prestSetDecision(c.key, { decision: 'appliquee', pieceRef: c.ref, metier: c.metier, code: code, quantite: nouvelle, role: 'pose', avant: avant });
+  __journalM6({ type: 'prestation', pieceRef: c.ref, metier: c.metier, code: code, quantite: nouvelle, role: 'pose', source: { refElement: c.intent.element.id }, avant: avant, apres: nouvelle, horodatage: new Date().toISOString() });
+  var dd = document.getElementById('prestDoublon'); if (dd) dd.innerHTML = '';
+  renderPrestations();
+}
+function deposePrest(i, code) {
+  var c = __prestContexte(i, code); if (!c) return;
+  __prestSetDecision(c.key, { decision: 'a_verifier', code: code, role: 'depose', pieceRef: c.ref });
+  __journalM6({ type: 'depose_a_verifier', pieceRef: c.ref, metier: c.metier, code: code, role: 'depose', source: { refElement: c.intent.element.id }, horodatage: new Date().toISOString() });
+  renderPrestations();
+}
+function annulerPrest(i, code) {
+  var intent = __prestationsM7[i]; if (!intent) return;
+  var key = intent.element.id + '|' + code;
+  var d = __prestDecisions()[key];
+  var c = __prestContexte(i, code, d && d.pieceRef);   // vérité = pieceRef persistée (pas le sélecteur courant)
+  if (!c) return;
+  if (d && d.decision === 'appliquee' && c.piece && c.piece.config[c.metier]) {
+    if (d.avant == null) delete c.piece.config[c.metier][code]; else c.piece.config[c.metier][code] = d.avant;
+    if (typeof calculerPieceComplet === 'function') calculerPieceComplet(c.piece, chantier, metiersActifs);
+    saveEtat();
+  }
+  __prestSetDecision(key, null);
+  __journalM6({ type: 'prestation_annulee', pieceRef: (c.ref || (d && d.pieceRef) || null), metier: intent.metier, code: code, source: { refElement: intent.element.id }, horodatage: new Date().toISOString() });
+  renderPrestations();
 }
 
 // ===== MISSION 024 — Capture des coordonnées en fin de parcours (parcours uniquement) =====
