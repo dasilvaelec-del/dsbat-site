@@ -107,8 +107,13 @@ A(JSON.stringify(aic) === gel, 'O/Q: objet AIC identique avant/après générati
 A(P.indexOf('Générée le 01/01/2026') !== -1, 'Date genereLe injectée et formatée (déterministe)');
 
 // ================= Preuves STATIQUES sur la glue réelle (HTML) =================
-const iFn = html.indexOf('function genererPDFAIC()');
-const fnPDF = html.slice(iFn, html.indexOf('\n}', iFn) + 2);
+// M9-B2 : le pipeline PDF est factorisé dans __executerPDFAIC (save + blob) ; genererPDFAIC
+// y délègue en mode 'save'. On vérifie le pipeline réel, hors commentaires (qui citent
+// volontairement « Runtime/genererPDFConfig » pour dire qu'ils sont évités).
+const iFn = html.indexOf('function __executerPDFAIC(');
+const fnPDF = html.slice(iFn, html.indexOf('// ===== AIC-001 / M9-B2', iFn)).replace(/\/\/[^\n]*/g, '');
+// Le téléchargement M9-B1 délègue bien au pipeline en mode save
+A(/function genererPDFAIC\(\) \{ __executerPDFAIC\('save'\); \}/.test(html), 'S: genererPDFAIC() délègue à __executerPDFAIC(save)');
 
 // ---- K : aucun appel Runtime ----
 A(iFn !== -1 && !/__obtenirDevisRuntime|Runtime|coefZone|calculerDevis|calculerPiece/.test(fnPDF), 'K: genererPDFAIC n\'appelle aucun Runtime/calcul');

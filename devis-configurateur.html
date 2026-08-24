@@ -832,11 +832,21 @@ window.axeptioSettings = {
   <div id="phase3" style="display:none;">
     <!-- AIC-001 / M9-A — Synthèse AIC (analyse) : rendue AVANT le devis, visible même Runtime indisponible -->
     <div id="recapAIC"></div>
-    <!-- AIC-001 / M9-B1 — Export PDF de la synthèse AIC (aucun prix, aucun Runtime, hors devis) -->
+    <!-- AIC-001 / M9-B1 (PDF) + M9-B2 (e-mail) — Export de la synthèse AIC (aucun prix, aucun Runtime, hors devis) -->
     <div id="recapAICActions" style="max-width:820px;margin:0 auto 22px;text-align:center;">
-      <button type="button" onclick="genererPDFAIC()" class="btn btn-pdf" style="display:inline-flex;align-items:center;gap:8px;padding:12px 24px;">
-        📄 Télécharger la synthèse PDF
-      </button>
+      <div style="display:flex;flex-wrap:wrap;gap:10px;justify-content:center;align-items:center;">
+        <button type="button" onclick="genererPDFAIC()" class="btn btn-pdf" style="display:inline-flex;align-items:center;gap:8px;padding:12px 24px;">
+          📄 Télécharger la synthèse PDF
+        </button>
+        <button type="button" id="btnEnvoiAIC" onclick="envoyerSyntheseAIC()" class="btn btn-pdf" disabled style="display:inline-flex;align-items:center;gap:8px;padding:12px 24px;opacity:0.6;cursor:not-allowed;">
+          📧 Envoyer la synthèse par e-mail
+        </button>
+      </div>
+      <!-- M9-B2 — Consentement explicite lié à cette action (le bouton reste bloqué tant que non coché) -->
+      <label for="consentEmailAIC" style="display:flex;gap:8px;align-items:flex-start;justify-content:center;max-width:640px;margin:12px auto 0;text-align:left;font-size:0.82rem;color:var(--text-light);line-height:1.45;cursor:pointer;">
+        <input type="checkbox" id="consentEmailAIC" onchange="var b=document.getElementById('btnEnvoiAIC'); if(b){ b.disabled=!this.checked; b.style.opacity=this.checked?'':'0.6'; b.style.cursor=this.checked?'pointer':'not-allowed'; }" style="margin-top:3px;flex:0 0 auto;">
+        <span>J'accepte l'envoi de cette synthèse par e-mail à DS.BAT et sa transmission au service d'envoi utilisé par le site.</span>
+      </label>
     </div>
     <div class="recap-global" id="recapGlobal"></div>
   </div>
@@ -3456,15 +3466,17 @@ function renderRecapAIC() {
   cible.innerHTML = SyntheseAICUIDSBAT.rendre(aic);
 }
 
-// AIC-001 / M9-B1 : PDF autonome « Synthèse de votre projet ». Consomme UNIQUEMENT
-// l'objet AIC (construireAIC via __construireAICCourant) rendu par SyntheseAICUIDSBAT.
-// AUCUN prix, AUCUN Runtime, AUCUN calcul de devis, AUCUN e-mail/WhatsApp, AUCUNE
-// notification. Réutilise html2pdf (déjà chargée à la demande par le PDF devis) SANS
-// jamais passer par genererPDFConfig / envoyerNotifications. Document distinct du devis.
-function genererPDFAIC() {
-  if (typeof SyntheseAICUIDSBAT === 'undefined') return;
+// AIC-001 / M9-B1 + M9-B2 : pipeline PDF de la synthèse AIC (FACTORISÉ, sans duplication).
+// Consomme UNIQUEMENT l'objet AIC (construireAIC via __construireAICCourant) rendu par
+// SyntheseAICUIDSBAT. AUCUN prix, AUCUN Runtime, AUCUN calcul de devis, AUCUNE notification.
+// Réutilise html2pdf (chargée à la demande) SANS jamais passer par genererPDFConfig.
+//   mode='save' → téléchargement (M9-B1, comportement inchangé) ;
+//   mode='blob' → renvoie le Blob PDF à onBlob(blob) (M9-B2 e-mail), ou onBlob(null) si échec.
+function __executerPDFAIC(mode, onBlob) {
+  var echec = function () { if (mode === 'blob' && typeof onBlob === 'function') onBlob(null); };
+  if (typeof SyntheseAICUIDSBAT === 'undefined') { echec(); return; }
   var aic = __construireAICCourant();
-  if (!aic) return;
+  if (!aic) { echec(); return; }
   var corps = SyntheseAICUIDSBAT.rendre(aic);
   var dateStr = '';
   try { if (aic.genereLe) dateStr = new Date(aic.genereLe).toLocaleDateString('fr-FR'); } catch (e) { dateStr = ''; }
@@ -3478,24 +3490,87 @@ function genererPDFAIC() {
   div.style.width = '190mm';
   div.innerHTML = entete + corps;
   document.body.appendChild(div);
+  var nettoyer = function () { if (div.parentNode) document.body.removeChild(div); };
   var lancer = function () {
-    html2pdf().from(div).set({
+    var worker = html2pdf().from(div).set({
       margin: 10,
       filename: 'Synthese_AIC_DSBAT.pdf',
       image: { type: 'jpeg', quality: 0.95 },
       html2canvas: { scale: 2 },
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
       pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
-    }).save()
-      .then(function () { if (div.parentNode) document.body.removeChild(div); })
-      .catch(function () { if (div.parentNode) document.body.removeChild(div); });
+    });
+    if (mode === 'blob') {
+      worker.outputPdf('blob')
+        .then(function (blob) { nettoyer(); if (typeof onBlob === 'function') onBlob(blob); })
+        .catch(function () { nettoyer(); if (typeof onBlob === 'function') onBlob(null); });
+    } else {
+      worker.save()
+        .then(nettoyer)
+        .catch(nettoyer);
+    }
   };
   if (!window.html2pdf) {
     var s = document.createElement('script');
     s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
     s.onload = lancer;
+    s.onerror = function () { nettoyer(); echec(); };
     document.head.appendChild(s);
   } else { lancer(); }
+}
+
+// M9-B1 : téléchargement du PDF (comportement inchangé, délègue au pipeline factorisé).
+function genererPDFAIC() { __executerPDFAIC('save'); }
+
+// ===== AIC-001 / M9-B2 — Envoi EXPLICITE de la synthèse AIC par e-mail (PDF joint) =====
+// Réutilise la MÊME chaîne AIC (__construireAICCourant → rendre → html2pdf blob) et le
+// transport EXISTANT envoyerEmail (endpoint société, client en _cc). AUCUN prix, AUCUN
+// Runtime, AUCUN WhatsApp, AUCUNE réutilisation de genererPDFConfig / envoyerNotifications.
+// N'altère JAMAIS __recapEnvoye (garde de l'e-mail automatique du devis).
+var __envoiAICEnCours = false; // verrou anti-double-envoi dédié au bouton manuel M9-B2
+
+function __emailClientValide() {
+  try {
+    var c = JSON.parse(sessionStorage.getItem('client') || '{}') || {};
+    return (c.email && /^\S+@\S+\.\S+$/.test(c.email)) ? c.email : null;
+  } catch (e) { return null; }
+}
+
+function __majBoutonEnvoiAIC(txt, disabled) {
+  var b = document.getElementById('btnEnvoiAIC');
+  if (!b) return;
+  b.disabled = !!disabled;
+  b.style.opacity = disabled ? '0.6' : '';
+  b.style.cursor = disabled ? 'not-allowed' : 'pointer';
+  if (txt != null) b.textContent = txt;
+}
+
+function envoyerSyntheseAIC() {
+  if (__envoiAICEnCours) return;                                   // verrou : double-clic / appel concurrent
+  var chk = document.getElementById('consentEmailAIC');
+  if (!chk || !chk.checked) return;                                // consentement explicite obligatoire
+  var email = __emailClientValide();
+  if (!email) { if (typeof ouvrirCaptureModal === 'function') ouvrirCaptureModal(); return; } // absent/invalide → saisie existante
+  if (typeof SyntheseAICUIDSBAT === 'undefined') return;
+
+  __envoiAICEnCours = true;                                        // verrou posé AVANT la génération du PDF
+  __majBoutonEnvoiAIC('Envoi en cours…', true);
+  var restaurer = function () { __envoiAICEnCours = false; __majBoutonEnvoiAIC('📧 Envoyer la synthèse par e-mail', false); };
+
+  __executerPDFAIC('blob', function (blob) {
+    if (!blob) { restaurer(); return; }                            // échec génération PDF → AUCUN envoi
+    var cd = {}; try { cd = JSON.parse(sessionStorage.getItem('client') || '{}') || {}; } catch (e) {}
+    var champs = {
+      Message: 'Synthèse de projet DS.BAT (analyse) — document en pièce jointe. Ceci n\'est pas un devis chiffré : aucun montant.',
+      _cc: email
+    };
+    try { envoyerEmail('📄 Synthèse de projet — ' + (cd.nom || 'client'), champs, blob, 'Synthese_AIC_DSBAT.pdf'); } catch (e) {}
+    // Le transport (formsubmit) avale ses erreurs et ne renvoie pas de statut fiable →
+    // feedback OPTIMISTE (aucune confirmation réelle de réception possible côté client).
+    __envoiAICEnCours = false;
+    __majBoutonEnvoiAIC('✅ Synthèse transmise', true);
+    setTimeout(function () { __majBoutonEnvoiAIC('📧 Envoyer la synthèse par e-mail', false); }, 4000);
+  });
 }
 
 // ===== PHASE 3 — RÉCAPITULATIF =====
