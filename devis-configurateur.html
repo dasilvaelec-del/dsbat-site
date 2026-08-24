@@ -832,6 +832,12 @@ window.axeptioSettings = {
   <div id="phase3" style="display:none;">
     <!-- AIC-001 / M9-A — Synthèse AIC (analyse) : rendue AVANT le devis, visible même Runtime indisponible -->
     <div id="recapAIC"></div>
+    <!-- AIC-001 / M9-B1 — Export PDF de la synthèse AIC (aucun prix, aucun Runtime, hors devis) -->
+    <div id="recapAICActions" style="max-width:820px;margin:0 auto 22px;text-align:center;">
+      <button type="button" onclick="genererPDFAIC()" class="btn btn-pdf" style="display:inline-flex;align-items:center;gap:8px;padding:12px 24px;">
+        📄 Télécharger la synthèse PDF
+      </button>
+    </div>
     <div class="recap-global" id="recapGlobal"></div>
   </div>
 
@@ -3385,9 +3391,13 @@ function afficherTransitionMaintenance(container) {
 // de vérité), appelle le moteur PUR construireAIC() (M8) puis le rendu PUR
 // SyntheseAICUIDSBAT.rendre(). N'écrit QUE dans #recapAIC. Ne calcule aucun prix,
 // n'appelle aucun Runtime, ne modifie aucune donnée, ne crée aucune clé de stockage.
-function renderRecapAIC() {
-  var cible = document.getElementById('recapAIC');
-  if (!cible || typeof SyntheseAICDSBAT === 'undefined' || typeof SyntheseAICUIDSBAT === 'undefined') return;
+// AIC-001 / M9-B1 : assemblage PARTAGÉ de l'objet AIC courant (écran M9-A + PDF).
+// Lit UNIQUEMENT des sources existantes (aucune 2ᵉ source de vérité), résout les
+// libellés via le catalogue RÉEL (aucune invention), n'écrit rien, ne calcule aucun
+// prix, n'appelle aucun Runtime. `now` est injectable (déterminisme). Renvoie l'objet
+// AIC de M8, ou null si l'assembleur n'est pas disponible.
+function __construireAICCourant(now) {
+  if (typeof SyntheseAICDSBAT === 'undefined') return null;
 
   // Interprétation (M4) + confirmations (M5), si le parcours descriptif a été utilisé
   var interp = (typeof __interpretationM5B !== 'undefined' && __interpretationM5B) ? __interpretationM5B : null;
@@ -3407,7 +3417,7 @@ function renderRecapAIC() {
   var prestationsDecisions = {};
   try { prestationsDecisions = __prestDecisions() || {}; } catch (e) { prestationsDecisions = {}; }
 
-  // Alertes de cohérence réelles (même source que le récap, l. plus bas)
+  // Alertes de cohérence réelles (même source que le récap)
   var alertes = [];
   try { alertes = verifierCoherenceGlobale(piecesSelectionnees, chantier) || []; } catch (e) { alertes = []; }
 
@@ -3435,8 +3445,57 @@ function renderRecapAIC() {
     alertesCoherence: alertes
   };
 
-  var aic = SyntheseAICDSBAT.construireAIC(input, { now: new Date().toISOString(), resolveLabel: resolveLabel });
+  return SyntheseAICDSBAT.construireAIC(input, { now: (now || new Date().toISOString()), resolveLabel: resolveLabel });
+}
+
+function renderRecapAIC() {
+  var cible = document.getElementById('recapAIC');
+  if (!cible || typeof SyntheseAICUIDSBAT === 'undefined') return;
+  var aic = __construireAICCourant();
+  if (!aic) return;
   cible.innerHTML = SyntheseAICUIDSBAT.rendre(aic);
+}
+
+// AIC-001 / M9-B1 : PDF autonome « Synthèse de votre projet ». Consomme UNIQUEMENT
+// l'objet AIC (construireAIC via __construireAICCourant) rendu par SyntheseAICUIDSBAT.
+// AUCUN prix, AUCUN Runtime, AUCUN calcul de devis, AUCUN e-mail/WhatsApp, AUCUNE
+// notification. Réutilise html2pdf (déjà chargée à la demande par le PDF devis) SANS
+// jamais passer par genererPDFConfig / envoyerNotifications. Document distinct du devis.
+function genererPDFAIC() {
+  if (typeof SyntheseAICUIDSBAT === 'undefined') return;
+  var aic = __construireAICCourant();
+  if (!aic) return;
+  var corps = SyntheseAICUIDSBAT.rendre(aic);
+  var dateStr = '';
+  try { if (aic.genereLe) dateStr = new Date(aic.genereLe).toLocaleDateString('fr-FR'); } catch (e) { dateStr = ''; }
+  var entete = '<div style="font-family:Inter,Arial,sans-serif;padding:4px 4px 14px;border-bottom:2px solid #16a34a;margin-bottom:16px;">'
+    + '<div style="font-size:1.15rem;font-weight:800;color:#0f172a;">DS.BAT — Synthèse de votre projet</div>'
+    + (dateStr ? '<div style="font-size:.8rem;color:#334155;margin-top:3px;">Générée le ' + dateStr + '</div>' : '')
+    + '</div>';
+  var div = document.createElement('div');
+  div.style.background = '#ffffff';
+  div.style.padding = '18px';
+  div.style.width = '190mm';
+  div.innerHTML = entete + corps;
+  document.body.appendChild(div);
+  var lancer = function () {
+    html2pdf().from(div).set({
+      margin: 10,
+      filename: 'Synthese_AIC_DSBAT.pdf',
+      image: { type: 'jpeg', quality: 0.95 },
+      html2canvas: { scale: 2 },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+      pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+    }).save()
+      .then(function () { if (div.parentNode) document.body.removeChild(div); })
+      .catch(function () { if (div.parentNode) document.body.removeChild(div); });
+  };
+  if (!window.html2pdf) {
+    var s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+    s.onload = lancer;
+    document.head.appendChild(s);
+  } else { lancer(); }
 }
 
 // ===== PHASE 3 — RÉCAPITULATIF =====

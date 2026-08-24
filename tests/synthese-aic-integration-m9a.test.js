@@ -31,7 +31,9 @@ A(/<script src="js\/synthese-aic-ui\.js"><\/script>/.test(html), 'inclusion js/s
 // ---- Extraction de renderPhase3() et de renderRecapAIC() ----
 const iRP3 = html.indexOf('async function renderPhase3()');
 const rp3 = html.slice(iRP3, iRP3 + 1200);
-const iRRA = html.indexOf('function renderRecapAIC()');
+// M9-B1 : l'assemblage AIC est factorisé dans __construireAICCourant() puis partagé.
+// On couvre le helper + renderRecapAIC + genererPDFAIC (jusqu'au bloc PHASE 3).
+const iRRA = html.indexOf('function __construireAICCourant');
 const rra = html.slice(iRRA, html.indexOf('// ===== PHASE 3', iRRA));
 
 // ---- R : appel renderRecapAIC() AVANT le verrou Runtime ----
