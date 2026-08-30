@@ -4192,6 +4192,8 @@ async function genererPDFConfig() {
   `;
 
   const div = document.createElement('div');
+  div.style.width = '190mm';
+  div.style.background = '#ffffff';
   div.innerHTML = html;
   document.body.appendChild(div);
 
