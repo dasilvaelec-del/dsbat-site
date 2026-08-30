@@ -101,7 +101,7 @@ window.axeptioSettings = {
 
 <section class="section" style="text-align:left;">
   <h2>Éditeur du site</h2>
-  <p><strong>DS.BAT</strong><br>58 Grande Rue<br>77410 Villevaudé – France<br>Téléphone : <a href="#" data-phone-base64="MDYyOTU1NjYyNw==">06<!-- -->29<!-- -->55<!-- -->66<!-- -->27</a><br>Email : <a href="mailto:contact@dsbat.fr">contact@dsbat.fr</a><br>SIREN : 978 281 970</p>
+  <p><strong>DS.BAT</strong><br>58 Grande Rue<br>77410 Villevaudé – France<br>Téléphone : <a href="#" data-phone-base64="MDYyOTU1NjYyNw==">06<!-- -->29<!-- -->55<!-- -->66<!-- -->27</a><br>Email : <a href="#" data-email-base64="Y29udGFjdEBkc2JhdC5mcg==">contact<!-- -->@<!-- -->dsbat<!-- -->.fr</a><br>SIREN : 978 281 970</p>
 </section>
 
 <section class="section" style="text-align:left;">
@@ -160,6 +160,14 @@ document.querySelectorAll('[data-phone-base64]').forEach(link => {
     e.preventDefault();
     const phone = atob(link.dataset.phoneBase64);
     window.location.href = `tel:${phone}`;
+  });
+});
+
+// Protection e-mail (même mécanisme que le téléphone)
+document.querySelectorAll('[data-email-base64]').forEach(link => {
+  link.addEventListener('click', (e) => {
+    e.preventDefault();
+    window.location.href = 'mailto:' + atob(link.dataset.emailBase64);
   });
 });
 

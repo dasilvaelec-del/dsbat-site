@@ -103,7 +103,7 @@ window.axeptioSettings = {
 <section class="section" style="text-align:left;">
   <h2>Nos coordonnées</h2>
   <p style="margin:15px 0;">📞 <a href="#" data-phone-base64="MDYyOTU1NjYyNw==" style="color:var(--primary); font-weight:bold;">06<!-- -->29<!-- -->55<!-- -->66<!-- -->27</a></p>
-  <p style="margin:15px 0;">✉️ <a href="mailto:contact@dsbat.fr" style="color:var(--primary); font-weight:bold;">contact@dsbat.fr</a></p>
+  <p style="margin:15px 0;">✉️ <a href="#" data-email-base64="Y29udGFjdEBkc2JhdC5mcg==" style="color:var(--primary); font-weight:bold;">contact<!-- -->@<!-- -->dsbat<!-- -->.fr</a></p>
   <p style="margin:15px 0;">📍 58 Grande Rue, 77410 Villevaudé, France</p>
   <p style="margin:15px 0;">SIREN : 978 281 970</p>
 </section>
@@ -169,6 +169,13 @@ document.querySelectorAll('[data-phone-base64]').forEach(link => {
     e.preventDefault();
     const phone = atob(link.dataset.phoneBase64);
     window.location.href = `tel:${phone}`;
+  });
+});
+
+document.querySelectorAll('[data-email-base64]').forEach(link => {
+  link.addEventListener('click', (e) => {
+    e.preventDefault();
+    window.location.href = 'mailto:' + atob(link.dataset.emailBase64);
   });
 });
 
