@@ -45,7 +45,7 @@ const CONFIG = {
   // ⚙️ Renseigner l'URL du Runtime DÉPLOYÉ (HTTPS + CORS autorisé pour ce domaine).
   // Repli local historique : mettre `sourceDevis: 'local'` (nécessite prix.js — voir retour arrière R10).
   runtime: {
-    base: "http://127.0.0.1:8787",   // ⚠️ à remplacer par l'URL de production déployée
+    base: "https://api.dsbat.fr",   // Runtime de production (mode origin)
     sourceDevis: "runtime"           // 'runtime' (défaut R10) | 'local' (retour arrière)
   },
 };
