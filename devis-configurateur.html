@@ -4198,6 +4198,12 @@ async function genererPDFConfig() {
   document.body.appendChild(div);
 
   const loadAndPrint = () => {
+    // Correctif PDF blanc : le devis est déclenché en bas d'une page longue (phase 3).
+    // html2canvas capture à blanc un élément situé loin dans une page défilée → on
+    // remet le défilement en haut le temps de la capture, puis on le restaure.
+    const _scrollY = window.pageYOffset || document.documentElement.scrollTop || 0;
+    window.scrollTo(0, 0);
+    const restaurerScroll = () => { window.scrollTo(0, _scrollY); };
     const worker = html2pdf().from(div).set({
       margin: 10,
       filename: `Devis_DSBAT_${numero}.pdf`,
@@ -4208,7 +4214,8 @@ async function genererPDFConfig() {
     worker.outputPdf('blob')
       .then(blob => { envoyerNotifications(numero, totalGlobalHT, tva, ttc, clientData, blob); return worker.save(); })
       .catch(() => { envoyerNotifications(numero, totalGlobalHT, tva, ttc, clientData, null); return worker.save(); })
-      .then(() => { if (div.parentNode) document.body.removeChild(div); });
+      .then(() => { if (div.parentNode) document.body.removeChild(div); restaurerScroll(); })
+      .catch(() => { if (div.parentNode) document.body.removeChild(div); restaurerScroll(); });
   };
 
   if (!window.html2pdf) {
