@@ -1418,6 +1418,8 @@ function majObjectifUI() {
 // ce que le MODE a ajouté automatiquement : au changement de mode on retire
 // exactement cela — les ajouts manuels du client sont préservés.
 function appliquerObjectif(piece) {
+  // Garde métier : n'injecter de l'électricité que si le client a choisi ce métier.
+  if (typeof metiersActifs === 'undefined' || !metiersActifs.includes('electricite')) return;
   if (!piece.config.electricite) piece.config.electricite = {};
   const cfg = piece.config.electricite;
   const min = piece.normeMin || {};
@@ -2965,6 +2967,8 @@ function majPrixMetier(i, metier) {
 
 // Applique/actualise le minimum réglementaire (jamais en dessous), gère le changement de portes
 function appliquerNorme(index) {
+  // Garde métier : n'injecter de l'électricité que si le client a choisi ce métier.
+  if (typeof metiersActifs === 'undefined' || !metiersActifs.includes('electricite')) return;
   const piece = piecesSelectionnees[index];
   const portes = (piece.dims && piece.dims.portes) || 1;
   const surface = ((piece.dims && piece.dims.l) || 0) * ((piece.dims && piece.dims.la) || 0);
