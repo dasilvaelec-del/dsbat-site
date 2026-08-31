@@ -97,6 +97,16 @@ function controlesOublisPlo(piece) {
   if (q.adoucisseurs > 0 && q.disconnecteur <= 0) {
     add('PLO_DISCONNECTEUR', q.adoucisseurs, 'Disconnecteur (protection réseau, adoucisseur) non prévu — l\'ajouter ?', 'U');
   }
+  // Dépose des anciens sanitaires en rénovation (codes catalogue existants ; opt-in,
+  // même mécanisme add()/anti-doublon que les recos ci-dessus). Codes canoniques PLO_*.
+  if (chantier && chantier.typeProjet === 'renov') {
+    const nbWC = (q.plo.PLO_WC_SIMPLE || 0) + (q.plo.PLO_WC_SUSP || 0);
+    const nbBaig = (q.plo.PLO_BAIGNOIRE || 0);
+    const nbLav = (q.plo.PLO_LAV_SIMPLE || 0) + (q.plo.PLO_MEUBLE_LAV || 0);
+    if (nbWC > 0) add('PLO_DEPOSE_WC', nbWC, 'Dépose de l\'ancien WC avant la pose du nouveau (rénovation). L\'ajouter ?', 'U');
+    if (nbBaig > 0) add('PLO_DEPOSE_BAIG', nbBaig, 'Dépose de l\'ancienne baignoire avant la pose (rénovation). L\'ajouter ?', 'U');
+    if (nbLav > 0) add('PLO_DEPOSE_LAV', nbLav, 'Dépose de l\'ancien lavabo / meuble vasque avant la pose (rénovation). L\'ajouter ?', 'U');
+  }
   return list;
 }
 
