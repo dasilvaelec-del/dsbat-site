@@ -992,14 +992,37 @@ function recoSupportPloHtml(piece) {
 
 // ===== CONTRÔLE DES OUBLIS COURANTS (plomberie) — suggestions non imposées =====
 
+// ===== Réversibilité générique des recommandations « oublis » =====
+// Bloc « refusé » : un code refusé reste VISIBLE avec « Ajouter finalement » (choix réversible).
+function oublisRefusHtml(index, configKey, ignProp) {
+  const piece = piecesSelectionnees[index];
+  const ign = (piece && piece[ignProp]) || {};
+  return Object.keys(ign).filter(function (c) { return ign[c]; }).map(function (code) {
+    const qty = (typeof ign[code] === 'number' && ign[code] > 0) ? ign[code] : 1;
+    return '<div style="display:flex;gap:8px;align-items:center;justify-content:space-between;padding:6px 0;">'
+      + '<span style="font-size:0.82rem;color:var(--text-light);flex:1;">⭕ ' + findPrestLabel(code) + ' — Non incluse</span>'
+      + '<button onclick="reajouterOubli(' + index + ',\'' + configKey + '\',\'' + ignProp + '\',\'' + code + '\',' + qty + ')" style="background:var(--surface);color:var(--accent);border:1px solid var(--accent);border-radius:16px;padding:4px 12px;font-size:0.78rem;font-weight:700;cursor:pointer;">Ajouter finalement</button>'
+      + '</div>';
+  }).join('');
+}
+// Réajoute après refus : entre dans piece.config et sort de la liste des refusés. Recalcul + re-render.
+function reajouterOubli(index, configKey, ignProp, code, qty) {
+  const piece = piecesSelectionnees[index];
+  if (!piece.config[configKey]) piece.config[configKey] = {};
+  piece.config[configKey][code] = qty;
+  if (piece[ignProp]) delete piece[ignProp][code];
+  recalcPiece(index);
+}
+
 function oublisPloHtml(index) {
   const piece = piecesSelectionnees[index];
   if (!piece) return '';
   const suggestions = controlesOublisPlo(piece);
   const plo = (piece.config && piece.config.plomberie) || {};
-  const OUBLI = ['PLO_DOUCHE_ENS','PLO_PAROI_DOUCHE','PLO_GROUPE_SECU','PLO_DISCONNECTEUR'];
+  const OUBLI = ['PLO_DOUCHE_ENS','PLO_PAROI_DOUCHE','PLO_GROUPE_SECU','PLO_DISCONNECTEUR','PLO_DEPOSE_WC','PLO_DEPOSE_BAIG','PLO_DEPOSE_LAV'];
   const ajoutes = Object.entries(plo).filter(([c, qte]) => qte > 0 && OUBLI.includes(c));
-  if (!suggestions.length && !ajoutes.length) return '';
+  const refHtml = oublisRefusHtml(index, 'plomberie', '_oublisIgnoresPlo');
+  if (!suggestions.length && !ajoutes.length && !refHtml) return '';
 
   const sugHtml = suggestions.map(s => `
     <div style="display:flex;gap:8px;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px dashed var(--border);">
@@ -1021,6 +1044,7 @@ function oublisPloHtml(index) {
       <strong style="font-size:0.84rem;color:#92400e;">🔎 Contrôle qualité — compléments fréquents</strong>
       ${sugHtml}
       ${ajHtml ? '<div style="margin-top:6px;border-top:1px solid var(--border);padding-top:6px;">' + ajHtml + '</div>' : ''}
+      ${refHtml ? '<div style="margin-top:6px;border-top:1px dashed var(--border);padding-top:6px;">' + refHtml + '</div>' : ''}
     </div>`;
 }
 
@@ -1032,8 +1056,9 @@ function ajouterOubliPlo(index, code, qty) {
 }
 function ignorerOubliPlo(index, code) {
   const piece = piecesSelectionnees[index];
+  const sug = controlesOublisPlo(piece).find(s => s.code === code);
   if (!piece._oublisIgnoresPlo) piece._oublisIgnoresPlo = {};
-  piece._oublisIgnoresPlo[code] = true;
+  piece._oublisIgnoresPlo[code] = sug ? sug.qty : true;
   const el = document.getElementById(`oublis_plo_${index}`);
   if (el) el.innerHTML = oublisPloHtml(index);
   saveEtat();
@@ -1078,7 +1103,8 @@ function oublisCarrHtml(index) {
   const carr = (piece.config && piece.config.carrelage) || {};
   const OUBLI = ['CAR_FOURN_CARREAU','CAR_FOURN_FAIENCE','CAR_PRIMAIRE','CAR_MORTIER_COLLE','CAR_PREP_MORTIER','CAR_PLINTHE','CAR_SEUIL','CAR_PROFILE','CAR_LISTEL'];
   const ajoutes = Object.entries(carr).filter(([c, q]) => q > 0 && OUBLI.includes(c));
-  if (!suggestions.length && !ajoutes.length) return '';
+  const refHtml = oublisRefusHtml(index, 'carrelage', '_oublisIgnoresCarr');
+  if (!suggestions.length && !ajoutes.length && !refHtml) return '';
 
   const sugHtml = suggestions.map(s => `
     <div style="display:flex;gap:8px;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px dashed var(--border);">
@@ -1100,6 +1126,7 @@ function oublisCarrHtml(index) {
       <strong style="font-size:0.84rem;color:#92400e;">🔎 Contrôle qualité — compléments fréquents</strong>
       ${sugHtml}
       ${ajHtml ? '<div style="margin-top:6px;border-top:1px solid var(--border);padding-top:6px;">' + ajHtml + '</div>' : ''}
+      ${refHtml ? '<div style="margin-top:6px;border-top:1px dashed var(--border);padding-top:6px;">' + refHtml + '</div>' : ''}
     </div>`;
 }
 
@@ -1115,8 +1142,9 @@ function ajouterOubliCarr(index, code, qty) {
 }
 function ignorerOubliCarr(index, code) {
   const piece = piecesSelectionnees[index];
+  const sug = controlesOublisCarr(piece).find(s => s.code === code);
   if (!piece._oublisIgnoresCarr) piece._oublisIgnoresCarr = {};
-  piece._oublisIgnoresCarr[code] = true;
+  piece._oublisIgnoresCarr[code] = sug ? sug.qty : true;
   const el = document.getElementById(`oublis_carr_${index}`);
   if (el) el.innerHTML = oublisCarrHtml(index);
   saveEtat();
@@ -1158,7 +1186,8 @@ function oublisIsoHtml(index) {
   const iso = (piece.config && piece.config.isolation) || {};
   const OUBLI = ['ISO_LV_100','ISO_PARE_VAP','PLA_BA13_HYDRO','PLA_ENDUIT_RATT','PLA_CORNIERE'];
   const ajoutes = Object.entries(iso).filter(([c, qte]) => qte > 0 && OUBLI.includes(c));
-  if (!suggestions.length && !ajoutes.length) return '';
+  const refHtml = oublisRefusHtml(index, 'isolation', '_oublisIgnoresIso');
+  if (!suggestions.length && !ajoutes.length && !refHtml) return '';
 
   const sugHtml = suggestions.map(s => `
     <div style="display:flex;gap:8px;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px dashed var(--border);">
@@ -1180,6 +1209,7 @@ function oublisIsoHtml(index) {
       <strong style="font-size:0.84rem;color:#92400e;">🔎 Contrôle qualité — compléments fréquents</strong>
       ${sugHtml}
       ${ajHtml ? '<div style="margin-top:6px;border-top:1px solid var(--border);padding-top:6px;">' + ajHtml + '</div>' : ''}
+      ${refHtml ? '<div style="margin-top:6px;border-top:1px dashed var(--border);padding-top:6px;">' + refHtml + '</div>' : ''}
     </div>`;
 }
 
@@ -1197,8 +1227,9 @@ function ajouterOubliIso(index, code, qty) {
 }
 function ignorerOubliIso(index, code) {
   const piece = piecesSelectionnees[index];
+  const sug = controlesOublisIso(piece).find(s => s.code === code);
   if (!piece._oublisIgnoresIso) piece._oublisIgnoresIso = {};
-  piece._oublisIgnoresIso[code] = true;
+  piece._oublisIgnoresIso[code] = sug ? sug.qty : true;
   const el = document.getElementById(`oublis_iso_${index}`);
   if (el) el.innerHTML = oublisIsoHtml(index);
   saveEtat();
@@ -1240,7 +1271,8 @@ function oublisMenHtml(index) {
   const men = (piece.config && piece.config.menuiserie) || {};
   const OUBLI = ['MEN_HABILLAGE_CHAMPLAT','MEN_GARDE_CORPS','MEN_VOLET_ROULANT','MEN_SERRURE','MAC_DEMO_FENETRE','MAC_DEMO_PORTE'];
   const ajoutes = Object.entries(men).filter(([c, qte]) => qte > 0 && OUBLI.includes(c));
-  if (!suggestions.length && !ajoutes.length) return '';
+  const refHtml = oublisRefusHtml(index, 'menuiserie', '_oublisIgnoresMen');
+  if (!suggestions.length && !ajoutes.length && !refHtml) return '';
 
   const sugHtml = suggestions.map(s => `
     <div style="display:flex;gap:8px;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px dashed var(--border);">
@@ -1262,6 +1294,7 @@ function oublisMenHtml(index) {
       <strong style="font-size:0.84rem;color:#92400e;">🔎 Contrôle qualité — compléments fréquents</strong>
       ${sugHtml}
       ${ajHtml ? '<div style="margin-top:6px;border-top:1px solid var(--border);padding-top:6px;">' + ajHtml + '</div>' : ''}
+      ${refHtml ? '<div style="margin-top:6px;border-top:1px dashed var(--border);padding-top:6px;">' + refHtml + '</div>' : ''}
     </div>`;
 }
 
@@ -1277,8 +1310,9 @@ function ajouterOubliMen(index, code, qty) {
 }
 function ignorerOubliMen(index, code) {
   const piece = piecesSelectionnees[index];
+  const sug = controlesOublisMen(piece).find(s => s.code === code);
   if (!piece._oublisIgnoresMen) piece._oublisIgnoresMen = {};
-  piece._oublisIgnoresMen[code] = true;
+  piece._oublisIgnoresMen[code] = sug ? sug.qty : true;
   const el = document.getElementById(`oublis_men_${index}`);
   if (el) el.innerHTML = oublisMenHtml(index);
   saveEtat();
@@ -1322,7 +1356,8 @@ function oublisVmcHtml(index) {
   const v = (piece.config && piece.config.vmc) || {};
   const OUBLI = ['VMC_BOUCHE','VMC_ENTREE_AIR'];
   const ajoutes = Object.entries(v).filter(([c, q]) => q > 0 && OUBLI.includes(c));
-  if (!suggestions.length && !ajoutes.length) return '';
+  const refHtml = oublisRefusHtml(index, 'vmc', '_oublisIgnoresVmc');
+  if (!suggestions.length && !ajoutes.length && !refHtml) return '';
 
   const sugHtml = suggestions.map(s => `
     <div style="display:flex;gap:8px;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px dashed var(--border);">
@@ -1344,6 +1379,7 @@ function oublisVmcHtml(index) {
       <strong style="font-size:0.84rem;color:#92400e;">🔎 Contrôle qualité VMC — bouches & entrées d'air</strong>
       ${sugHtml}
       ${ajHtml ? '<div style="margin-top:6px;border-top:1px solid var(--border);padding-top:6px;">' + ajHtml + '</div>' : ''}
+      ${refHtml ? '<div style="margin-top:6px;border-top:1px dashed var(--border);padding-top:6px;">' + refHtml + '</div>' : ''}
     </div>`;
 }
 
@@ -1359,8 +1395,9 @@ function ajouterOubliVmc(index, code, qty) {
 }
 function ignorerOubliVmc(index, code) {
   const piece = piecesSelectionnees[index];
+  const sug = controlesOublisVmc(piece).find(s => s.code === code);
   if (!piece._oublisIgnoresVmc) piece._oublisIgnoresVmc = {};
-  piece._oublisIgnoresVmc[code] = true;
+  piece._oublisIgnoresVmc[code] = sug ? sug.qty : true;
   const el = document.getElementById(`oublis_vmc_${index}`);
   if (el) el.innerHTML = oublisVmcHtml(index);
   saveEtat();
@@ -2566,7 +2603,8 @@ function oublisPeintureHtml(index) {
   const infos = controlesInfoPeinture(piece);
   const cfg = (piece.config && piece.config.peinture) || {};
   const ajoutes = Object.entries(cfg).filter(([, q]) => q > 0);
-  if (!suggestions.length && !infos.length && !ajoutes.length) return '';
+  const refHtml = oublisRefusHtml(index, 'peinture', '_oublisIgnores');
+  if (!suggestions.length && !infos.length && !ajoutes.length && !refHtml) return '';
 
   const sugHtml = suggestions.map(s => `
     <div style="display:flex;gap:8px;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px dashed var(--border);">
@@ -2591,6 +2629,7 @@ function oublisPeintureHtml(index) {
       ${infoHtml}
       ${sugHtml}
       ${ajHtml ? '<div style="margin-top:6px;border-top:1px solid var(--border);padding-top:6px;">' + ajHtml + '</div>' : ''}
+      ${refHtml ? '<div style="margin-top:6px;border-top:1px dashed var(--border);padding-top:6px;">' + refHtml + '</div>' : ''}
     </div>`;
 }
 
@@ -2602,8 +2641,9 @@ function ajouterOubliPeint(index, code, qty) {
 }
 function ignorerOubliPeint(index, code) {
   const piece = piecesSelectionnees[index];
+  const sug = controlesOublisPeinture(piece).find(s => s.code === code);
   if (!piece._oublisIgnores) piece._oublisIgnores = {};
-  piece._oublisIgnores[code] = true;
+  piece._oublisIgnores[code] = sug ? sug.qty : true;
   const el = document.getElementById(`oublis_peinture_${index}`);
   if (el) el.innerHTML = oublisPeintureHtml(index);
   saveEtat();
@@ -2811,7 +2851,8 @@ function oublisSolHtml(index) {
   const infos = controlesInfoSol(piece);
   const cfg = (piece.config && piece.config.sols) || {};
   const ajoutes = Object.entries(cfg).filter(([, q]) => q > 0);
-  if (!suggestions.length && !infos.length && !ajoutes.length) return '';
+  const refHtml = oublisRefusHtml(index, 'sols', '_oublisIgnoresSol');
+  if (!suggestions.length && !infos.length && !ajoutes.length && !refHtml) return '';
 
   const sugHtml = suggestions.map(s => `
     <div style="display:flex;gap:8px;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px dashed var(--border);">
@@ -2836,6 +2877,7 @@ function oublisSolHtml(index) {
       ${infoHtml}
       ${sugHtml}
       ${ajHtml ? '<div style="margin-top:6px;border-top:1px solid var(--border);padding-top:6px;">' + ajHtml + '</div>' : ''}
+      ${refHtml ? '<div style="margin-top:6px;border-top:1px dashed var(--border);padding-top:6px;">' + refHtml + '</div>' : ''}
     </div>`;
 }
 
@@ -2847,8 +2889,9 @@ function ajouterOubliSol(index, code, qty) {
 }
 function ignorerOubliSol(index, code) {
   const piece = piecesSelectionnees[index];
+  const sug = controlesOublisSol(piece).find(s => s.code === code);
   if (!piece._oublisIgnoresSol) piece._oublisIgnoresSol = {};
-  piece._oublisIgnoresSol[code] = true;
+  piece._oublisIgnoresSol[code] = sug ? sug.qty : true;
   const el = document.getElementById(`oublis_sols_${index}`);
   if (el) el.innerHTML = oublisSolHtml(index);
   saveEtat();
