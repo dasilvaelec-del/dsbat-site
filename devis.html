@@ -631,14 +631,40 @@ window.axeptioSettings = {
 
     <div class="form-section">
       <h3>🛠️ Votre demande</h3>
-      <div class="form-grid">
-        <div class="form-group">
-          <label>Type de demande *</label>
-          <select id="typeDemande">
-            <option value="travaux" selected>Travaux (devis complet, pièce par pièce)</option>
-            <option value="depannage">Dépannage (panne, intervention rapide)</option>
-          </select>
-          <span style="display:block;margin-top:6px;font-size:0.8rem;color:var(--text-light);">Le dépannage ouvre un estimateur rapide dédié.</span>
+      <p style="color:var(--text-light);font-size:0.9rem;margin:0 0 14px;">Que souhaitez-vous faire ?</p>
+      <!-- Valeur canonique conservée (lue par etape1Suivant/collecte). Pilotée par les cartes ci-dessous. -->
+      <select id="typeDemande" style="display:none;">
+        <option value="travaux" selected>travaux</option>
+        <option value="depannage">depannage</option>
+      </select>
+      <div id="demandeCards" style="display:grid;grid-template-columns:1fr;gap:12px;">
+        <div class="dmd-card" data-type="travaux" onclick="choisirDemande('travaux')" style="border:2px solid var(--border);border-radius:12px;padding:14px 16px;cursor:pointer;background:var(--surface);display:flex;flex-direction:column;gap:4px;">
+          <strong style="color:var(--text);">🏗️ Réaliser des travaux</strong>
+          <span style="font-size:0.85rem;color:var(--text-light);">Rénovation, installation ou amélioration de votre logement.</span>
+        </div>
+        <div class="dmd-card" data-type="depannage" onclick="choisirDemande('depannage')" style="border:2px solid var(--border);border-radius:12px;padding:14px 16px;cursor:pointer;background:var(--surface);display:flex;flex-direction:column;gap:4px;">
+          <strong style="color:var(--text);">🛠️ Signaler une panne / demander un dépannage</strong>
+          <span style="font-size:0.85rem;color:var(--text-light);">Un équipement ou une installation ne fonctionne plus ou nécessite une intervention.</span>
+        </div>
+      </div>
+
+      <!-- Périmètre — affiché uniquement pour « Réaliser des travaux » -->
+      <div id="perimetreBloc" style="margin-top:18px;display:none;">
+        <p style="color:var(--text-light);font-size:0.9rem;margin:0 0 10px;">Où souhaitez-vous réaliser les travaux ?</p>
+        <input type="hidden" id="perimetreTravaux" value="complet">
+        <div style="display:grid;grid-template-columns:1fr;gap:10px;">
+          <div class="prm-card" data-prm="complet" onclick="choisirPerimetre('complet')" style="border:2px solid var(--border);border-radius:12px;padding:12px 14px;cursor:pointer;background:var(--surface);display:flex;flex-direction:column;gap:3px;">
+            <strong style="color:var(--text);">🏠 Dans tout le logement</strong>
+            <span style="font-size:0.82rem;color:var(--text-light);">Nous vous proposerons automatiquement les pièces adaptées à votre T1/T2/T3/T4/T5/T6.</span>
+          </div>
+          <div class="prm-card" data-prm="partiel" onclick="choisirPerimetre('partiel')" style="border:2px solid var(--border);border-radius:12px;padding:12px 14px;cursor:pointer;background:var(--surface);display:flex;flex-direction:column;gap:3px;">
+            <strong style="color:var(--text);">🧩 Dans certaines pièces seulement</strong>
+            <span style="font-size:0.82rem;color:var(--text-light);">Vous choisirez les pièces concernées par votre projet.</span>
+          </div>
+          <div class="prm-card" data-prm="indecis" onclick="choisirPerimetre('indecis')" style="border:2px solid var(--border);border-radius:12px;padding:12px 14px;cursor:pointer;background:var(--surface);display:flex;flex-direction:column;gap:3px;">
+            <strong style="color:var(--text);">❓ Je ne sais pas encore</strong>
+            <span style="font-size:0.82rem;color:var(--text-light);">Nous vous aiderons à définir le périmètre de votre demande.</span>
+          </div>
         </div>
       </div>
     </div>
@@ -1306,6 +1332,29 @@ function majZone() {
   if (info) info.textContent = cp.length === 5 ? ('📍 Secteur : ' + z.label + ' (coefficient ×' + z.coef.toFixed(2) + ')') : '';
 }
 
+// ===== ROUTEUR DE DEMANDE (2 cartes) + PÉRIMÈTRE TRAVAUX (3 cartes) =====
+// N'ajoute AUCUN parcours : 'travaux' → configurateur (existant), 'depannage' → depannage.html (existant).
+// Le périmètre choisi ('complet'|'partiel'|'indecis') est mémorisé et lu par le configurateur
+// pour initialiser modeChantier (aucun nouveau moteur, aucun 3e modèle de calcul).
+function marquerCarte(el, on) {
+  if (!el) return;
+  el.style.borderColor = on ? 'var(--primary)' : 'var(--border)';
+  el.style.background = on ? 'rgba(30,58,138,0.06)' : 'var(--surface)';
+}
+function choisirDemande(type) {
+  const sel = document.getElementById('typeDemande'); if (sel) sel.value = type;
+  document.querySelectorAll('#demandeCards .dmd-card').forEach(c => marquerCarte(c, c.dataset.type === type));
+  const bloc = document.getElementById('perimetreBloc'); if (bloc) bloc.style.display = (type === 'travaux') ? 'block' : 'none';
+}
+function choisirPerimetre(p) {
+  const h = document.getElementById('perimetreTravaux'); if (h) h.value = p;
+  document.querySelectorAll('#perimetreBloc .prm-card').forEach(c => marquerCarte(c, c.dataset.prm === p));
+}
+// Pré-sélection par défaut : Travaux + Tout le logement (comportement historique).
+window.addEventListener('DOMContentLoaded', function () {
+  if (document.getElementById('demandeCards')) { choisirDemande('travaux'); choisirPerimetre('complet'); }
+});
+
 function etape1Suivant() {
   const type = (document.getElementById('typeDemande') || {}).value || 'travaux';
   if (type === 'depannage') {
@@ -1313,6 +1362,11 @@ function etape1Suivant() {
     window.location.href = 'depannage.html';
     return;
   }
+  // Travaux : mémoriser le périmètre choisi (pilote modeChantier du configurateur).
+  try {
+    const prm = (document.getElementById('perimetreTravaux') || {}).value || 'complet';
+    sessionStorage.setItem('perimetreTravaux', prm);
+  } catch (e) {}
   allerEtape(2);
 }
 

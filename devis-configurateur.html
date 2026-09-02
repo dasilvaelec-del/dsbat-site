@@ -743,6 +743,24 @@ window.axeptioSettings = {
       <p style="color:var(--text-light);">Sélectionnez vos pièces et indiquez le nombre de chaque type</p>
     </div>
 
+    <!-- TYPE DE CHANTIER : périmètre des pièces (complet = typologie auto ; partiel = choix libre) -->
+    <div class="form-section" style="background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-md); padding:24px; margin-bottom:20px;">
+      <h3 style="color:var(--primary); margin-bottom:6px;">🏗️ Type de chantier</h3>
+      <p style="font-size:0.85rem;color:var(--text-light);margin:0 0 14px;">Quel type de chantier souhaitez-vous réaliser ?</p>
+      <div class="objectif-bar">
+        <div class="objectif-card active" id="mode_complet" onclick="setModeChantier('complet')">
+          <span class="obj-icon">🏠</span>
+          <span class="obj-titre">Chantier complet</span>
+          <span class="obj-desc">Rénover l'ensemble du logement (composition automatique)</span>
+        </div>
+        <div class="objectif-card" id="mode_partiel" onclick="setModeChantier('partiel')">
+          <span class="obj-icon">🧩</span>
+          <span class="obj-titre">Chantier partiel</span>
+          <span class="obj-desc">Rénover seulement certaines pièces</span>
+        </div>
+      </div>
+    </div>
+
     <!-- MODE PROJET : détermine ce qui est pré-ajouté au-dessus de la norme -->
     <div class="form-section" style="background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-md); padding:24px; margin-bottom:20px;">
       <h3 style="color:var(--primary); margin-bottom:14px;">🎯 Objectif du projet</h3>
@@ -1425,6 +1443,7 @@ let phaseActuelle = 1;
 // 'standard' : norme + conseils DS.BAT pré-ajoutés, retirables jusqu'à la norme
 // 'confort'  : standard + équipements d'usage et d'évolutivité
 let objectifProjet = 'standard';
+let modeChantier = 'complet'; // 'complet' (typologie auto F1..F6, comportement historique) | 'partiel' (le client choisit les pièces)
 
 const OBJECTIF_EXPLICATIONS = {
   normes:   '🛡️ Seul le minimum réglementaire NF C 15-100 est inclus. Les conseils DS.BAT restent visibles en badge mais ne sont pas ajoutés.',
@@ -1487,7 +1506,8 @@ function saveEtat() {
       compteurs: compteurs,
       dimsParPiece: dimsParPiece,
       pieces: piecesSelectionnees,
-      objectif: objectifProjet
+      objectif: objectifProjet,
+      mode: modeChantier
     }));
   } catch(e) {}
 }
@@ -1517,6 +1537,7 @@ function restaurerEtat() {
   piecesSelectionnees = Array.isArray(etat.pieces) ? etat.pieces : [];
   normaliserGammesIP44(); // migration des sessions sauvegardées avant la règle IP44
   if (etat.objectif) objectifProjet = etat.objectif;
+  if (etat.mode) modeChantier = etat.mode;
   majObjectifUI();
 
   Object.keys(compteurs).forEach(id => {
@@ -1557,7 +1578,19 @@ window.addEventListener('DOMContentLoaded', () => {
   // La typologie ne s'applique que si aucun état n'a été restauré
   // (sinon on écraserait les ajustements déjà faits par le client)
   const etatRestaure = restaurerEtat();
-  if (!etatRestaure) appliquerTypologie();
+  if (!etatRestaure) {
+    // Périmètre choisi en amont (devis.html) → initialise le mode. Tolérant à l'absence (anciennes
+    // sessions / accès direct) : sans valeur, on conserve le défaut 'complet' (comportement historique).
+    // 'indecis' : aucun 3e modèle — on part d'une sélection vide (comme 'partiel'), le client tranche
+    // via le choix complet/partiel déjà présent.
+    try {
+      const prm = sessionStorage.getItem('perimetreTravaux');
+      if (prm === 'partiel' || prm === 'indecis') modeChantier = 'partiel';
+      else if (prm === 'complet') modeChantier = 'complet';
+    } catch (e) {}
+    if (modeChantier === 'complet') appliquerTypologie();
+  }
+  majModeChantierUI();
   majObjectifUI();
   afficherPropositionExterieurs(); // AIC-001/F2 : proposition d'extérieurs si Maison (non bloquant)
 });
@@ -1697,6 +1730,35 @@ function appliquerTypologie() {
 
   afficherPropositionTypologie(res.compo, res.raisons);
   saveEtat();
+}
+
+// ===== TYPE DE CHANTIER (complet / partiel) — périmètre des PIÈCES uniquement =====
+// N'agit QUE sur les compteurs de pièces (mécanisme existant). Ne touche NI aux métiers,
+// NI à la composition F1..F6 (compositionTypologie inchangée). 'complet' = comportement
+// historique (typologie auto) ; 'partiel' = le client part d'une sélection vide.
+function majModeChantierUI() {
+  const c = document.getElementById('mode_complet');
+  const p = document.getElementById('mode_partiel');
+  if (c) c.classList.toggle('active', modeChantier === 'complet');
+  if (p) p.classList.toggle('active', modeChantier === 'partiel');
+}
+function setModeChantier(mode) {
+  modeChantier = (mode === 'partiel') ? 'partiel' : 'complet';
+  majModeChantierUI();
+  if (modeChantier === 'complet') {
+    appliquerTypologie(); // réutilise EXACTEMENT la logique existante (sauvegarde incluse)
+  } else {
+    // Partiel : repartir d'une sélection vide — le client coche ses pièces via les compteurs existants.
+    const ids = (typeof __toutesPiecesIds === 'function') ? __toutesPiecesIds() : Object.keys(compteurs);
+    ids.forEach(function (id) {
+      compteurs[id] = 0;
+      const el = document.getElementById('count_' + id); if (el) el.textContent = '0';
+      const card = document.getElementById('card_' + id); if (card) card.classList.remove('selected');
+      const dims = document.getElementById('pdims_' + id); if (dims) dims.style.display = 'none';
+    });
+    const zone = document.getElementById('propositionTypologie'); if (zone) zone.innerHTML = '';
+    saveEtat();
+  }
 }
 
 // Bandeau pédagogique : le moteur explique CE qu'il a proposé et POURQUOI,
