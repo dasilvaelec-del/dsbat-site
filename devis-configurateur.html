@@ -866,6 +866,8 @@ window.axeptioSettings = {
         <span>J'accepte l'envoi de cette synthèse par e-mail à DS.BAT et sa transmission au service d'envoi utilisé par le site.</span>
       </label>
     </div>
+    <!-- M55-A : transition entre la synthèse AIC et l'estimation. Affichée uniquement quand un devis réel est rendu (pas en maintenance). -->
+    <p id="recapTransition" style="display:none;max-width:820px;margin:0 auto 14px;text-align:center;color:var(--text-light);font-weight:600;">Cette estimation correspond aux éléments récapitulés ci-dessus.</p>
     <div class="recap-global" id="recapGlobal"></div>
   </div>
 
@@ -3572,7 +3574,13 @@ function renderRecapAIC() {
   if (!cible || typeof SyntheseAICUIDSBAT === 'undefined') return;
   var aic = __construireAICCourant();
   if (!aic) return;
-  cible.innerHTML = SyntheseAICUIDSBAT.rendre(aic);
+  // M55-A : reformulation UX des DEUX intitulés, UNIQUEMENT pour l'affichage du récap
+  // client. On ne touche PAS SyntheseAICUIDSBAT.rendre() (rendu partagé avec le PDF/e-mail
+  // AIC). Post-traitement ciblé de la chaîne rendue ; données et structure inchangées.
+  var html = SyntheseAICUIDSBAT.rendre(aic);
+  html = html.replace('À vérifier en visite', 'Points à confirmer lors de la visite');
+  html = html.replace('Prestations retenues', 'Travaux pris en compte dans l\'estimation');
+  cible.innerHTML = html;
 }
 
 // AIC-001 / M9-B1 + M9-B2 : pipeline PDF de la synthèse AIC (FACTORISÉ, sans duplication).
@@ -3696,12 +3704,15 @@ async function renderPhase3() {
   // parité prouvée). __obtenirDevisRuntime republie aussi les effets window.__* utilisés
   // par les explications (tableau/VMC/plomberie/chauffage) restées côté interface.
   const D = await window.__obtenirDevisRuntime();
+  const __transit = document.getElementById('recapTransition');
   if (!D) {
     // MAINTENANCE-TEMP : Runtime pas encore déployé → écran de transition
     // (pas d'erreur technique, pas de bouton « Réessayer »). Voir afficherTransitionMaintenance().
+    if (__transit) __transit.style.display = 'none'; // M55-A : pas d'« estimation » en maintenance
     afficherTransitionMaintenance(container);
     return;
   }
+  if (__transit) __transit.style.display = 'block'; // M55-A : transition affichée avec le devis réel
   const tableau = D.tableau;
   const ballon = D.ballon;
   const forfaitAcces = D.forfaitAcces;
