@@ -666,6 +666,24 @@ window.axeptioSettings = {
             <span style="font-size:0.82rem;color:var(--text-light);">Nous vous aiderons à définir le périmètre de votre demande.</span>
           </div>
         </div>
+
+        <!-- M54 : orientation « Je ne sais pas encore » — 2e niveau, aide de décision (jamais un 3e modèle) -->
+        <div id="orientationBloc" style="margin-top:16px;padding-top:14px;border-top:1px dashed var(--border);display:none;">
+          <p style="color:var(--text);font-weight:600;font-size:0.92rem;margin:0 0 10px;">Votre projet concerne-t-il une rénovation générale du logement ?</p>
+          <div style="display:grid;grid-template-columns:1fr;gap:10px;">
+            <div class="ori-card" data-ori="complet" onclick="choisirOrientation('complet')" style="border:2px solid var(--border);border-radius:12px;padding:12px 14px;cursor:pointer;background:var(--surface);">
+              <strong style="color:var(--text);">✅ Oui, l'ensemble du logement</strong>
+              <div style="font-size:0.82rem;color:var(--text-light);margin-top:3px;">Nous composerons automatiquement les pièces (T1 à T6). Vous pourrez ajuster ensuite.</div>
+            </div>
+            <div class="ori-card" data-ori="partiel" onclick="choisirOrientation('partiel')" style="border:2px solid var(--border);border-radius:12px;padding:12px 14px;cursor:pointer;background:var(--surface);">
+              <strong style="color:var(--text);">🧩 Non, seulement certaines pièces</strong>
+            </div>
+            <div class="ori-card" data-ori="aide" onclick="choisirOrientation('aide')" style="border:2px solid var(--border);border-radius:12px;padding:12px 14px;cursor:pointer;background:var(--surface);">
+              <strong style="color:var(--text);">🤔 Je ne sais toujours pas</strong>
+            </div>
+          </div>
+          <p id="orientationAide" style="display:none;font-size:0.85rem;color:var(--text-light);margin:10px 0 0;">Commençons par les pièces dont vous êtes sûr. Vous pourrez modifier votre sélection ensuite.</p>
+        </div>
       </div>
     </div>
 
@@ -1349,6 +1367,21 @@ function choisirDemande(type) {
 function choisirPerimetre(p) {
   const h = document.getElementById('perimetreTravaux'); if (h) h.value = p;
   document.querySelectorAll('#perimetreBloc .prm-card').forEach(c => marquerCarte(c, c.dataset.prm === p));
+  // M54 : « Je ne sais pas encore » révèle une aide d'orientation (2e question).
+  const ori = document.getElementById('orientationBloc');
+  if (ori) ori.style.display = (p === 'indecis') ? 'block' : 'none';
+  if (p !== 'indecis') {
+    document.querySelectorAll('#orientationBloc .ori-card').forEach(c => marquerCarte(c, false));
+    const aide = document.getElementById('orientationAide'); if (aide) aide.style.display = 'none';
+  }
+}
+// M54 : résout l'indécision vers l'UN des DEUX parcours existants (jamais un 3e modèle).
+// 'complet' → tout le logement (F1..F6) ; 'partiel'/'aide' → certaines pièces (le client choisit les pièces sûres).
+function choisirOrientation(kind) {
+  const cible = (kind === 'complet') ? 'complet' : 'partiel';
+  const h = document.getElementById('perimetreTravaux'); if (h) h.value = cible;
+  document.querySelectorAll('#orientationBloc .ori-card').forEach(c => marquerCarte(c, c.dataset.ori === kind));
+  const aide = document.getElementById('orientationAide'); if (aide) aide.style.display = (kind === 'aide') ? 'block' : 'none';
 }
 // Pré-sélection par défaut : Travaux + Tout le logement (comportement historique).
 window.addEventListener('DOMContentLoaded', function () {
