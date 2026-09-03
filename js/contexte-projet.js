@@ -99,6 +99,8 @@
         typeVentilationExistante: ch.typeVentilationExistante || null,
         // M57 LOT4 : intention PRINCIPALE de travaux VMC DÉCLARÉE (écho brut ; jamais déduite/proposée/confirmée ici).
         intentionVentilation: ch.intentionVentilation || null,
+        // M57 LOT5 : solution de ventilation ENVISAGÉE par le client DÉCLARÉE (écho brut ; piste souhaitée, jamais validée/recommandée/calculée ici).
+        solutionVentilation: ch.solutionVentilation || null,
         eauChaude: ch.eauChaude || null, tableauExistant: ch.tableauExistant || null,
         borneVE: ch.borneVE || null, pv: ch.pv || null, domotique: ch.domotique || null,
         qualiteMateriaux: ch.qualiteMateriaux || null, codePostal: ch.codePostal || null, ville: ch.ville || null

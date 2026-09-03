@@ -896,6 +896,18 @@ window.axeptioSettings = {
             <option value="inconnu" selected>Je ne sais pas encore</option>
           </select>
         </div>
+        <!-- M57 LOT5 : solution de ventilation ENVISAGÉE par le client (donnée DÉCLARÉE, purement UX).
+             C'est une piste souhaitée, PAS une solution validée / recommandée / configurée / chiffrée.
+             N'est consommée par AUCUN moteur (ni dimensionnement, ni doubleFlux, ni prix, ni Runtime). -->
+        <div class="form-group">
+          <label>Avez-vous déjà une solution de ventilation en tête ?</label>
+          <select id="solutionVentilation">
+            <option value="simple_flux">VMC simple flux</option>
+            <option value="hygro">VMC simple flux hygroréglable</option>
+            <option value="double_flux">VMC double flux</option>
+            <option value="inconnue" selected>Je ne sais pas encore</option>
+          </select>
+        </div>
         <div class="form-group">
           <label>Eau chaude sanitaire</label>
           <select id="eauChaude">
@@ -1511,6 +1523,8 @@ function collecterDonnees() {
       typeVentilationExistante: (document.getElementById('typeVentilationExistante') ? document.getElementById('typeVentilationExistante').value : 'inconnu'),
       // M57 LOT4 : intention principale de travaux VMC (déclarée) — distincte de l'existant, non consommée par un moteur.
       intentionVentilation: (document.getElementById('intentionVentilation') ? document.getElementById('intentionVentilation').value : 'inconnu'),
+      // M57 LOT5 : solution de ventilation envisagée par le client (déclarée) — piste souhaitée, non consommée par un moteur.
+      solutionVentilation: (document.getElementById('solutionVentilation') ? document.getElementById('solutionVentilation').value : 'inconnue'),
       eauChaude: document.getElementById('eauChaude').value,
       tableauExistant: document.getElementById('tableauExistant').value,
       borneVE: document.getElementById('borneVE').value,
