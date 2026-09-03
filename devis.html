@@ -884,6 +884,18 @@ window.axeptioSettings = {
             <option value="vmc_motorisee">VMC motorisée</option>
           </select>
         </div>
+        <!-- M57 LOT4 : intention PRINCIPALE de travaux VMC (donnée DÉCLARÉE, purement UX).
+             Distincte de l'existant (`typeVentilationExistante`) et du champ historique `vmc`.
+             N'est consommée par AUCUN moteur (ni b.vmc, ni dimensionnement, ni prix, ni Runtime). -->
+        <div class="form-group">
+          <label>Que souhaitez-vous faire concernant votre ventilation ?</label>
+          <select id="intentionVentilation">
+            <option value="conserver">Conserver l'installation existante</option>
+            <option value="remplacer">Remplacer l'installation</option>
+            <option value="creer">Créer une solution de ventilation</option>
+            <option value="inconnu" selected>Je ne sais pas encore</option>
+          </select>
+        </div>
         <div class="form-group">
           <label>Eau chaude sanitaire</label>
           <select id="eauChaude">
@@ -1497,6 +1509,8 @@ function collecterDonnees() {
       vmc: document.getElementById('vmc').value,
       // M57 LOT2 : type de ventilation existante (déclaré) — distinct de `vmc` (compat. historique/b.vmc).
       typeVentilationExistante: (document.getElementById('typeVentilationExistante') ? document.getElementById('typeVentilationExistante').value : 'inconnu'),
+      // M57 LOT4 : intention principale de travaux VMC (déclarée) — distincte de l'existant, non consommée par un moteur.
+      intentionVentilation: (document.getElementById('intentionVentilation') ? document.getElementById('intentionVentilation').value : 'inconnu'),
       eauChaude: document.getElementById('eauChaude').value,
       tableauExistant: document.getElementById('tableauExistant').value,
       borneVE: document.getElementById('borneVE').value,

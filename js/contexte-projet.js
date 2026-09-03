@@ -97,6 +97,8 @@
         accessSup: ch.accessSup || null, chauffage: ch.chauffage || null, vmc: ch.vmc || null,
         // M57 LOT2 : type de ventilation existante DÉCLARÉ (écho brut, jamais recalculé/déduit ici).
         typeVentilationExistante: ch.typeVentilationExistante || null,
+        // M57 LOT4 : intention PRINCIPALE de travaux VMC DÉCLARÉE (écho brut ; jamais déduite/proposée/confirmée ici).
+        intentionVentilation: ch.intentionVentilation || null,
         eauChaude: ch.eauChaude || null, tableauExistant: ch.tableauExistant || null,
         borneVE: ch.borneVE || null, pv: ch.pv || null, domotique: ch.domotique || null,
         qualiteMateriaux: ch.qualiteMateriaux || null, codePostal: ch.codePostal || null, ville: ch.ville || null

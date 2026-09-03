@@ -154,6 +154,18 @@ function controlesCoherence(pieces, ch) {
     verifierChauffage(pieces, ch).forEach(a => alertes.push(a));
   }
 
+  // M57 LOT4 : cohérence intention ↔ existant VMC (SIGNAL non bloquant — aucune correction,
+  //   aucune modification de réponse client, aucune prestation créée).
+  //   'remplacer' + existant 'aucune'  → contradiction à confirmer (on ne remplace pas ce qui n'existe pas).
+  //   'remplacer' + existant 'inconnu' → autorisé mais à confirmer (existant non encore établi).
+  if (ch && ch.intentionVentilation === 'remplacer') {
+    if (ch.typeVentilationExistante === 'aucune') {
+      alertes.push({ niveau:'info', texte: 'Votre réponse indique qu\'il n\'y a pas actuellement de système de ventilation, mais vous avez indiqué vouloir le remplacer. Ce point devra être confirmé.' });
+    } else if (ch.typeVentilationExistante === 'inconnu') {
+      alertes.push({ niveau:'info', texte: 'Vous souhaitez remplacer votre ventilation, mais le système existant n\'est pas encore établi. Ce point devra être confirmé lors de la visite.' });
+    }
+  }
+
   return alertes;
 }
 
