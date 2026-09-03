@@ -866,10 +866,22 @@ window.axeptioSettings = {
         </div>
         <div class="form-group">
           <label>VMC existante ?</label>
-          <select id="vmc">
+          <select id="vmc" onchange="majTypeVentilation()">
             <option value="oui">Oui, fonctionnelle</option>
             <option value="defaillante">Oui, mais défaillante</option>
             <option value="non">Non</option>
+          </select>
+        </div>
+        <!-- M57 LOT2 : préciser le type de ventilation existante UNIQUEMENT quand il n'y a pas de VMC
+             motorisée déclarée. N'affecte NI le champ historique `vmc` NI le calcul électrique (b.vmc). -->
+        <div class="form-group" id="blocTypeVentilation" style="display:none;">
+          <label>Quel système de ventilation avez-vous actuellement ?</label>
+          <select id="typeVentilationExistante">
+            <option value="ventilation_naturelle">Ventilation naturelle (grilles, conduits, tirage naturel)</option>
+            <option value="aerateur">Aérateur / extracteur</option>
+            <option value="aucune">Aucun système de ventilation</option>
+            <option value="inconnu" selected>Je ne sais pas</option>
+            <option value="vmc_motorisee">VMC motorisée</option>
           </select>
         </div>
         <div class="form-group">
@@ -1403,6 +1415,24 @@ function majContexteLogement() {
   var prm = (document.getElementById('perimetreTravaux') || {}).value || 'complet';
   ctx.style.display = (prm === 'partiel') ? 'block' : 'none';
 }
+// M57 LOT2 : type de ventilation existante (donnée DÉCLARÉE, purement UX).
+// N'altère NI le champ historique `vmc` NI le calcul électrique (b.vmc) NI aucun prix.
+// Demandé seulement quand `vmc='non'` (cas ambigu) ; sinon vmc_motorisee (non ambigu).
+// Défaut sûr = 'inconnu' — jamais 'aucune' d'office (« pas de VMC » ≠ « aucune ventilation »).
+function majTypeVentilation() {
+  var bloc = document.getElementById('blocTypeVentilation');
+  var sel = document.getElementById('typeVentilationExistante');
+  if (!bloc || !sel) return;
+  var vmc = (document.getElementById('vmc') || {}).value || '';
+  if (vmc === 'non') {
+    bloc.style.display = '';
+    if (sel.value === 'vmc_motorisee') sel.value = 'inconnu';
+  } else {
+    bloc.style.display = 'none';
+    sel.value = 'vmc_motorisee';
+  }
+}
+window.addEventListener('DOMContentLoaded', function () { if (document.getElementById('vmc')) majTypeVentilation(); });
 // Pré-sélection par défaut : Travaux + Tout le logement (comportement historique).
 window.addEventListener('DOMContentLoaded', function () {
   if (document.getElementById('demandeCards')) { choisirDemande('travaux'); choisirPerimetre('complet'); }
@@ -1465,6 +1495,8 @@ function collecterDonnees() {
       qualiteMateriaux: document.getElementById('qualiteMateriaux').value,
       chauffage: document.getElementById('chauffage').value,
       vmc: document.getElementById('vmc').value,
+      // M57 LOT2 : type de ventilation existante (déclaré) — distinct de `vmc` (compat. historique/b.vmc).
+      typeVentilationExistante: (document.getElementById('typeVentilationExistante') ? document.getElementById('typeVentilationExistante').value : 'inconnu'),
       eauChaude: document.getElementById('eauChaude').value,
       tableauExistant: document.getElementById('tableauExistant').value,
       borneVE: document.getElementById('borneVE').value,
