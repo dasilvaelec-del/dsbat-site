@@ -698,6 +698,15 @@ window.axeptioSettings = {
   <!-- ===== ÉTAPE 2 — CARACTÉRISTIQUES DU CHANTIER ===== -->
   <div class="wizard-panel" id="panel2">
 
+    <!-- M56 : contexte « logement entier » (clarifie contexte du logement vs pièces réellement rénovées). Aucune donnée modifiée. -->
+    <div class="form-section">
+      <h3>🏠 Informations sur votre logement</h3>
+      <div id="ctxLogementPartiel" style="display:none;">
+        <p style="color:var(--text-light);font-size:0.88rem;margin:0 0 6px;">Ces informations concernent l'ensemble du logement, même si vos travaux portent sur certaines pièces seulement.</p>
+        <p style="color:var(--text-light);font-size:0.88rem;margin:0;">Vous sélectionnerez les pièces concernées par les travaux à l'étape suivante.</p>
+      </div>
+    </div>
+
     <div class="form-section">
       <h3>🏗️ Votre projet</h3>
       <div class="form-grid">
@@ -751,12 +760,12 @@ window.axeptioSettings = {
       <h3>📐 Dimensions et état</h3>
       <div class="form-grid">
         <div class="form-group">
-          <label>Surface totale (m²) *</label>
+          <label>Surface totale du logement (m²) *</label>
           <input type="number" id="surface" placeholder="Ex : 85" min="10" max="1000">
           <span class="error-msg">Indiquez une surface entre 10 et 1000 m²</span>
         </div>
         <div class="form-group">
-          <label>Nombre de pièces principales *</label>
+          <label>Combien de pièces principales compte votre logement ? *</label>
           <select id="pieces">
             <option value="1">T1 / F1 — 1 pièce (studio)</option>
             <option value="2">T2 / F2 — 2 pièces</option>
@@ -828,7 +837,7 @@ window.axeptioSettings = {
             <label style="display:flex;align-items:center;gap:6px;font-weight:400;"><input type="checkbox" name="contrainte" value="autre"> Autre</label>
           </div>
           <input type="text" id="contraintePrecision" placeholder="Autre contrainte / précision (optionnel)" style="margin-top:8px;">
-          <span style="display:block;margin-top:6px;font-size:0.8rem;color:var(--text-light);">Ces précisions aident l'artisan à préparer la visite ; elles ne modifient pas l'estimation.</span>
+          <span style="display:block;margin-top:6px;font-size:0.8rem;color:var(--text-light);">Ces précisions aident à préparer votre chantier et pourront préciser votre estimation.</span>
         </div>
       </div>
     </div>
@@ -1139,6 +1148,9 @@ function allerEtape(n) {
   document.querySelectorAll('.wizard-panel').forEach(p => p.classList.remove('active'));
   document.getElementById('panel' + n).classList.add('active');
 
+  // M56 : à l'arrivée sur l'étape « logement », adapter le texte de contexte au périmètre choisi.
+  if (n === 2 && typeof majContexteLogement === 'function') majContexteLogement();
+
   // Mise à jour progress bar
   document.querySelectorAll('.wizard-step').forEach(s => {
     const step = parseInt(s.dataset.step);
@@ -1382,6 +1394,14 @@ function choisirOrientation(kind) {
   const h = document.getElementById('perimetreTravaux'); if (h) h.value = cible;
   document.querySelectorAll('#orientationBloc .ori-card').forEach(c => marquerCarte(c, c.dataset.ori === kind));
   const aide = document.getElementById('orientationAide'); if (aide) aide.style.display = (kind === 'aide') ? 'block' : 'none';
+}
+// M56 : texte de contexte « logement entier » — visible seulement en périmètre partiel.
+// Purement UX : ne lit/écrit AUCUNE donnée chantier, ne change aucun champ, aucun calcul.
+function majContexteLogement() {
+  var ctx = document.getElementById('ctxLogementPartiel');
+  if (!ctx) return;
+  var prm = (document.getElementById('perimetreTravaux') || {}).value || 'complet';
+  ctx.style.display = (prm === 'partiel') ? 'block' : 'none';
 }
 // Pré-sélection par défaut : Travaux + Tout le logement (comportement historique).
 window.addEventListener('DOMContentLoaded', function () {
