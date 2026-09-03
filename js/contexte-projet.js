@@ -104,7 +104,10 @@
         eauChaude: ch.eauChaude || null, tableauExistant: ch.tableauExistant || null,
         borneVE: ch.borneVE || null, pv: ch.pv || null, domotique: ch.domotique || null,
         qualiteMateriaux: ch.qualiteMateriaux || null, codePostal: ch.codePostal || null, ville: ch.ville || null
-      }
+      },
+      // M57 LOT6 : configuration GÉNÉRALE de ventilation ENVISAGÉE DÉCLARÉE (écho brut ; structure séparée,
+      // hors piece.config, jamais calculée/recommandée/confirmée ici). `fonctionsParPiece` reste inerte (LOT ultérieur).
+      ventilationDeclaree: ch.ventilationDeclaree || null
     };
 
     // ---------- CALCULÉ (dérivé mécanique des pièces — distinct du déclaré) ----------
