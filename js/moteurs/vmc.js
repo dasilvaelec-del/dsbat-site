@@ -413,4 +413,146 @@ function topologieVmc(pieces, contexte, besoin, debits) {
 }
 
 
-if (typeof module !== "undefined" && module.exports) module.exports = { getVmcPourPiece, _vmcRole, evaluationSupportVmc, controlesOublisVmc, verifierVMC, obligationsVmc, besoinVmc, debitsVmc, topologieVmc };
+// =====================================================================
+// M57 LOT13 — PRÉ-DIMENSIONNEMENT AÉRAULIQUE VMC (V1, théorique)
+// =====================================================================
+// preDimensionnementVmc(pieces, contexte, besoin, debits, topologie) : fonction PURE,
+// DÉRIVÉE de LOT10/11/12. Produit un premier niveau d'étude THÉORIQUE (débits de projet
+// + débit théorique à couvrir par réseau) SANS dimensionnement physique.
+//
+// STRICTEMENT HORS V1 : diamètres, sections, vitesses, longueurs, cheminement, pertes de
+// charge, pression, équilibrage réel, sélection produit, catalogue, prix, Runtime.
+// Hors money-path : aucune écriture de configuration tarifaire, aucun code catalogue, aucun DOM/global.
+//
+// Débits : debitReglementaire = repris de LOT11 (jamais recalculé/diminué) ;
+//   debitProjet = debitReglementaire par défaut (aucune majoration inventée, origine tracée) ;
+//   debitTheoriqueACouvrir = débit que le futur système devra couvrir (≠ capacité d'un produit).
+// DF : insufflation cible globale = débit de projet d'extraction, marquée « hypothèse
+//   d'équilibrage double flux » (règle PRO, PAS une obligation réglementaire) ; AUCUNE
+//   répartition individuelle inventée (débits par pièce d'insufflation restent null).
+function preDimensionnementVmc(pieces, contexte, besoin, debits, topologie) {
+  contexte = contexte || {};
+  topologie = topologie || { systeme: 'inconnue', indetermine: true, flux: { extraction: { points: [] }, insufflation: { points: [] }, admission_passive: { points: [] } }, centrale: null, sourceAirNeuf: null, rejet: null };
+  var systeme = topologie.systeme || contexte.solution || 'inconnue';
+  var determine = (systeme === 'simple_flux' || systeme === 'hygro' || systeme === 'double_flux');
+
+  var hypotheses = [], donneesManquantes = [], pointsAVerifier = [];
+  var addDM = function (champ, impact) { donneesManquantes.push({ champ: champ, impact: impact }); };
+  var addPV = function (type, description) { pointsAVerifier.push({ type: type, description: description }); };
+
+  // --- Volumes dérivés (dims) — documentation / contrôle, aucun impact sur les débits ---
+  var volMap = {};
+  (Array.isArray(pieces) ? pieces : []).forEach(function (p) {
+    if (!p) return;
+    var ref = (p.numero != null ? p.id + '#' + p.numero : p.id);
+    var d = p.dims || {};
+    var l = +d.l || 0, la = +d.la || 0, h = +d.h || 0;
+    volMap[ref] = (l > 0 && la > 0 && h > 0) ? Math.round(l * la * h * 10) / 10 : null;
+  });
+  var fluxRefs = {};
+  ['extraction', 'insufflation', 'admission_passive'].forEach(function (k) {
+    (((topologie.flux || {})[k] || {}).points || []).forEach(function (pt) { fluxRefs[pt.pieceRef] = true; });
+  });
+  var volumes = { total: 0, parPiece: {} };
+  var totalConnu = true;
+  Object.keys(fluxRefs).forEach(function (ref) {
+    var v = volMap.hasOwnProperty(ref) ? volMap[ref] : null;
+    volumes.parPiece[ref] = v;
+    if (v == null) { totalConnu = false; addDM('dimensions_piece:' + ref, 'volume'); }
+    else volumes.total += v;
+  });
+  volumes.total = totalConnu ? Math.round(volumes.total * 10) / 10 : null;
+
+  // --- Réseaux (débits repris de LOT11 via la topologie ; projet = réglementaire par défaut) ---
+  var reseaux = [];
+  var sommeExtraction = 0, extractionComplet = true;
+  var extractionPts = (((topologie.flux || {}).extraction || {}).points) || [];
+  if (extractionPts.length) {
+    var pts = extractionPts.map(function (pt) {
+      var d = (pt.debit != null) ? pt.debit : null;
+      if (d != null) sommeExtraction += d; else extractionComplet = false;
+      return { pieceRef: pt.pieceRef, debitReglementaire: d, debitProjet: d };
+    });
+    if (!extractionComplet) addDM('debit_reference_extraction', 'debit_de_projet');
+    reseaux.push({
+      type: 'extraction',
+      debitReglementaire: extractionComplet ? sommeExtraction : null,
+      debitProjet: extractionComplet ? sommeExtraction : null,        // = réglementaire (défaut)
+      debitTheoriqueACouvrir: extractionComplet ? sommeExtraction : null,
+      points: pts,
+      statut: extractionComplet ? 'theorique' : 'incomplet'
+    });
+  }
+
+  var insufflationPts = (((topologie.flux || {}).insufflation || {}).points) || [];
+  var cibleInsufflation = null;
+  if (systeme === 'double_flux' && insufflationPts.length) {
+    // Cible globale d'insufflation = débit de projet d'extraction (HYPOTHÈSE d'équilibrage).
+    cibleInsufflation = extractionComplet ? sommeExtraction : null;
+    hypotheses.push({ clef: 'equilibrage_df', valeur: 'insufflation ≈ extraction (cible globale)', origine: 'regle_pro' });
+    addDM('repartition_insufflation', 'dimensionnement_aeraulique');
+    addPV('technique', 'Répartition individuelle des débits d\'insufflation à définir en dimensionnement.');
+    reseaux.push({
+      type: 'insufflation',
+      debitReglementaire: null,                                       // pas de débit réglementaire d'insufflation
+      debitProjet: cibleInsufflation,                                 // cible globale (hypothèse d'équilibrage)
+      debitTheoriqueACouvrir: cibleInsufflation,
+      points: insufflationPts.map(function (pt) { return { pieceRef: pt.pieceRef, debitReglementaire: null, debitProjet: null }; }), // répartition non inventée
+      statut: 'a_verifier'
+    });
+  }
+
+  // --- Admission passive (SF/hygro) — besoin global compatible, jamais un réseau mécanique ---
+  var admissionAir = null;
+  var admPts = (((topologie.flux || {}).admission_passive || {}).points) || [];
+  if ((systeme === 'simple_flux' || systeme === 'hygro') && admPts.length) {
+    admissionAir = { type: 'passive', besoin: extractionComplet ? sommeExtraction : null, statut: 'a_equilibrer' };
+  }
+
+  // --- Centrale (débit théorique à couvrir, aucune sélection produit) ---
+  var centrale = null;
+  if (systeme === 'simple_flux' || systeme === 'hygro') {
+    centrale = { type: 'SF', debitReglementaire: extractionComplet ? sommeExtraction : null,
+      debitProjet: extractionComplet ? sommeExtraction : null, debitTheoriqueACouvrir: extractionComplet ? sommeExtraction : null };
+  } else if (systeme === 'double_flux') {
+    // À couvrir = max(extraction, insufflation) ; égales par hypothèse d'équilibrage.
+    var couvrir = extractionComplet ? Math.max(sommeExtraction, cibleInsufflation || 0) : null;
+    centrale = { type: 'DF', debitReglementaire: extractionComplet ? sommeExtraction : null,
+      debitProjet: extractionComplet ? sommeExtraction : null, debitTheoriqueACouvrir: couvrir };
+  }
+
+  // --- Hypothèses & manques transverses ---
+  if (determine) {
+    hypotheses.push({ clef: 'debit_projet', valeur: '= débit réglementaire (aucun choix de conception spécifique)', origine: 'choix_dsbat' });
+    ['longueurs_reseau', 'cheminement_reseau', 'diametres_sections', 'emplacement_centrale', 'donnees_pertes_de_charge']
+      .forEach(function (c) { addDM(c, 'dimensionnement_aeraulique'); });
+    addPV('chantier', 'Emplacement réel de la centrale et cheminement des réseaux à confirmer en visite.');
+    addPV('technique', 'Diamètres, longueurs et pertes de charge relèvent du dimensionnement ultérieur.');
+  } else {
+    addPV('choix_client', 'Système de ventilation non déterminé : solution à préciser.');
+  }
+
+  // --- Statut global (synthétique, sans masquer les limites) ---
+  var statut;
+  if (!determine) statut = 'indetermine';
+  else if (systeme === 'double_flux' || !extractionComplet) statut = 'incomplet';
+  else statut = 'theorique';
+
+  return {
+    systeme: systeme,
+    indetermine: !!topologie.indetermine || !determine,
+    statut: statut,
+    reseaux: reseaux,
+    admissionAir: admissionAir,
+    centrale: centrale,
+    sourceAirNeuf: (topologie.sourceAirNeuf || null),
+    rejet: (topologie.rejet || null),
+    volumes: volumes,
+    hypotheses: hypotheses,
+    donneesManquantes: donneesManquantes,
+    pointsAVerifier: pointsAVerifier
+  };
+}
+
+
+if (typeof module !== "undefined" && module.exports) module.exports = { getVmcPourPiece, _vmcRole, evaluationSupportVmc, controlesOublisVmc, verifierVMC, obligationsVmc, besoinVmc, debitsVmc, topologieVmc, preDimensionnementVmc };
