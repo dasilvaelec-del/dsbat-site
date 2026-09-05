@@ -1540,6 +1540,51 @@ function toggleFonctionVmc(index, fn) {
   saveEtat();  // même canal de persistance que les autres choix (sérialise pieces)
 }
 
+// =====================================================================
+// M57 LOT8 — Projection VMC : configuration fonctionnelle → config tarifaire
+// =====================================================================
+// Pont entre la config fonctionnelle par pièce (LOT7-B, piece.ventilationFonctions)
+// et les codes tarifaires HISTORIQUES du calcul (piece.config.vmc). Ne recrée PAS de
+// moteur de prix : le calcul existant (calculerPiece / moteur-devis / dimensionnementVMC)
+// reste le moteur. Consomme obligationsVmc + fonctionsVmcRetenues (aucune règle dupliquée).
+//
+// Mapping tarifaire AUTORISÉ en LOT8 — décision de tarification DSBAT pour la
+// configuration mécanique actuellement tarifable (PAS une équivalence réglementaire) :
+//   SORTIE_AIR    → VMC_BOUCHE
+//   ADMISSION_AIR → VMC_ENTREE_AIR
+// INSUFFLATION : JAMAIS projetée (aucun code sûr ; double flux non intégré → lot ultérieur).
+//
+// Garde-fous : ne projette QUE si la solution est tarifable en l'état (simple_flux | hygro).
+//   double_flux → aucune projection (ne pas simuler un simple flux). inconnue → aucune
+//   projection (ne pas inventer de simple flux). Sans piece.ventilationFonctions → RIEN
+//   (compat. historique / Golden Masters). Idempotent (Math.max, écriture absolue).
+function projeterVmcVersConfig(piece) {
+  if (!piece || !piece.ventilationFonctions) return;                 // compat historique : ne rien projeter
+  if (typeof metiersActifs === 'undefined' || !metiersActifs.includes('vmc')) return;
+  if (typeof obligationsVmc !== 'function' || typeof fonctionsVmcRetenues !== 'function') return;
+  var ctx = _contexteVmc(piece);
+  // Solution tarifable en simple flux uniquement (SF/hygro partagent la même tarification
+  // bouches/entrées + caisson). DF et « inconnue » : pas de projection (cf. §8/§9).
+  if (ctx.solution !== 'simple_flux' && ctx.solution !== 'hygro') return;
+  var eff = fonctionsVmcRetenues(obligationsVmc(piece.id, ctx), piece.ventilationFonctions);
+  var MAP = { extraction: 'VMC_BOUCHE', entree_air: 'VMC_ENTREE_AIR' }; // soufflage d'air volontairement absent (aucun code sûr)
+  Object.keys(MAP).forEach(function (fn) {
+    var e = eff[fn];
+    if (!e || !e.present) return;                                    // fonction non retenue → pas de projection
+    var code = MAP[fn];
+    if (!piece.config) piece.config = {};
+    if (!piece.config.vmc) piece.config.vmc = {};
+    var existant = piece.config.vmc[code] || 0;
+    piece.config.vmc[code] = Math.max(existant, 1);                  // min 1/pièce, réconciliation prudente, idempotent
+  });
+}
+
+// Projection de toutes les pièces — appelée à un point EXPLICITE de préparation du devis
+// (transition vers la phase 3), jamais dans un render ni dans le calcul.
+function projeterVmcToutesPieces() {
+  (piecesSelectionnees || []).forEach(function (piece) { projeterVmcVersConfig(piece); });
+}
+
 // ===== CONTRÔLE FINAL DU MOTEUR VMC (MISSION 040) =====
 
 // ===== ÉTAT GLOBAL =====
@@ -2105,6 +2150,10 @@ function allerPhase(n) {
 
   if (n === 2) renderPhase2();
   if (n === 3) {
+    // M57 LOT8 : projeter la config fonctionnelle VMC vers la config tarifaire AVANT le
+    // calcul du devis (point de préparation explicite, une seule fois, idempotent).
+    // Sans piece.ventilationFonctions → aucune projection (Golden Masters préservés).
+    try { projeterVmcToutesPieces(); } catch (e) {}
     renderPhase3();
     // MISSION 024 : écran de validation avant le devis détaillé si coordonnées manquantes
     if (!coordsPresentes()) ouvrirCaptureModal();
