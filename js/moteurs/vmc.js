@@ -330,4 +330,87 @@ function debitsVmc(pieces, contexte, besoin) {
 }
 
 
-if (typeof module !== "undefined" && module.exports) module.exports = { getVmcPourPiece, _vmcRole, evaluationSupportVmc, controlesOublisVmc, verifierVMC, obligationsVmc, besoinVmc, debitsVmc };
+// =====================================================================
+// M57 LOT12 — TOPOLOGIE FONCTIONNELLE VMC (vue dérivée)
+// =====================================================================
+// topologieVmc(pieces, contexte, besoin, debits) : fonction PURE qui DÉRIVE une topologie
+// FONCTIONNELLE (pas aéraulique) à partir des couches LOT10/LOT11. Elle n'est PAS une
+// source de vérité : elle recombine besoin (fonctions retenues) + debits (débits de
+// référence) + contexte.solution. Aucune donnée nouvelle, aucune persistance, aucun DOM,
+// aucun catalogue, aucun prix, aucun Runtime, aucune écriture. Pure/déterministe.
+//
+// Elle ne modélise AUCUN détail aéraulique : ni longueur, ni diamètre, ni section, ni
+// branche/tronçon/coude/té, ni perte de charge, ni pression, ni produit (marque, échangeur,
+// filtre G4/F7, débit machine, rendement).
+//
+// Séparation stricte des flux : extraction (SORTIE_AIR) et insufflation (INSUFFLATION,
+// DF seulement) ne sont JAMAIS mélangés ; l'admission SF/hygro (ADMISSION_AIR) est un flux
+// PASSIF (≠ insufflation mécanique). « inconnue » n'est jamais convertie en SF/hygro/DF.
+//
+// sourceAirNeuf (DF) est une interface EXTENSIBLE (direct | puits_horizontal | puits_vertical
+// | inconnu) laissant possible un futur préconditionnement (puits canadien) SANS refonte ;
+// défaut = 'inconnu' (jamais 'direct' inventé). rejet = interface extérieure (réutilise le
+// déclaratif LOT6 via contexte.rejet ; sinon 'inconnu', aucune invention).
+//
+// contexte = { solution, rejet?, sourceAirNeuf? }   (rejet/sourceAirNeuf : déclaratifs LOT6, optionnels)
+// besoin   = sortie besoinVmc(...) ; debits = sortie debitsVmc(...)
+function topologieVmc(pieces, contexte, besoin, debits) {
+  contexte = contexte || {};
+  besoin = besoin || { systeme: 'inconnue', indetermine: true, pieces: [] };
+  var systeme = contexte.solution || besoin.systeme || 'inconnue';
+  var determine = (systeme === 'simple_flux' || systeme === 'hygro' || systeme === 'double_flux');
+
+  // Index des débits de référence (LOT11) — repris tels quels, jamais recalculés ici.
+  var debitIndex = {};
+  var dp = (debits && Array.isArray(debits.pieces)) ? debits.pieces : [];
+  dp.forEach(function (p) {
+    (p.fonctions || []).forEach(function (f) {
+      debitIndex[p.pieceRef + '|' + f.fonction] = (f.debitReference != null ? f.debitReference : null);
+    });
+  });
+
+  var topo = {
+    systeme: systeme,
+    indetermine: !determine,
+    flux: {
+      extraction: { points: [] },
+      insufflation: { points: [] },       // DF uniquement (vide sinon)
+      admission_passive: { points: [] }   // SF/hygro (admission passive, ≠ mécanique)
+    },
+    centrale: null,
+    sourceAirNeuf: null,
+    rejet: null
+  };
+
+  (Array.isArray(besoin.pieces) ? besoin.pieces : []).forEach(function (p) {
+    (p.fonctions || []).forEach(function (f) {
+      if (f.retenue !== true) return;                       // fonction non retenue → absente de la topologie
+      var debit = debitIndex.hasOwnProperty(p.pieceRef + '|' + f.fonction) ? debitIndex[p.pieceRef + '|' + f.fonction] : null;
+      if (f.fonction === 'SORTIE_AIR') {
+        topo.flux.extraction.points.push({ pieceRef: p.pieceRef, fonction: 'SORTIE_AIR', role: 'extraction', debit: debit });
+      } else if (f.fonction === 'INSUFFLATION') {
+        topo.flux.insufflation.points.push({ pieceRef: p.pieceRef, fonction: 'INSUFFLATION', role: 'insufflation', debit: debit });
+      } else if (f.fonction === 'ADMISSION_AIR') {
+        topo.flux.admission_passive.points.push({ pieceRef: p.pieceRef, fonction: 'ADMISSION_AIR', role: 'admission_passive', debit: debit });
+      }
+    });
+  });
+
+  // Centrale (minimale, fonctionnelle) uniquement si le système est déterminé.
+  if (systeme === 'double_flux') {
+    topo.centrale = { type: 'DF' };
+    // Interface amont d'air neuf — extensible (préconditionnement/puits canadien futur).
+    var srcTypes = { direct: 1, puits_horizontal: 1, puits_vertical: 1 };
+    topo.sourceAirNeuf = { type: (contexte.sourceAirNeuf && srcTypes[contexte.sourceAirNeuf]) ? contexte.sourceAirNeuf : 'inconnu' };
+    topo.rejet = { placement: (contexte.rejet === 'toiture' || contexte.rejet === 'facade') ? contexte.rejet : 'inconnu' };
+  } else if (systeme === 'simple_flux' || systeme === 'hygro') {
+    topo.centrale = { type: 'SF' };
+    topo.rejet = { placement: (contexte.rejet === 'toiture' || contexte.rejet === 'facade') ? contexte.rejet : 'inconnu' };
+  }
+  // systeme 'inconnue' → centrale/sourceAirNeuf/rejet restent null (incertitude préservée).
+
+  return topo;
+}
+
+
+if (typeof module !== "undefined" && module.exports) module.exports = { getVmcPourPiece, _vmcRole, evaluationSupportVmc, controlesOublisVmc, verifierVMC, obligationsVmc, besoinVmc, debitsVmc, topologieVmc };
