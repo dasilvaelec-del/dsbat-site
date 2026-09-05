@@ -84,7 +84,10 @@ A(/chantier\.vmc && chantier\.vmc !== 'non'/.test(MOTEUR), 'compat : mapping b.v
 A(/typeVentilationExistante: ch\.typeVentilationExistante \|\| null/.test(CTX), 'compat : écho typeVentilationExistante (LOT2) conservé');
 A(/intentionVentilation: ch\.intentionVentilation \|\| null/.test(CTX), 'compat : écho intentionVentilation (LOT4) conservé');
 
-// ---- 9. Cas métier : données seules, ni mutation ni calcul, ni alerte solution
+// ---- 9. Cas métier : données seules, ni mutation ni calcul.
+// NB (M57 LOT9) : le contrat LOT5 « aucune alerte issue de la solution » reste vrai pour les
+// solutions NON traitées par LOT9 (ex. simple_flux/hygro). Les solutions `double_flux` et
+// `inconnue` sont désormais explicitement signalées par LOT9 (évolution volontaire du contrat).
 const C = require(path.join(RACINE, 'js', 'coherence.js'));
 [
   { typeVentilationExistante: 'vmc_motorisee', intentionVentilation: 'remplacer', solutionVentilation: 'inconnue' },
@@ -95,7 +98,17 @@ const C = require(path.join(RACINE, 'js', 'coherence.js'));
   const snap = JSON.stringify(ch);
   const r = C.verifierCoherenceGlobale([], ch);
   A(JSON.stringify(ch) === snap, 'cas ' + ch.solutionVentilation + ' : réponse client NON mutée');
-  A(!r.some(a => a.texte && /simple flux|double flux|hygro|solution envisagée/i.test(a.texte)), 'cas ' + ch.solutionVentilation + ' : aucune alerte issue de la solution (pas de calcul/reco)');
+  if (ch.solutionVentilation === 'double_flux') {
+    // LOT9 : signal explicite « double flux non entièrement chiffrée » attendu.
+    A(r.some(a => /pas encore entièrement chiffrée/i.test(a.texte || '')), 'cas double_flux : signal de cohérence LOT9 présent');
+  } else if (ch.solutionVentilation === 'inconnue') {
+    // LOT9 : signal explicite « solution non définie » attendu ; jamais transformée en simple flux.
+    A(r.some(a => /pas encore définie/i.test(a.texte || '')), 'cas inconnue : signal de cohérence LOT9 présent');
+    A(!r.some(a => /simple flux|VMC simple flux/i.test(a.texte || '')), 'cas inconnue : jamais transformée en simple flux');
+  } else {
+    // Contrat LOT5 conservé pour les solutions non traitées par LOT9.
+    A(!r.some(a => a.texte && /simple flux|double flux|hygro|solution envisagée/i.test(a.texte)), 'cas ' + ch.solutionVentilation + ' : aucune alerte issue de la solution (contrat LOT5)');
+  }
 });
 
 const total = ok + ko;

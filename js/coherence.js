@@ -166,6 +166,24 @@ function controlesCoherence(pieces, ch) {
     }
   }
 
+  // M57 LOT9 : solution VMC non entièrement tarifable → SIGNAL de cohérence NON bloquant,
+  //   visible dans le récapitulatif. Basé UNIQUEMENT sur ch.solutionVentilation (donc
+  //   indépendant de metiersActifs / de verifierVMC). Ne chiffre rien, ne transforme rien,
+  //   ne persiste aucune nouvelle donnée. LOT8 ne projette pas ces solutions (SF/hygro only).
+  //   Anti-doublon : pour ces solutions, l'alerte VMC historique « la centrale ne sera pas
+  //   chiffrée » (symptôme d'absence de bouche) devient trompeuse → on la retire pour laisser
+  //   le message LOT9, plus explicite. Les autres solutions gardent le comportement historique.
+  if (ch && (ch.solutionVentilation === 'double_flux' || ch.solutionVentilation === 'inconnue')) {
+    for (var _i = alertes.length - 1; _i >= 0; _i--) {
+      if (alertes[_i] && /ne sera pas chiffrée/.test(alertes[_i].texte || '')) alertes.splice(_i, 1);
+    }
+    if (ch.solutionVentilation === 'double_flux') {
+      alertes.push({ niveau:'attention', texte: 'Vous avez indiqué souhaiter une VMC double flux : cette solution n\'est pas encore entièrement chiffrée par DS.BAT et devra être étudiée puis confirmée lors de la visite. Le montant affiché ne comprend pas l\'installation double flux.' });
+    } else {
+      alertes.push({ niveau:'info', texte: 'Votre solution de ventilation n\'est pas encore définie : elle sera précisée et confirmée lors de la visite (aucune configuration VMC n\'est chiffrée à ce stade).' });
+    }
+  }
+
   return alertes;
 }
 
