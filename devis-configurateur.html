@@ -1432,6 +1432,114 @@ function retirerOubliVmc(index, code) {
   recalcPiece(index);
 }
 
+// =====================================================================
+// M57 LOT7-B — Configuration VMC PAR PIÈCE sous contraintes (déclaratif)
+// =====================================================================
+// Reflète les FONCTIONS d'aération obligatoires (obligationsVmc, LOT7-A) au niveau
+// pièce, SANS toucher le money-path : les choix sont stockés dans
+// piece.ventilationFonctions (HORS piece.config → jamais chiffré par calculerPiece).
+// La SOURCE DE VÉRITÉ des statuts reste obligationsVmc() : rien n'est stocké d'autre
+// que le CHOIX CLIENT (true/false) pour le non-obligatoire ; une fonction obligatoire
+// est réimposée par re-dérivation (équivalent du Math.max normatif, mais sur une
+// FONCTION, pas une quantité). Aucune projection vers piece.config.vmc (LOT8+).
+
+// Contexte neutre attendu par obligationsVmc, construit depuis les données existantes.
+function _contexteVmc(piece) {
+  var perimetre = 'indecis';
+  try { perimetre = sessionStorage.getItem('perimetreTravaux') || (typeof modeChantier !== 'undefined' && modeChantier) || 'indecis'; }
+  catch (e) { perimetre = (typeof modeChantier !== 'undefined' && modeChantier) || 'indecis'; }
+  return {
+    intention: (typeof chantier !== 'undefined' && chantier && chantier.intentionVentilation) || 'inconnu',
+    solution:  (typeof chantier !== 'undefined' && chantier && chantier.solutionVentilation)  || 'inconnue',
+    perimetre: perimetre,
+    // pieceEnScope : une pièce présente dans piecesSelectionnees est dans le périmètre
+    // configuré (aucun nouveau système de scope). LOT7-A gère « indecis » → a_verifier.
+    pieceEnScope: (piecesSelectionnees.indexOf(piece) !== -1),
+    metiersActifs: (typeof metiersActifs !== 'undefined' ? metiersActifs : [])
+  };
+}
+
+// Fonction PURE : configuration RETENUE par fonction (SOURCE UNIQUE, testable).
+//   obligations = sortie de obligationsVmc ; choix = piece.ventilationFonctions.
+//   obligatoire → present forcé + verrou ; recommande → proposé (retirable) ;
+//   a_verifier → jamais imposé ; libre → choix client. Aucun statut n'est stocké.
+function fonctionsVmcRetenues(obligations, choix) {
+  obligations = obligations || {}; choix = choix || {};
+  var MAP = { SORTIE_AIR: 'extraction', ADMISSION_AIR: 'entree_air', INSUFFLATION: 'insufflation' };
+  var out = {};
+  Object.keys(obligations).forEach(function (key) {
+    var fn = MAP[key]; if (!fn) return;
+    var st = obligations[key].statut;
+    var c = choix[fn];
+    var present;
+    if (st === 'obligatoire') present = true;                 // imposé, indépendant du stocké
+    else if (st === 'recommande') present = (c !== false);    // proposé, retirable
+    else if (st === 'a_verifier') present = false;            // jamais imposé
+    else present = (c === true);                              // libre
+    out[fn] = { present: present, statut: st, verrou: (st === 'obligatoire') };
+  });
+  return out;
+}
+
+// Rendu du panneau « Fonctions de ventilation » par pièce (déclaratif, hors prix).
+function fonctionsVmcHtml(index) {
+  const piece = piecesSelectionnees[index];
+  if (!piece) return '';
+  if (typeof metiersActifs === 'undefined' || !metiersActifs.includes('vmc')) return '';
+  if (typeof obligationsVmc !== 'function') return '';
+  const obl = obligationsVmc(piece.id, _contexteVmc(piece));
+  const eff = fonctionsVmcRetenues(obl, piece.ventilationFonctions);
+  const MAP = { SORTIE_AIR: 'extraction', ADMISSION_AIR: 'entree_air', INSUFFLATION: 'insufflation' };
+  const LBL = { extraction: 'Extraction d\'air (sortie)', entree_air: 'Entrée d\'air neuf', insufflation: 'Insufflation (air neuf soufflé)' };
+  const keys = Object.keys(obl);
+  if (!keys.length) return '';
+  let rows = '';
+  keys.forEach(key => {
+    const fn = MAP[key]; if (!fn) return;
+    const e = eff[fn];
+    let control = '', badge = '';
+    if (e.statut === 'obligatoire') {
+      control = `<input type="checkbox" checked disabled aria-label="obligatoire">`;
+      badge = `<span style="background:#fef3c7;color:#92400e;border:1px solid #f59e0b;border-radius:20px;padding:1px 8px;font-size:0.68rem;font-weight:700;white-space:nowrap;">🔒 Obligatoire</span>`;
+    } else if (e.statut === 'recommande') {
+      control = `<input type="checkbox" ${e.present ? 'checked' : ''} onchange="toggleFonctionVmc(${index},'${fn}')">`;
+      badge = `<span style="background:rgba(30,58,138,0.08);color:var(--primary);border:1px solid var(--primary-light);border-radius:20px;padding:1px 8px;font-size:0.68rem;font-weight:700;white-space:nowrap;">💡 Conseil DS.BAT</span>`;
+    } else if (e.statut === 'a_verifier') {
+      control = `<span style="width:16px;display:inline-block;"></span>`;
+      badge = `<span style="background:var(--surface-2);color:var(--text-light);border:1px solid var(--border);border-radius:20px;padding:1px 8px;font-size:0.68rem;font-weight:600;white-space:nowrap;">À vérifier lors de la visite</span>`;
+    } else {
+      control = `<input type="checkbox" ${e.present ? 'checked' : ''} onchange="toggleFonctionVmc(${index},'${fn}')">`;
+      badge = '';
+    }
+    rows += `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px dashed var(--border);">
+      ${control}<span style="flex:1;font-size:0.86rem;color:var(--text);">${LBL[fn]}</span>${badge}</div>`;
+  });
+  return `<div style="margin:10px 0;background:#f8fafc;border:1px solid var(--border);border-radius:12px;padding:12px;">
+    <strong style="font-size:0.84rem;color:var(--text);">💨 Fonctions de ventilation requises</strong>
+    ${rows}
+    <div style="font-size:0.72rem;color:var(--text-light);margin-top:8px;">Ces fonctions décrivent le besoin d'aération de la pièce ; elles ne créent pas encore de prestation ni de prix.</div>
+  </div>`;
+}
+
+// Bascule d'un choix client (recommandé/libre). Une fonction OBLIGATOIRE ne peut pas
+// être retirée : le verrou est réel (re-dérivation depuis obligationsVmc), pas visuel.
+function toggleFonctionVmc(index, fn) {
+  const piece = piecesSelectionnees[index];
+  if (!piece) return;
+  const obl = obligationsVmc(piece.id, _contexteVmc(piece));
+  const cur = fonctionsVmcRetenues(obl, piece.ventilationFonctions)[fn];
+  if (!piece.ventilationFonctions) piece.ventilationFonctions = {};
+  if (!cur || cur.verrou) {
+    // obligatoire (ou fonction non applicable) : réimposer/ignorer — jamais de suppression.
+    if (cur && cur.verrou) piece.ventilationFonctions[fn] = true;
+  } else {
+    piece.ventilationFonctions[fn] = !cur.present;  // recommandé/libre : bascule le choix client
+  }
+  const el = document.getElementById(`fonctions_vmc_${index}`);
+  if (el) el.innerHTML = fonctionsVmcHtml(index);
+  saveEtat();  // même canal de persistance que les autres choix (sérialise pieces)
+}
+
 // ===== CONTRÔLE FINAL DU MOTEUR VMC (MISSION 040) =====
 
 // ===== ÉTAT GLOBAL =====
@@ -2626,6 +2734,7 @@ function renderMetierSection(section, pieceIndex) {
         ${section.metier === 'isolation' ? `<div id="reco_support_iso_${pieceIndex}"></div>` : ''}
         ${section.metier === 'menuiserie' ? `<div id="reco_support_men_${pieceIndex}"></div>` : ''}
         ${section.metier === 'vmc' ? `<div id="reco_support_vmc_${pieceIndex}"></div>` : ''}
+        ${section.metier === 'vmc' ? `<div id="fonctions_vmc_${pieceIndex}"></div>` : ''}
         ${section.prests.map(p => renderPrestRow(p, pieceIndex, section.metier)).join('')}
         ${section.metier === 'carrelage' ? `<div id="oublis_carr_${pieceIndex}"></div>` : ''}
         ${section.metier === 'isolation' ? `<div id="oublis_iso_${pieceIndex}"></div>` : ''}
@@ -3334,6 +3443,9 @@ function recalcPiece(index) {
   if (metiersActifs.includes('vmc')) {
     const recoVmcEl = document.getElementById(`reco_support_vmc_${index}`);
     if (recoVmcEl) recoVmcEl.innerHTML = recoSupportVmcHtml(piece);
+    // M57 LOT7-B : panneau des fonctions d'aération obligatoires/recommandées (déclaratif, hors prix).
+    const fonctionsVmcEl = document.getElementById(`fonctions_vmc_${index}`);
+    if (fonctionsVmcEl) fonctionsVmcEl.innerHTML = fonctionsVmcHtml(index);
     const oublisVmcEl = document.getElementById(`oublis_vmc_${index}`);
     if (oublisVmcEl) oublisVmcEl.innerHTML = oublisVmcHtml(index);
   }
