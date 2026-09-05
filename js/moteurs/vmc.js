@@ -555,4 +555,110 @@ function preDimensionnementVmc(pieces, contexte, besoin, debits, topologie) {
 }
 
 
-if (typeof module !== "undefined" && module.exports) module.exports = { getVmcPourPiece, _vmcRole, evaluationSupportVmc, controlesOublisVmc, verifierVMC, obligationsVmc, besoinVmc, debitsVmc, topologieVmc, preDimensionnementVmc };
+// =====================================================================
+// M57 LOT14 — PRÉ-CALCUL DE SECTION AÉRAULIQUE VMC (V1, théorique)
+// =====================================================================
+// preCalculSectionVmc(pieces, contexte, besoin, debits, topologie, preDim) : fonction PURE
+// DÉRIVÉE (LOT10..13). Réalise UNIQUEMENT un pré-calcul THÉORIQUE de section sous
+// HYPOTHÈSE de vitesse — PAS un dimensionnement réel de l'installation.
+//
+// Formule (et rien d'autre) : Q = V × S ⇒ S(m²) = Q(m³/h) / (3600 × V(m/s)).
+// Diamètre ÉQUIVALENT géométrique (conversion, pas un choix) : D(mm) = √(4S/π) × 1000.
+// Le diamètre équivalent N'EST PAS un diamètre retenu/requis/commercial/conforme : aucun
+// arrondi vers un diamètre catalogue, aucune consultation catalogue.
+//
+// STRICTEMENT HORS V1 : pertes de charge, pression, équilibrage réel, sélection produit,
+// réseau physique (branche/coude/té/segment/nœud/cheminement), plage min/max arbitraire,
+// répartition d'insufflation inventée. Hors money-path : aucun code catalogue/prix/Runtime,
+// aucune écriture (config tarifaire, pièces, persistance), aucun DOM. Pure/déterministe.
+//
+// Vitesse de conception : UNE hypothèse explicite tracée (origine 'hypothese_dsbat'),
+// jamais présentée comme obligation réglementaire ; surchargée par contexte.vitesseConception
+// si fournie (numérique > 0). Aucune vitesse par type/terminal.
+var VITESSE_CONCEPTION_VMC = 4; // m/s — hypothèse DSBAT (plage professionnelle DTU 68.3, non réglementaire)
+function preCalculSectionVmc(pieces, contexte, besoin, debits, topologie, preDim) {
+  contexte = contexte || {};
+  preDim = preDim || { systeme: 'inconnue', reseaux: [], admissionAir: null };
+  var systeme = preDim.systeme || (topologie && topologie.systeme) || contexte.solution || 'inconnue';
+
+  var vExt = (typeof contexte.vitesseConception === 'number' && contexte.vitesseConception > 0) ? contexte.vitesseConception : VITESSE_CONCEPTION_VMC;
+  var vitesse = { valeur: vExt, unite: 'm/s', origine: 'hypothese_dsbat' };
+
+  // S = Q/(3600·V) ; D = √(4S/π)·1000. Renvoie null si le débit n'est pas exploitable.
+  function calc(debit) {
+    if (typeof debit !== 'number' || !(debit > 0)) return { sectionTheorique: null, diametreEquivalent: null };
+    var S = debit / (3600 * vExt);
+    var Dmm = Math.sqrt(4 * S / Math.PI) * 1000;
+    return {
+      sectionTheorique: { valeur: Math.round(S * 100000) / 100000, unite: 'm2' },
+      diametreEquivalent: { valeur: Math.round(Dmm * 10) / 10, unite: 'mm' }
+    };
+  }
+
+  var FONCTION_PAR_TYPE = { extraction: 'SORTIE_AIR', insufflation: 'INSUFFLATION' };
+  var reseaux = [], points = [], hypotheses = [], donneesManquantes = [], pointsAVerifier = [];
+  hypotheses.push({ clef: 'vitesse_conception', valeur: vExt, unite: 'm/s', origine: 'hypothese_dsbat' });
+
+  (Array.isArray(preDim.reseaux) ? preDim.reseaux : []).forEach(function (r) {
+    // Niveau RÉSEAU : débit AGRÉGÉ propre au réseau (jamais appliqué aux points).
+    var cr = calc(r.debitProjet);
+    reseaux.push({
+      type: r.type, debitProjet: (typeof r.debitProjet === 'number' ? r.debitProjet : null),
+      vitesseHypothese: vitesse, sectionTheorique: cr.sectionTheorique, diametreEquivalent: cr.diametreEquivalent,
+      statut: 'indicatif'
+    });
+    if (r.type === 'insufflation' && !(typeof r.debitProjet === 'number')) {
+      addOnce(donneesManquantes, { champ: 'debit_insufflation', impact: 'section_insufflation' });
+    }
+    // Niveau POINT : débit PROPRE au point (≠ débit réseau). Insufflation sans débit → null.
+    (Array.isArray(r.points) ? r.points : []).forEach(function (pt) {
+      var dp = (typeof pt.debitProjet === 'number' ? pt.debitProjet : null);
+      var cp = calc(dp);
+      points.push({
+        pieceRef: pt.pieceRef, fonction: (FONCTION_PAR_TYPE[r.type] || null),
+        debitProjet: dp, vitesseHypothese: vitesse,
+        sectionTheorique: cp.sectionTheorique, diametreEquivalent: cp.diametreEquivalent, statut: 'indicatif'
+      });
+      if (r.type === 'insufflation' && dp == null) {
+        addPV(pointsAVerifier, 'technique', 'Débit individuel d\'insufflation non défini (' + pt.pieceRef + ') : section non calculable, à définir en dimensionnement.');
+      }
+    });
+  });
+
+  // Hypothèse d'équilibrage DF (reprise L13, jamais présentée comme obligation réglementaire).
+  if (systeme === 'double_flux') {
+    hypotheses.push({ clef: 'equilibrage_df', valeur: 'insufflation ≈ extraction (cible globale)', origine: 'regle_pro' });
+  }
+
+  // Admission passive (SF/hygro) : PAS de section mécanique (ce n'est pas une gaine).
+  if (preDim.admissionAir && preDim.admissionAir.type === 'passive') {
+    addPV(pointsAVerifier, 'technique', 'Admission d\'air PASSIVE (modules d\'entrée d\'air) : ce n\'est pas une gaine mécanique — aucune section de conduit calculée.');
+  }
+
+  // Limites du pré-calcul (empêchent d'aller au dimensionnement réel).
+  ['longueurs_reseau', 'cheminement_reseau', 'branches_physiques', 'coudes', 'tes', 'reductions',
+    'emplacement_centrale', 'caracteristiques_terminaux', 'donnees_pertes_de_charge',
+    'pression_disponible', 'donnees_constructeur'].forEach(function (c) {
+    addOnce(donneesManquantes, { champ: c, impact: 'dimensionnement_reel' });
+  });
+  addPV(pointsAVerifier, 'technique', 'Sections THÉORIQUES INDICATIVES sous hypothèse de vitesse — à confirmer par un dimensionnement réel (pertes de charge, pression, terminaux).');
+  if (systeme !== 'simple_flux' && systeme !== 'hygro' && systeme !== 'double_flux') {
+    addPV(pointsAVerifier, 'choix_client', 'Système de ventilation non déterminé : pré-calcul partiel.');
+  }
+
+  return {
+    statut: 'pre_calcul_theorique',
+    systeme: systeme,
+    reseaux: reseaux,
+    points: points,
+    hypotheses: hypotheses,
+    donneesManquantes: donneesManquantes,
+    pointsAVerifier: pointsAVerifier
+  };
+
+  function addOnce(arr, obj) { if (!arr.some(function (x) { return x.champ === obj.champ; })) arr.push(obj); }
+  function addPV(arr, type, description) { arr.push({ type: type, description: description }); }
+}
+
+
+if (typeof module !== "undefined" && module.exports) module.exports = { getVmcPourPiece, _vmcRole, evaluationSupportVmc, controlesOublisVmc, verifierVMC, obligationsVmc, besoinVmc, debitsVmc, topologieVmc, preDimensionnementVmc, preCalculSectionVmc };
