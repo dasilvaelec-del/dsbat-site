@@ -900,6 +900,24 @@ window.axeptioSettings = {
     </div>
   </div>
 
+  <!-- ================= M57 LOT20 — VISITE VMC (collecte terrain) ================= -->
+  <!-- Panneau autonome, masqué par défaut. Source de vérité = donneesVisiteVmc (LOT19).
+       Aucune écriture dans la configuration tarifaire, aucun calcul, aucun prix. -->
+  <div id="visiteVmcPanel" style="display:none;margin-top:18px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px;">
+      <h2 style="margin:0;font-size:1.15rem;color:var(--primary,#1e3a8a);">🔧 Visite technique VMC</h2>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button type="button" onclick="visiteEnregistrer()" style="background:var(--accent,#2563eb);color:#fff;border:none;border-radius:16px;padding:6px 14px;font-weight:700;cursor:pointer;">Enregistrer la visite</button>
+        <select id="vi_contexteEtude" title="Contexte d'étude" style="padding:6px 10px;border:1.5px solid var(--border,#cbd5e1);border-radius:16px;"><option value="existant">Existant (relevé)</option><option value="projet">Projet (projeté)</option><option value="mixte">Mixte</option></select>
+        <button type="button" onclick="visiteAnalyser()" style="background:#0f766e;color:#fff;border:none;border-radius:16px;padding:6px 14px;font-weight:700;cursor:pointer;">Analyser la visite</button>
+        <button type="button" onclick="fermerVisiteVmc()" style="background:var(--surface,#fff);color:#64748b;border:1px solid var(--border,#cbd5e1);border-radius:16px;padding:6px 14px;cursor:pointer;">Fermer</button>
+      </div>
+    </div>
+    <div id="visiteVmcContenu"></div>
+    <!-- M57 LOT21 : résultat d'analyse technique (statut/manques/points à vérifier). Aucun tarif. -->
+    <div id="visiteEtudeResultat" style="margin-top:14px;"></div>
+  </div>
+
 </main>
 
 <a href="https://wa.me/33629556627" target="_blank" rel="noopener noreferrer" class="whatsapp-float" aria-label="Contact WhatsApp">
@@ -1655,6 +1673,11 @@ function appliquerObjectif(piece) {
 // ===== PERSISTANCE (un refresh ne doit plus perdre la saisie) =====
 const ETAT_KEY = 'configEtatV1';
 
+// M57 LOT19 : données de VISITE VMC (source de vérité terrain, LOT18) — persistées dans
+// l'état global existant, SÉPARÉES de piece.config (config tarifaire). null tant qu'aucune
+// visite n'est ouverte. N'entre dans AUCUN calcul/prix/devis.
+let donneesVisiteVmc = null;
+
 function saveEtat() {
   try {
     sessionStorage.setItem(ETAT_KEY, JSON.stringify({
@@ -1662,7 +1685,8 @@ function saveEtat() {
       dimsParPiece: dimsParPiece,
       pieces: piecesSelectionnees,
       objectif: objectifProjet,
-      mode: modeChantier
+      mode: modeChantier,
+      donneesVisite: donneesVisiteVmc   // M57 LOT19 : additif à l'état global (jamais dans la config tarifaire)
     }));
   } catch(e) {}
 }
@@ -1693,6 +1717,8 @@ function restaurerEtat() {
   normaliserGammesIP44(); // migration des sessions sauvegardées avant la règle IP44
   if (etat.objectif) objectifProjet = etat.objectif;
   if (etat.mode) modeChantier = etat.mode;
+  // M57 LOT19 : restaurer la visite VMC telle quelle (IDs/statuts/provenance/contradictions préservés).
+  if (etat.donneesVisite) donneesVisiteVmc = etat.donneesVisite;
   majObjectifUI();
 
   Object.keys(compteurs).forEach(id => {
@@ -3970,11 +3996,11 @@ async function renderPhase3() {
         <span>Centrale VMC (caisson, gaines, rejet toiture)</span>
         <span>${formatEuro(vmc.prixTotalHT)}</span>
       </div>
-      ${exVMC.length ? `
+      ${exlength ? `
       <details style="margin-top:12px;">
         <summary style="cursor:pointer;color:var(--primary);font-weight:600;font-size:0.88rem;">🧠 Pourquoi ce dimensionnement ?</summary>
         <ul style="margin:10px 0 12px;padding-left:18px;font-size:0.82rem;color:var(--text-light);">
-          ${exVMC.map(e => '<li style="margin-bottom:4px;">' + e + '</li>').join('')}
+          ${exmap(e => '<li style="margin-bottom:4px;">' + e + '</li>').join('')}
         </ul>
         <div style="font-size:0.8rem;border-top:1px dashed var(--border);padding-top:10px;">
           <strong style="color:var(--primary);">Composition de la centrale :</strong>
@@ -4107,6 +4133,10 @@ async function renderPhase3() {
       <button onclick="allerPhase(2)" class="btn" style="background:var(--surface-2);border:2px solid var(--border);padding:14px 28px;">
         ✏️ Modifier
       </button>
+      <!-- M57 LOT20 : accès collecte terrain VMC (usage technicien, hors devis client) -->
+      <button type="button" onclick="ouvrirVisiteVmc()" class="btn" style="background:var(--surface-2);border:2px solid var(--border);padding:14px 28px;">
+        🔧 Visite technique VMC
+      </button>
     </div>
 
     <div class="badges" style="margin-top:24px;">
@@ -4224,7 +4254,7 @@ function construireDetailTexte() {
   const tempsTotal = Math.round(piecesSelectionnees.reduce((s, p) => s + (p.tempsChantier || 0), 0) * 10) / 10;
   if (tempsTotal > 0) {
     const hj = (typeof TEMPS_PARAMS !== 'undefined' && TEMPS_PARAMS.heuresParJour) || 7;
-    out.push('⏱ TEMPS DE CHANTIER TOTAL ESTIMÉ : ' + tempsTotal + ' h ≈ ' + (Math.round(tempsTotal / hj * 10) / 10) + ' jour(s)-homme (base ' + hj + ' h/jour) — hors tableau électrique et centrale VMC.');
+    out.push('⏱ TEMPS DE CHANTIER TOTAL ESTIMÉ : ' + tempsTotal + ' h ≈ ' + (Math.round(tempsTotal / hj * 10) / 10) + ' jour(s)-homme (base ' + hj + ' h/jour) — hors tableau électrique et centrale ');
     out.push('');
   }
   // Raisonnement du moteur sur le tableau électrique (pour l'email DS.BAT)
@@ -4691,6 +4721,160 @@ async function genererPDFConfig() {
         return D;
       }).catch(function () { return null; });
     } catch (e) { return Promise.resolve(null); }
+  };
+})();
+</script>
+
+<!-- ================= M57 LOT20 — UI VISITE VMC (handlers, isolé) ================= -->
+<script>
+// L'UI est un RENDU de donneesVisiteVmc (source de vérité, LOT19). Toute mutation passe par
+// les actions IMMUABLES LOT19 (jamais de push direct). Aucun calcul, aucun prix, aucune
+// écriture dans la configuration tarifaire. Persistance = saveEtat() existant (ETAT_KEY).
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var v = function (id) { var e = $(id); return e ? (e.value || '').trim() : ''; };
+  var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]); }); };
+  var num = function (id) { var x = parseFloat(v(id)); return isFinite(x) ? x : undefined; };
+  var STAT = ['inconnu', 'mesure', 'estime', 'releve_declaratif', 'documente', 'non_accessible', 'non_mesure', 'a_verifier', 'non_applicable'];
+  var PROV = ['technicien', 'client', 'mesure_instrumentee', 'document_existant', 'constructeur', 'photo_interpretee', 'hypothese'];
+  function selStatut(id, val) { return '<select id="' + id + '">' + STAT.map(function (s) { return '<option value="' + s + '"' + (s === (val || 'inconnu') ? ' selected' : '') + '>' + esc(libelleStatutVisite(s)) + '</option>'; }).join('') + '</select>'; }
+  function selProv(id) { return '<select id="' + id + '">' + PROV.map(function (p) { return '<option value="' + p + '">' + esc(libelleProvenanceVisite(p)) + '</option>'; }).join('') + '</select>'; }
+  function newId(pref) { return pref + '_' + Date.now().toString(36) + Math.floor(Math.random() * 1e4).toString(36); }
+  function piecesOptions() {
+    var opts = '<option value="">Pièce inconnue</option>';
+    try { (piecesSelectionnees || []).forEach(function (p) { var ref = (p.numero != null ? p.id + '#' + p.numero : p.id); opts += '<option value="' + ref + '">' + esc(p.nom || ref) + '</option>'; }); } catch (e) {}
+    return opts;
+  }
+  function commit(nouvelle) { donneesVisiteVmc = nouvelle; try { saveEtat(); } catch (e) {} render(); }
+
+  // ---- Entrée / sortie ----
+  window.ouvrirVisiteVmc = function () {
+    if (!donneesVisiteVmc) donneesVisiteVmc = null; // reprise : restaurerEtat() a déjà rechargé si existant
+    var p = $('visiteVmcPanel'); if (p) p.style.display = 'block';
+    render();
+    try { p.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (e) {}
+  };
+  window.fermerVisiteVmc = function () { var p = $('visiteVmcPanel'); if (p) p.style.display = 'none'; };
+  window.visiteDemarrer = function () { donneesVisiteVmc = nouvelleVisiteVmc({}); try { saveEtat(); } catch (e) {} render(); };
+  window.visiteEnregistrer = function () { try { saveEtat(); } catch (e) {} var s = $('visiteMsg'); if (s) { s.textContent = 'Visite enregistrée.'; setTimeout(function () { if (s) s.textContent = ''; }, 2500); } };
+
+  // ---- Actions (via LOT19, immuables) ----
+  window.visiteMajInstallation = function () { commit(definirInstallationVisite(donneesVisiteVmc, { typeSysteme: v('vi_sys') || 'inconnu', contexte: v('vi_ctx') || null, intervenant: v('vi_int') || null, dateVisite: v('vi_date') || null, statutInstallation: v('vi_etat') || null })); };
+  window.visiteAjouterReseau = function () { commit(ajouterReseauVisite(donneesVisiteVmc, { id: newId('R'), type: v('vi_rtype') })); };
+  window.visiteAjouterNoeud = function (rid) { commit(ajouterNoeudVisite(donneesVisiteVmc, rid, { id: newId('N'), type: v('vi_ntype_' + rid) || null, statut: v('vi_nstat_' + rid), provenance: v('vi_nprov_' + rid) })); };
+  window.visiteAjouterTroncon = function (rid) {
+    commit(ajouterTronconVisite(donneesVisiteVmc, rid, {
+      id: newId('T'), role: v('vi_trole_' + rid) || null, noeudAmont: v('vi_tam_' + rid) || null, noeudAval: v('vi_tav_' + rid) || null, pieceRef: v('vi_tpiece_' + rid) || null,
+      longueur: creerChampValeur({ valeur: num('vi_tlong_' + rid), unite: 'm', statut: v('vi_tlstat_' + rid), provenance: v('vi_tprov_' + rid) }),
+      diametre: creerChampValeur({ valeur: num('vi_tdreel_' + rid), unite: 'mm', statut: v('vi_tlstat_' + rid), provenance: v('vi_tprov_' + rid), nature: 'existant_releve' }),
+      diametreProjet: creerChampValeur({ valeur: num('vi_tdproj_' + rid), unite: 'mm', statut: 'documente', nature: 'projete' }),
+      typeConduit: v('vi_tcond_' + rid) || null, etat: v('vi_tetat_' + rid) || null
+    }));
+  };
+  window.visiteAjouterTerminal = function (rid) { commit(ajouterTerminalVisite(donneesVisiteVmc, rid, { id: newId('TM'), reseauId: rid, pieceRef: v('vi_tmpiece_' + rid) || null, fonction: v('vi_tmfct_' + rid) || null, type: v('vi_tmtype_' + rid) || null, statut: v('vi_tmstat_' + rid), provenance: v('vi_tmprov_' + rid) })); };
+  window.visiteMajCentrale = function () { commit(definirCentraleVisite(donneesVisiteVmc, { id: (donneesVisiteVmc.centrale && donneesVisiteVmc.centrale.id) || newId('C'), type: v('vi_ctype') || null, fabricant: v('vi_cfab') || null, reference: v('vi_cref') || null, etat: v('vi_cetat') || null, statut: v('vi_cstat'), provenance: v('vi_cprov') })); };
+  window.visiteMajInterface = function (quelle) { var pref = quelle === 'priseAirNeuf' ? 'vi_pa' : 'vi_rj'; commit(definirInterfaceVisite(donneesVisiteVmc, quelle, { type: v(pref + 'type') || 'inconnu', emplacement: v(pref + 'empl') || null, statut: v(pref + 'stat'), provenance: v(pref + 'prov') })); };
+  window.visiteAjouterMesure = function () { var inst = v('vi_minst') || null; commit(ajouterMesureVisiteA(donneesVisiteVmc, { id: newId('M'), pointId: v('vi_mpoint') || null, grandeur: v('vi_mgr') || null, valeur: num('vi_mval'), unite: v('vi_muni') || null, instrument: inst, operateur: v('vi_mope') || null })); };
+  window.visiteAjouterPhoto = function () { commit(ajouterPhotoVisiteA(donneesVisiteVmc, { id: newId('P'), objetType: v('vi_ptype') || null, objetId: v('vi_pobj') || null, provenance: 'technicien' })); };
+  window.visiteAjouterHypothese = function () { commit(ajouterHypotheseVisiteA(donneesVisiteVmc, { id: newId('H'), description: v('vi_hdesc') || null, valeur: v('vi_hval') || null })); };
+
+  // ---- Rendu (représentation de donneesVisiteVmc, pas une 2e vérité) ----
+  function render() {
+    var host = $('visiteVmcContenu'); if (!host) return;
+    if (typeof construireVueVisite !== 'function') { host.innerHTML = 'Moteur VMC indisponible.'; return; }
+    var vue = construireVueVisite(donneesVisiteVmc);
+    if (!vue.existe) {
+      host.innerHTML = '<div style="background:#f8fafc;border:1px solid var(--border,#cbd5e1);border-radius:12px;padding:16px;">'
+        + '<p style="margin:0 0 10px;">Aucune visite VMC enregistrée.</p>'
+        + '<button type="button" onclick="visiteDemarrer()" style="background:var(--accent,#2563eb);color:#fff;border:none;border-radius:16px;padding:8px 16px;font-weight:700;cursor:pointer;">Commencer une visite</button></div>';
+      return;
+    }
+    var st = ['<span id="visiteMsg" style="color:#065f46;font-weight:600;"></span>'];
+    var carte = function (titre, corps) { return '<div style="background:#fff;border:1px solid var(--border,#cbd5e1);border-radius:12px;padding:14px;margin:10px 0;"><h3 style="margin:0 0 10px;font-size:1rem;color:var(--text,#0f172a);">' + titre + '</h3>' + corps + '</div>'; };
+    var inp = function (id, ph) { return '<input id="' + id + '" placeholder="' + esc(ph || '') + '" style="padding:6px 10px;border:1.5px solid var(--border,#cbd5e1);border-radius:8px;min-width:90px;">'; };
+
+    // Installation
+    var ins = vue.installation || {};
+    var instCorps = 'Système : <select id="vi_sys">' + ['inconnu', 'simple_flux', 'hygro', 'double_flux'].map(function (s) { return '<option value="' + s + '"' + (s === (ins.typeSysteme || 'inconnu') ? ' selected' : '') + '>' + s + '</option>'; }).join('') + '</select> '
+      + inp('vi_ctx', 'contexte') + ' ' + inp('vi_int', 'intervenant') + ' ' + inp('vi_date', 'date') + ' ' + inp('vi_etat', 'état') + ' <button type="button" onclick="visiteMajInstallation()">Enregistrer</button>';
+    st.push(carte('1. Installation', instCorps));
+
+    // Réseaux
+    var resCorps = 'Type : <select id="vi_rtype"><option value="extraction">Extraction</option><option value="insufflation">Insufflation</option></select> <button type="button" onclick="visiteAjouterReseau()">+ Ajouter un réseau</button>';
+    vue.reseaux.forEach(function (r) {
+      resCorps += '<div style="border:1px dashed var(--border,#cbd5e1);border-radius:10px;padding:10px;margin:8px 0;">'
+        + '<strong>' + esc(r.libelleType) + '</strong> <span style="color:#64748b;">(' + r.nbNoeuds + ' nœuds · ' + r.nbTroncons + ' tronçons · ' + r.nbTerminaux + ' terminaux)</span>';
+      // Nœud
+      resCorps += '<div style="margin-top:6px;">Nœud : ' + inp('vi_ntype_' + r.id, 'type') + ' ' + selStatut('vi_nstat_' + r.id) + ' ' + selProv('vi_nprov_' + r.id) + ' <button type="button" onclick="visiteAjouterNoeud(\'' + r.id + '\')">+ Nœud</button></div>';
+      // Tronçon
+      resCorps += '<div style="margin-top:6px;">Tronçon : ' + inp('vi_tam_' + r.id, 'amont') + ' → ' + inp('vi_tav_' + r.id, 'aval') + ' ' + inp('vi_trole_' + r.id, 'rôle') + ' ' + inp('vi_tpiece_' + r.id, 'pièce') + ' L ' + inp('vi_tlong_' + r.id, 'm') + ' <br>Ø relevé ' + inp('vi_tdreel_' + r.id, 'mm') + ' · Ø projeté ' + inp('vi_tdproj_' + r.id, 'mm') + ' ' + inp('vi_tcond_' + r.id, 'conduit') + ' ' + inp('vi_tetat_' + r.id, 'état') + ' ' + selStatut('vi_tlstat_' + r.id) + ' ' + selProv('vi_tprov_' + r.id) + ' <button type="button" onclick="visiteAjouterTroncon(\'' + r.id + '\')">+ Tronçon</button></div>';
+      (r.troncons || []).forEach(function (t) { resCorps += '<div style="font-size:0.82rem;color:#475569;">• ' + esc(t.id) + ' ' + esc(t.noeudAmont || '?') + '→' + esc(t.noeudAval || '?') + ' — Ø relevé ' + esc(t.diametre && t.diametre.valeur != null ? t.diametre.valeur : libelleStatutVisite(t.diametre && t.diametre.statut)) + ' / Ø projeté ' + esc(t.diametreProjet && t.diametreProjet.valeur != null ? t.diametreProjet.valeur : '—') + '</div>'; });
+      // Terminal
+      resCorps += '<div style="margin-top:6px;">Terminal : <select id="vi_tmpiece_' + r.id + '">' + piecesOptions() + '</select> ' + inp('vi_tmfct_' + r.id, 'fonction') + ' ' + inp('vi_tmtype_' + r.id, 'type') + ' ' + selStatut('vi_tmstat_' + r.id) + ' ' + selProv('vi_tmprov_' + r.id) + ' <button type="button" onclick="visiteAjouterTerminal(\'' + r.id + '\')">+ Terminal</button></div>';
+      (r.terminaux || []).forEach(function (tm) { resCorps += '<div style="font-size:0.82rem;color:#475569;">• Terminal ' + esc(tm.pieceRef || 'pièce inconnue') + ' ' + esc(tm.fonction || '') + '</div>'; });
+      resCorps += '</div>';
+    });
+    st.push(carte('2. Réseaux', resCorps));
+
+    // Centrale
+    var ce = vue.centrale || {};
+    st.push(carte('3. Centrale VMC', inp('vi_ctype', 'type') + ' ' + inp('vi_cfab', 'fabricant') + ' ' + inp('vi_cref', 'référence') + ' ' + inp('vi_cetat', 'état') + ' ' + selStatut('vi_cstat', ce.statut) + ' ' + selProv('vi_cprov') + ' <button type="button" onclick="visiteMajCentrale()">Enregistrer</button>' + (ce.reference ? '<div style="font-size:0.82rem;color:#475569;">Actuel : ' + esc(ce.reference) + '</div>' : '')));
+
+    // Interfaces
+    st.push(carte('4. Prise d\'air neuf', 'Type : <select id="vi_patype">' + ['inconnu', 'direct', 'puits_horizontal', 'puits_vertical'].map(function (x) { return '<option value="' + x + '">' + x + '</option>'; }).join('') + '</select> ' + inp('vi_paempl', 'emplacement') + ' ' + selStatut('vi_pastat') + ' ' + selProv('vi_paprov') + ' <button type="button" onclick="visiteMajInterface(\'priseAirNeuf\')">Enregistrer</button>'
+      + '<hr style="border:none;border-top:1px dashed var(--border,#cbd5e1);margin:10px 0;"><strong>Rejet</strong> : <select id="vi_rjtype">' + ['inconnu', 'toiture', 'facade'].map(function (x) { return '<option value="' + x + '">' + x + '</option>'; }).join('') + '</select> ' + inp('vi_rjempl', 'emplacement') + ' ' + selStatut('vi_rjstat') + ' ' + selProv('vi_rjprov') + ' <button type="button" onclick="visiteMajInterface(\'rejet\')">Enregistrer</button>'));
+
+    // Mesures
+    var mesCorps = 'Point ' + inp('vi_mpoint', 'point') + ' Grandeur ' + inp('vi_mgr', 'débit/pression') + ' Valeur ' + inp('vi_mval', 'valeur') + ' Unité ' + inp('vi_muni', 'm3/h') + ' Instrument ' + inp('vi_minst', 'instrument') + ' Opérateur ' + inp('vi_mope', 'opérateur') + ' <button type="button" onclick="visiteAjouterMesure()">+ Mesure</button>';
+    (vue.mesures || []).forEach(function (m) { mesCorps += '<div style="font-size:0.82rem;color:#475569;">• ' + esc(m.grandeur || '') + ' = ' + esc(m.valeur) + ' ' + esc(m.unite || '') + ' [' + esc(libelleStatutVisite(m.statut)) + ' · ' + esc(libelleProvenanceVisite(m.provenance)) + ']</div>'; });
+    st.push(carte('5. Mesures', mesCorps));
+
+    // Photos + hypothèses
+    st.push(carte('6. Photos', 'Objet <select id="vi_ptype">' + ['installation', 'reseau', 'noeud', 'troncon', 'singularite', 'terminal', 'centrale', 'prise_air_neuf', 'rejet', 'mesure'].map(function (x) { return '<option value="' + x + '">' + x + '</option>'; }).join('') + '</select> id ' + inp('vi_pobj', 'objetId') + ' <button type="button" onclick="visiteAjouterPhoto()">+ Photo</button> <span style="color:#64748b;">(' + vue.compteurs.photos + ')</span>'));
+    st.push(carte('7. Hypothèses / points à vérifier', inp('vi_hdesc', 'description') + ' ' + inp('vi_hval', 'valeur') + ' <button type="button" onclick="visiteAjouterHypothese()">+ Hypothèse</button> <span style="color:#64748b;">(' + vue.compteurs.hypotheses + ')</span>'));
+
+    // Résumé
+    var r = vue.resume || {};
+    var manques = (r.donneesManquantes || []).map(function (d) { return '<li>' + esc(d.champ) + '</li>'; }).join('');
+    var inco = (r.incoherences || []).map(function (i) { return '<li>Valeurs contradictoires : ' + esc(i.champ || i.type) + '</li>'; }).join('');
+    st.push(carte('Résumé de visite', '<div style="background:' + (r.donneesSuffisantes ? '#ecfdf5' : '#fef9ec') + ';border-radius:10px;padding:12px;">'
+      + '<strong>' + (r.donneesSuffisantes ? 'Visite complète (structure suffisante)' : 'VISITE INCOMPLÈTE') + '</strong>'
+      + '<div style="font-size:0.85rem;color:#475569;margin-top:6px;">' + vue.compteurs.reseaux + ' réseaux · ' + vue.compteurs.terminaux + ' terminaux · ' + vue.compteurs.mesures + ' mesures · ' + vue.compteurs.photos + ' photos</div>'
+      + (manques ? '<div style="margin-top:8px;">Données à compléter :<ul style="margin:4px 0;">' + manques + '</ul></div>' : '')
+      + (inco ? '<div style="margin-top:8px;color:#92400e;">Incohérences :<ul style="margin:4px 0;">' + inco + '</ul></div>' : '')
+      + '</div>'));
+
+    host.innerHTML = st.join('');
+  }
+  window.__visiteRenderVmc = render; // exposé pour un rendu externe éventuel
+
+  // ---- M57 LOT21 : lancer l'étude technique depuis la visite (délégation pure) ----
+  // N'exécute AUCUN calcul ici : appelle etudierVisiteVmc (vmc.js) qui délègue aux moteurs
+  // LOT16/LOT15-A/LOT17-A. Aucun prix, aucune projection tarifaire, aucune écriture config.
+  window.visiteAnalyser = function () {
+    var host = $('visiteEtudeResultat'); if (!host) return;
+    if (typeof etudierVisiteVmc !== 'function') { host.innerHTML = 'Moteur d\'étude indisponible.'; return; }
+    if (!donneesVisiteVmc) { host.innerHTML = '<div style="color:#64748b;">Aucune visite à analyser.</div>'; return; }
+    var pieces = [];
+    try { pieces = (piecesSelectionnees || []).slice(); } catch (e) { pieces = []; }
+    var ctx = {};
+    try { ctx = (piecesSelectionnees && piecesSelectionnees.length) ? _contexteVmc(piecesSelectionnees[0]) : {}; } catch (e) { ctx = {}; }
+    try { ctx.nbPiecesPrincipales = (typeof chantier !== 'undefined' && chantier && chantier.pieces) || ctx.nbPiecesPrincipales; } catch (e) {}
+    // Contexte d'étude EXPLICITE choisi par l'utilisateur (réel par défaut, jamais silencieux).
+    var ce = 'existant'; var selCe = $('vi_contexteEtude'); if (selCe) ce = selCe.value || 'existant';
+    // Pas de référentiel de pertes de production (hors périmètre LOT21) → étude honnêtement partielle.
+    var res = etudierVisiteVmc(pieces, ctx, donneesVisiteVmc, { contexteEtude: ce });
+    var LB = { etude_calculable: 'Étude calculable', etude_sous_hypotheses: 'Étude sous hypothèses', etude_partielle: 'Étude partielle', etude_indeterminee: 'Étude indéterminée' };
+    var li = function (arr, f) { return (arr || []).length ? '<ul style="margin:4px 0 0;">' + arr.map(f).join('') + '</ul>' : '<div style="color:#64748b;font-size:0.85rem;">—</div>'; };
+    host.innerHTML = '<div style="background:#fff;border:1px solid var(--border,#cbd5e1);border-radius:12px;padding:14px;">'
+      + '<h3 style="margin:0 0 8px;">Analyse technique (contexte : ' + esc(res.contexteEtude) + ')</h3>'
+      + '<div style="font-weight:700;color:#0f766e;">' + esc(LB[res.statut] || res.statut) + '</div>'
+      + '<div style="margin-top:10px;">Données manquantes :' + li(res.donneesManquantes, function (d) { return '<li>' + esc(d.champ) + (d.impact ? ' <span style="color:#94a3b8;">(' + esc(d.impact) + ')</span>' : '') + '</li>'; }) + '</div>'
+      + '<div style="margin-top:10px;">Incohérences non arbitrées :' + li(res.normalisation.incoherences, function (i) { return '<li>' + esc(i.champ || i.type) + '</li>'; }) + '</div>'
+      + '<div style="margin-top:10px;">Points à vérifier :' + li(res.pointsAVerifier, function (p) { return '<li>' + esc(p.description || p.type) + '</li>'; }) + '</div>'
+      + '<div style="margin-top:10px;font-size:0.85rem;color:#64748b;">Perte de charge max calculable : ' + esc(res.etude && res.etude.synthese && res.etude.synthese.perteMaxCalculable != null ? res.etude.synthese.perteMaxCalculable + ' Pa' : 'non calculable') + ' · Pression : ' + esc(res.pression ? res.pression.statut : '—') + '</div>'
+      + '<div style="margin-top:8px;font-size:0.78rem;color:#94a3b8;">Aucune conformité, aucun dimensionnement, aucun tarif — collecte et étude technique uniquement.</div>'
+      + '</div>';
   };
 })();
 </script>

@@ -661,4 +661,1392 @@ function preCalculSectionVmc(pieces, contexte, besoin, debits, topologie, preDim
 }
 
 
-if (typeof module !== "undefined" && module.exports) module.exports = { getVmcPourPiece, _vmcRole, evaluationSupportVmc, controlesOublisVmc, verifierVMC, obligationsVmc, besoinVmc, debitsVmc, topologieVmc, preDimensionnementVmc, preCalculSectionVmc };
+// =====================================================================
+// M57 LOT15-A — PERTES DE CHARGE VMC (évaluateur PUR, partiel et traçable)
+// =====================================================================
+// pertesDeChargeVmc(pieces, contexte, preCalcul, donneesReseau, referentielPertes) :
+// fonction PURE qui calcule des pertes de charge UNIQUEMENT à partir de données fournies
+// en entrée. Elle est un ÉVALUATEUR : **aucun coefficient n'est écrit dans ce code**
+// (ni Pa/m, ni ζ, ni ρ, ni marge). Tous viennent du `referentielPertes` (sourcé/versionné)
+// et la géométrie de `donneesReseau` (relevé fourni). Sans référentiel exploitable OU sans
+// géométrie → statut 'incomplet' + donneesManquantes (aucune valeur par défaut silencieuse).
+//
+// Modèle minimal : RÉSEAU → COLLECTEUR → ANTENNES (pas de graphe physique). Antenne reliée
+// à une pièce via pieceRef (id#numero). Débit par tronçon = débit propre (antenne = son
+// terminal ; collecteur = somme des antennes). DF = deux réseaux SÉPARÉS (jamais additionnés).
+// Ne calcule NI pression disponible, NI pertes centrale/filtre/échangeur (données fabricant),
+// NI marge. Ne conclut JAMAIS « conforme ». Hors money-path, aucune persistance, aucun DOM.
+//
+// referentielPertes attendu (données, pas de valeurs inventées ici) :
+//   { methode, source, version, provenance, masseVolumiqueAir,
+//     lineaire: { <conduit>: { <diametre_mm>: R_Pa_par_m } },
+//     singulier: { <type>: { <geometrie>: { coefficient, source, version } } } }
+// donneesReseau : { extraction: {antennes:[{pieceRef,debit,longueur,diametre,conduit,singularites:[{type,geometrie}]}], collecteur:{...}, cheminDefavorable?:[ref] }, insufflation:{...} }
+function pertesDeChargeVmc(pieces, contexte, preCalcul, donneesReseau, referentielPertes) {
+  preCalcul = preCalcul || { systeme: 'inconnue', reseaux: [] };
+  donneesReseau = donneesReseau || {};
+  var systeme = preCalcul.systeme || 'inconnue';
+  var hypotheses = [], donneesManquantes = [], pointsAVerifier = [];
+  var dm = function (champ, impact) { if (!donneesManquantes.some(function (x) { return x.champ === champ; })) donneesManquantes.push({ champ: champ, impact: impact }); };
+  var pv = function (type, description) { pointsAVerifier.push({ type: type, description: description }); };
+  var round = function (v) { return v == null ? null : Math.round(v * 100) / 100; };
+
+  var refOk = !!(referentielPertes && referentielPertes.methode);
+  var methode = refOk ? { methode: referentielPertes.methode, source: referentielPertes.source || null, version: referentielPertes.version || null, provenance: referentielPertes.provenance || null } : null;
+  if (!refOk) { dm('referentiel_pertes', 'pertes_de_charge'); pv('technique', 'Référentiel de pertes (Pa/m, ζ, ρ) absent ou non identifié : aucune perte calculée.'); }
+
+  // Accès référentiel (jamais de valeur par défaut : renvoie null si absent).
+  function rLineaire(conduit, diametre) {
+    if (!refOk || !referentielPertes.lineaire || conduit == null || diametre == null) return null;
+    var t = referentielPertes.lineaire[conduit]; if (!t) return null;
+    var v = t[diametre]; return (typeof v === 'number') ? v : null;
+  }
+  function zeta(type, geometrie) {
+    if (!refOk || !referentielPertes.singulier || !referentielPertes.singulier[type]) return null;
+    var g = referentielPertes.singulier[type][geometrie];
+    return (g && typeof g.coefficient === 'number') ? g.coefficient : null;
+  }
+  // M57 LOT15-B : tolère les deux formes de masse volumique — nombre (compat) OU
+  // contrat versionné { valeur, unite, source, version }. Aucune valeur par défaut.
+  var _mva = refOk ? referentielPertes.masseVolumiqueAir : null;
+  var rho = (typeof _mva === 'number') ? _mva : ((_mva && typeof _mva.valeur === 'number') ? _mva.valeur : null);
+
+  // Perte linéaire d'un tronçon = R × L (R du référentiel). null si donnée absente.
+  function perteLineaireTroncon(t) {
+    var R = rLineaire(t.conduit, t.diametre);
+    if (R == null) { if (refOk) dm('coefficient_lineaire:' + (t.conduit || '?') + '/' + (t.diametre || '?'), 'perte_lineaire'); return null; }
+    if (typeof t.longueur !== 'number') { dm('longueur:' + (t.ref || t.role), 'perte_lineaire'); return null; }
+    return R * t.longueur;
+  }
+  // Perte singulière = Σ ζ × ½ρV². null si une singularité connue n'a pas de coefficient.
+  function perteSinguliereTroncon(t) {
+    var sing = t.singularites || [];
+    if (!sing.length) return 0; // aucune singularité déclarée → 0 (pas une valeur inventée)
+    if (rho == null) { dm('masse_volumique_air', 'perte_singuliere'); return null; }
+    if (typeof t.debit !== 'number' || typeof t.diametre !== 'number') { dm('debit_ou_diametre:' + (t.ref || t.role), 'perte_singuliere'); return null; }
+    var S = Math.PI * Math.pow(t.diametre / 1000, 2) / 4; // section (m²) à partir du diamètre (mm)
+    if (!(S > 0)) return null;
+    var V = (t.debit / 3600) / S; // m/s
+    var pdyn = 0.5 * rho * V * V;
+    var somme = 0, complet = true;
+    sing.forEach(function (s) {
+      var z = zeta(s.type, s.geometrie);
+      if (z == null) { complet = false; dm('coefficient_singulier:' + (s.type || '?') + '/' + (s.geometrie || '?'), 'perte_singuliere'); return; }
+      somme += z * pdyn;
+    });
+    return complet ? somme : null;
+  }
+
+  if (systeme === 'double_flux') hypotheses.push({ clef: 'equilibrage_df', valeur: 'insufflation ≈ extraction (cible globale)', origine: 'regle_pro' });
+
+  var reseaux = [];
+  (Array.isArray(preCalcul.reseaux) ? preCalcul.reseaux : []).forEach(function (pr) {
+    var type = pr.type; // extraction | insufflation
+    var dr = donneesReseau[type];
+    var out = { type: type, troncons: [], pertesLineaires: null, pertesSingulieres: null, pertesTerminaux: null, perteTotale: null, pressionNecessaire: null, statut: 'incomplet' };
+    if (!refOk || !dr) { if (!dr) dm('donnees_reseau:' + type, 'geometrie'); reseaux.push(out); return; }
+
+    // Tronçons = antennes (débit propre) + collecteur (somme des antennes si non fourni).
+    var troncons = [];
+    (dr.antennes || []).forEach(function (a) { troncons.push({ role: 'antenne', ref: (a.pieceRef || null), debit: a.debit, longueur: a.longueur, diametre: a.diametre, conduit: a.conduit, singularites: a.singularites }); });
+    if (dr.collecteur) {
+      var c = dr.collecteur;
+      var debitCol = (typeof c.debit === 'number') ? c.debit : (dr.antennes || []).reduce(function (s, a) { return s + (typeof a.debit === 'number' ? a.debit : 0); }, 0);
+      troncons.push({ role: 'collecteur', ref: 'collecteur', debit: debitCol, longueur: c.longueur, diametre: c.diametre, conduit: c.conduit, singularites: c.singularites });
+    }
+
+    var lin = 0, sing = 0, linComplet = true, singComplet = true;
+    troncons.forEach(function (t) {
+      var pl = perteLineaireTroncon(t);
+      var ps = perteSinguliereTroncon(t);
+      if (pl == null) linComplet = false; else lin += pl;
+      if (ps == null) singComplet = false; else sing += ps;
+      out.troncons.push({ role: t.role, ref: t.ref, debit: (t.debit != null ? t.debit : null), longueur: (t.longueur != null ? t.longueur : null), diametre: (t.diametre != null ? t.diametre : null), conduit: (t.conduit || null), pertesLineaires: round(pl), pertesSingulieres: round(ps) });
+    });
+    out.pertesLineaires = linComplet ? round(lin) : null;
+    out.pertesSingulieres = singComplet ? round(sing) : null;
+
+    // Perte totale / pression nécessaire : uniquement si le chemin est entièrement décrit.
+    var complet = linComplet && singComplet && troncons.length > 0;
+    if (Array.isArray(dr.cheminDefavorable) && dr.cheminDefavorable.length) {
+      // Somme sur le chemin défavorable explicitement fourni.
+      var parRef = {}; out.troncons.forEach(function (o) { parRef[o.ref] = o; });
+      var somme = 0, chemComplet = true;
+      dr.cheminDefavorable.forEach(function (ref) {
+        var o = parRef[ref];
+        if (!o || o.pertesLineaires == null || o.pertesSingulieres == null) { chemComplet = false; return; }
+        somme += o.pertesLineaires + o.pertesSingulieres;
+      });
+      if (chemComplet) { out.perteTotale = round(somme); out.pressionNecessaire = round(somme); out.statut = 'calcule'; }
+      else { pv('technique', 'Chemin défavorable (' + type + ') incomplètement décrit : pression non calculée.'); }
+    } else if (complet) {
+      out.perteTotale = round(lin + sing); out.pressionNecessaire = round(lin + sing); out.statut = 'calcule';
+      pv('technique', 'Chemin ' + type + ' pris = collecteur + antennes décrits (arbre à 2 niveaux) — chemin défavorable explicite à confirmer.');
+    } // sinon statut reste 'incomplet'
+
+    reseaux.push(out);
+  });
+
+  // Pertes centrale / composants (filtre, échangeur, batterie, dégivrage) : jamais inventées.
+  if (systeme === 'double_flux') { dm('pertes_centrale_df', 'pression'); pv('technique', 'Pertes internes centrale DF (filtre/échangeur/batterie/dégivrage) : données fabricant requises, non calculées.'); }
+  pv('technique', 'Pression disponible de la centrale (courbe constructeur) non fournie : marge non évaluée.');
+
+  var statutGlobal;
+  if (systeme !== 'simple_flux' && systeme !== 'hygro' && systeme !== 'double_flux') statutGlobal = 'indetermine';
+  else if (reseaux.length && reseaux.every(function (r) { return r.statut === 'calcule'; })) statutGlobal = 'calcule';
+  else statutGlobal = 'incomplet';
+
+  return {
+    statut: statutGlobal,
+    systeme: systeme,
+    methode: methode,
+    reseaux: reseaux,
+    hypotheses: hypotheses,
+    donneesManquantes: donneesManquantes,
+    pointsAVerifier: pointsAVerifier
+  };
+}
+
+
+// =====================================================================
+// M57 LOT16 — ORCHESTRATEUR de PRÉ-ÉTUDE VMC (fonction pure)
+// =====================================================================
+// preEtudeVmc(pieces, contexte, options?) : enchaîne les couches PURES existantes
+// (besoinVmc → debitsVmc → topologieVmc → preDimensionnementVmc → preCalculSectionVmc →
+// pertesDeChargeVmc) et produit une ANALYSE d'étude agrégée. Il NE DUPLIQUE aucune règle :
+// il ne fait que consommer/synthétiser les sorties. Pur, déterministe, hors money-path,
+// aucune persistance, aucun prix/catalogue/Runtime, aucune donnée inventée.
+//
+// options = { donneesReseau?, referentielPertes? } (transmis à LOT15 ; absents → pertes
+// incomplètes mais l'étude amont reste produite). Ne bloque JAMAIS toute l'étude.
+// Chemins aérauliques : construits UNIQUEMENT si LOT15 fournit des pertes par tronçon
+// (géométrie décrite) ; sinon signalés 'chemin_physique_non_decrit' (jamais fabriqués).
+// N'affirme jamais la conformité ni le dimensionnement : statut ∈ etude_indeterminee | etude_partielle
+// | etude_sous_hypotheses | etude_calculable, avec la RAISON explicite.
+function preEtudeVmc(pieces, contexte, options) {
+  options = options || {};
+  contexte = contexte || {};
+
+  // M57 LOT15-B : accepter le CONTRAT riche de données réseau ({reseaux:[…]}) et l'adapter
+  // à la forme consommée par pertesDeChargeVmc (LOT15-A) — adaptation PURE, aucune règle ajoutée.
+  if (options.donneesReseau && Array.isArray(options.donneesReseau.reseaux)) {
+    options = Object.assign({}, options, { donneesReseau: adapterDonneesReseauPourPertes(options.donneesReseau) });
+  }
+
+  // --- Chaîne (aucune règle recréée) ---
+  var besoin = besoinVmc(pieces, contexte);
+  var debits = debitsVmc(pieces, contexte, besoin);
+  var topologie = topologieVmc(pieces, contexte, besoin, debits);
+  var preDim = preDimensionnementVmc(pieces, contexte, besoin, debits, topologie);
+  var sections = preCalculSectionVmc(pieces, contexte, besoin, debits, topologie, preDim);
+  var pertes = pertesDeChargeVmc(pieces, contexte, sections, options.donneesReseau, options.referentielPertes);
+
+  var systeme = besoin.systeme;
+  var determine = (systeme === 'simple_flux' || systeme === 'hygro' || systeme === 'double_flux');
+
+  // --- Agrégation traçable des manques / points à vérifier / hypothèses ---
+  var donneesManquantes = [], pointsAVerifier = [], hypotheses = [];
+  var dm = function (champ, impact) { if (champ && !donneesManquantes.some(function (x) { return x.champ === champ; })) donneesManquantes.push({ champ: champ, impact: impact || null }); };
+  var pv = function (o) { if (o && !pointsAVerifier.some(function (x) { return x.description === o.description; })) pointsAVerifier.push(o); };
+  var hy = function (o) { if (o && !hypotheses.some(function (x) { return x.clef === o.clef; })) hypotheses.push(o); };
+  [preDim, sections, pertes].forEach(function (layer) {
+    (layer.donneesManquantes || []).forEach(function (d) { dm(d.champ, d.impact); });
+    (layer.pointsAVerifier || []).forEach(function (p) { pv(p); });
+    (layer.hypotheses || []).forEach(function (h) { hy(h); });
+  });
+  // Terminaux : caractéristiques constructeur jamais disponibles ici (débit/plages de pression).
+  dm('caracteristiques_aerauliques_terminaux', 'validation_dimensionnement');
+
+  // --- Chemins aérauliques (uniquement si pertes par tronçon disponibles) ---
+  var chemins = { favorise: [], defavorise: [] };
+  var cheminsCalcules = [];
+  (pertes.reseaux || []).forEach(function (r) {
+    var troncons = r.troncons || [];
+    if (!troncons.length) return;
+    var collecteur = troncons.filter(function (t) { return t.role === 'collecteur'; })[0] || null;
+    var perteT = function (t) { return (t && t.pertesLineaires != null && t.pertesSingulieres != null) ? (t.pertesLineaires + t.pertesSingulieres) : null; };
+    var pc = collecteur ? perteT(collecteur) : 0; // 0 si pas de collecteur décrit
+    troncons.filter(function (t) { return t.role === 'antenne'; }).forEach(function (a) {
+      var pa = perteT(a);
+      if (pa == null || (collecteur && pc == null)) return; // chemin non calculable → non fabriqué
+      cheminsCalcules.push({
+        id: r.type + ':' + (a.ref || '?'), reseau: r.type,
+        origine: collecteur ? 'collecteur' : (r.type === 'insufflation' ? 'centrale' : 'centrale'),
+        destination: a.ref, points: collecteur ? [a.ref, 'collecteur'] : [a.ref],
+        debitProjet: (a.debit != null ? a.debit : null),
+        perteCalculable: Math.round((pa + (collecteur ? pc : 0)) * 100) / 100, statut: 'calcule'
+      });
+    });
+  });
+  if (cheminsCalcules.length) {
+    var tri = cheminsCalcules.slice().sort(function (x, y) { return x.perteCalculable - y.perteCalculable; });
+    chemins.favorise = [tri[0]];
+    chemins.defavorise = [tri[tri.length - 1]];
+  } else if (determine) {
+    dm('chemin_physique_non_decrit', 'analyse_chemins');
+    pv({ type: 'technique', description: 'Topologie physique des réseaux non décrite : chemins aérauliques (favorable/défavorable) non calculables.' });
+  }
+
+  // --- Synthèse (dérivée, sans invention) ---
+  var reseauExt = (preDim.reseaux || []).filter(function (x) { return x.type === 'extraction'; })[0] || null;
+  var reseauIns = (preDim.reseaux || []).filter(function (x) { return x.type === 'insufflation'; })[0] || null;
+  var pertesCalc = (pertes.reseaux || []).map(function (x) { return x.perteTotale; }).filter(function (v) { return typeof v === 'number'; });
+  var pressionCalculable = (pertes.reseaux || []).some(function (x) { return x.pressionNecessaire != null; });
+  var synthese = {
+    debitExtraction: reseauExt ? reseauExt.debitProjet : null,
+    debitInsufflation: reseauIns ? reseauIns.debitProjet : null,   // DF : cible d'équilibrage (hypothèse)
+    sectionReseaux: (sections.reseaux || []).map(function (x) { return { type: x.type, sectionTheorique: x.sectionTheorique, diametreEquivalent: x.diametreEquivalent }; }),
+    perteMaxCalculable: pertesCalc.length ? Math.max.apply(null, pertesCalc) : null,
+    pressionNecessaireCalculable: pressionCalculable
+  };
+
+  // --- Statut d'étude + raison explicite ---
+  var statutEtude, raisonStatut;
+  if (!determine) { statutEtude = 'etude_indeterminee'; raisonStatut = 'Système de ventilation non déterminé (solution ' + systeme + ').'; }
+  else if (!(sections.reseaux || []).length) { statutEtude = 'etude_partielle'; raisonStatut = 'Aucun réseau fonctionnel retenu (aucune fonction en périmètre).'; }
+  else if (pertes.statut === 'calcule') { statutEtude = 'etude_calculable'; raisonStatut = 'Pertes de charge calculables sur les réseaux décrits (référentiel + géométrie fournis).'; }
+  else if (synthese.sectionReseaux.some(function (s) { return s.sectionTheorique != null; })) { statutEtude = 'etude_sous_hypotheses'; raisonStatut = 'Sections théoriques obtenues sous hypothèse de vitesse ; pertes de charge non entièrement calculables (référentiel/relevé de visite manquants).'; }
+  else { statutEtude = 'etude_partielle'; raisonStatut = 'Débits obtenus mais sections/pertes indisponibles.'; }
+
+  // --- Données de visite à relever (liste structurée, PAS un formulaire) ---
+  var donneesVisite = ['longueurs_troncons', 'diametres_sections_reels', 'type_conduit', 'etat_conduit_existant',
+    'coudes', 'tes', 'reductions', 'localisation_caisson', 'localisation_rejet', 'localisation_prise_air_neuf',
+    'caracteristiques_terminaux', 'caracteristiques_groupe', 'references_constructeur', 'obstacles_traversees'];
+  if (systeme === 'double_flux') donneesVisite.push('elements_specifiques_df');
+
+  // --- Limites explicites ---
+  var limites = [
+    'Sections issues d\'une hypothèse de vitesse (pré-calcul théorique), non d\'un dimensionnement réel.',
+    'Pertes de charge dépendantes d\'un référentiel sourcé et d\'un relevé de visite (géométrie réelle).',
+    'Pression disponible de la centrale (courbe constructeur) et pertes internes (filtre/échangeur/batterie) non évaluées.',
+    'Aucune validation de conformité, aucune sélection produit, aucun équilibrage réel.',
+    'Existant physique (réseaux conservés/à déposer) non modélisé.'
+  ];
+
+  return {
+    systeme: systeme,
+    statutEtude: statutEtude,
+    raisonStatut: raisonStatut,
+    indetermine: !determine,
+    besoin: besoin,
+    debits: debits,
+    topologie: topologie,
+    preDimensionnement: preDim,
+    sections: sections,
+    pertes: pertes,
+    chemins: chemins,
+    synthese: synthese,
+    donneesVisite: donneesVisite,
+    donneesManquantes: donneesManquantes,
+    pointsAVerifier: pointsAVerifier,
+    hypotheses: hypotheses,
+    limites: limites
+  };
+}
+
+
+// =====================================================================
+// M57 LOT15-B — CONTRAT « données réseau » + « référentiel de pertes »
+// =====================================================================
+// Couche de MODÈLE/CONTRAT pure : construit et valide des structures déclaratives
+// (données physiques relevées, référentiel sourcé) SANS calculer, SANS inventer de valeur,
+// SANS persistance, SANS money-path, SANS UI. Une donnée absente reste null (jamais 0/défaut).
+// LOT15-A/LOT16 les EXPLOITENT ; LOT15-B ne fait que les préparer/normaliser.
+
+// Catégories de provenance (réutilisées dans toute la chaîne). 'test' = jamais production.
+var PROVENANCE_VMC = { VISITE: 'visite', CONSTRUCTEUR: 'constructeur', REFERENTIEL: 'referentiel', CLIENT: 'client', HYPOTHESE_DSBAT: 'hypothese_dsbat', TEST: 'test' };
+
+function _nombreOuNull(v) { return (typeof v === 'number' && isFinite(v)) ? v : null; }
+function _ouNull(v) { return (v == null) ? null : v; }
+
+// Normalise un jeu de données réseau (contrat riche). Champs absents → null (aucun défaut).
+// Distingue le RELEVÉ (diametre/section) du PROJETÉ (diametreProjet) — jamais écrasés l'un par l'autre.
+function creerDonneesReseau(spec) {
+  spec = spec || {};
+  var out = { reseaux: [], centrale: null, priseAirNeuf: null, rejet: null };
+  (Array.isArray(spec.reseaux) ? spec.reseaux : []).forEach(function (r) {
+    if (!r || (r.type !== 'extraction' && r.type !== 'insufflation')) return; // type obligatoire, sinon ignoré (jamais deviné)
+    var reseau = { id: _ouNull(r.id), type: r.type, troncons: [], terminaux: [] };
+    (Array.isArray(r.troncons) ? r.troncons : []).forEach(function (t) {
+      reseau.troncons.push({
+        id: _ouNull(t.id), role: _ouNull(t.role), origine: _ouNull(t.origine), destination: _ouNull(t.destination), pieceRef: _ouNull(t.pieceRef),
+        longueur: _nombreOuNull(t.longueur), uniteLongueur: (t.longueur != null ? 'm' : null),
+        debit: _nombreOuNull(t.debit),
+        diametre: _nombreOuNull(t.diametre),          // RELEVÉ réel
+        section: _nombreOuNull(t.section),            // RELEVÉ réel
+        diametreProjet: _nombreOuNull(t.diametreProjet), // THÉORIQUE (LOT14), distinct du relevé
+        typeConduit: _ouNull(t.typeConduit),
+        singularites: (Array.isArray(t.singularites) ? t.singularites : []).map(function (s) {
+          return { type: _ouNull(s.type), quantite: _nombreOuNull(s.quantite), geometrie: _ouNull(s.geometrie), reference: _ouNull(s.reference) };
+        }),
+        provenance: _ouNull(t.provenance)
+      });
+    });
+    (Array.isArray(r.terminaux) ? r.terminaux : []).forEach(function (tm) {
+      reseau.terminaux.push({ id: _ouNull(tm.id), pieceRef: _ouNull(tm.pieceRef), fonction: _ouNull(tm.fonction), reference: _ouNull(tm.reference), provenance: _ouNull(tm.provenance) });
+    });
+    out.reseaux.push(reseau);
+  });
+  var interface3 = function (o) { return o ? { type: _ouNull(o.type), reference: _ouNull(o.reference), provenance: _ouNull(o.provenance) } : null; };
+  if (spec.centrale) out.centrale = interface3(spec.centrale);
+  if (spec.priseAirNeuf) out.priseAirNeuf = interface3(spec.priseAirNeuf);
+  if (spec.rejet) out.rejet = interface3(spec.rejet);
+  return out;
+}
+
+// Signale (sans inventer) les données physiques absentes d'un jeu de données réseau.
+function validerDonneesReseau(donneesReseau) {
+  var manques = [];
+  var add = function (champ) { if (!manques.some(function (x) { return x.champ === champ; })) manques.push({ champ: champ, impact: 'pertes_de_charge' }); };
+  var reseaux = (donneesReseau && Array.isArray(donneesReseau.reseaux)) ? donneesReseau.reseaux : [];
+  if (!reseaux.length) add('donnees_reseau');
+  reseaux.forEach(function (r) {
+    (r.troncons || []).forEach(function (t) {
+      var ref = (t.id || t.pieceRef || t.role || 'troncon');
+      if (t.longueur == null) add('longueur:' + ref);
+      if (t.diametre == null && t.section == null) add('diametre_ou_section:' + ref);
+      if (t.typeConduit == null) add('type_conduit:' + ref);
+      (t.singularites || []).forEach(function (s) { if (!s.geometrie) add('geometrie_singularite:' + (s.type || '?')); });
+    });
+  });
+  return { valide: manques.length === 0, donneesManquantes: manques };
+}
+
+// Adapte le contrat riche → forme consommée par pertesDeChargeVmc (LOT15-A) : par type de
+// réseau, { antennes:[…], collecteur }. Les quantités de singularités sont dépliées (LOT15-A
+// somme une entrée par singularité). Extraction et insufflation restent SÉPARÉES.
+function adapterDonneesReseauPourPertes(donneesReseau) {
+  if (!donneesReseau || !Array.isArray(donneesReseau.reseaux)) return donneesReseau || {};
+  var out = {};
+  donneesReseau.reseaux.forEach(function (r) {
+    var antennes = [], collecteur = null, chemin = null;
+    (r.troncons || []).forEach(function (t) {
+      var role = t.role || (t.pieceRef ? 'antenne' : 'collecteur');
+      var sing = [];
+      (t.singularites || []).forEach(function (s) { var n = Math.max(1, t == null ? 1 : (s.quantite || 1)); for (var i = 0; i < n; i++) sing.push({ type: s.type, geometrie: s.geometrie }); });
+      var noeud = { pieceRef: t.pieceRef, debit: t.debit, longueur: t.longueur, diametre: t.diametre, conduit: t.typeConduit, singularites: sing };
+      if (role === 'collecteur') collecteur = noeud; else antennes.push(noeud);
+    });
+    out[r.type] = { antennes: antennes, collecteur: collecteur };
+    if (Array.isArray(r.cheminDefavorable)) out[r.type].cheminDefavorable = r.cheminDefavorable;
+  });
+  return out;
+}
+
+// Construit le CONTRAT du référentiel de pertes (versionné/sourcé). NE REMPLIT AUCUN
+// coefficient : lineaire/singulier/composants restent tels que fournis (vides si non fournis).
+// Aucune marge, aucun coefficient universel, aucune valeur par défaut cachée.
+function creerReferentielPertes(spec) {
+  spec = spec || {};
+  var mva = spec.masseVolumiqueAir;
+  return {
+    id: _ouNull(spec.id), methode: _ouNull(spec.methode), source: _ouNull(spec.source), version: _ouNull(spec.version),
+    provenance: _ouNull(spec.provenance), dateValidation: _ouNull(spec.dateValidation),
+    masseVolumiqueAir: mva ? { valeur: _nombreOuNull(mva.valeur), unite: 'kg/m3', source: _ouNull(mva.source), version: _ouNull(mva.version) } : null,
+    lineaire: (spec.lineaire && typeof spec.lineaire === 'object') ? spec.lineaire : {},   // vide → LOT15-A renverra incomplet
+    singulier: (spec.singulier && typeof spec.singulier === 'object') ? spec.singulier : {},
+    composants: (spec.composants && typeof spec.composants === 'object') ? spec.composants : {},
+    domaines: _ouNull(spec.domaines)
+  };
+}
+
+// Valide la présence des méta-données obligatoires du référentiel (sans juger les valeurs).
+function validerReferentielPertes(ref) {
+  var manques = [];
+  var need = function (champ, ok) { if (!ok) manques.push({ champ: champ, impact: 'referentiel_pertes' }); };
+  need('id', ref && ref.id != null);
+  need('methode', ref && ref.methode != null);
+  need('source', ref && ref.source != null);
+  need('version', ref && ref.version != null);
+  need('dateValidation', ref && ref.dateValidation != null);
+  need('masseVolumiqueAir', ref && ref.masseVolumiqueAir && typeof ref.masseVolumiqueAir.valeur === 'number');
+  var vide = !ref || ((!ref.lineaire || !Object.keys(ref.lineaire).length) && (!ref.singulier || !Object.keys(ref.singulier).length));
+  if (vide) manques.push({ champ: 'coefficients_pertes', impact: 'referentiel_pertes' });
+  return { valide: manques.length === 0, manques: manques, provenanceProduction: !!(ref && ref.provenance && ref.provenance !== PROVENANCE_VMC.TEST) };
+}
+
+// Liste structurée des champs à relever en visite (pas de formulaire, juste le modèle).
+function champsReleveVisite(systeme) {
+  var base = ['longueurs_troncons', 'diametres_sections_reels', 'type_conduit', 'etat_conduit_existant', 'coudes', 'tes', 'reductions',
+    'terminaux', 'localisation_caisson', 'localisation_prise_air_neuf', 'localisation_rejet', 'reference_groupe', 'reference_terminaux', 'donnees_constructeur'];
+  if (systeme === 'double_flux') base = base.concat(['elements_specifiques_df']);
+  return base;
+}
+
+
+// =====================================================================
+// M57 LOT17-A — ANALYSE PRESSION DISPONIBLE / ÉQUILIBRE AÉRAULIQUE VMC
+// =====================================================================
+// analysePressionVmc(pieces, contexte, preEtude, donneesTechnique?) : fonction PURE qui
+// COMPARE, par réseau, la PRESSION DISPONIBLE (donnée EXTERNE fournie) aux PERTES NÉCESSAIRES
+// (calculées en amont : LOT15/LOT16) + pertes composants/terminaux UNIQUEMENT si fournies.
+// Ne sélectionne aucun produit, ne crée aucun prix, ne conclut jamais « conforme », n'invente
+// aucune pression/perte/marge. « non renseigné » ≠ « 0 Pa ». Hors money-path, aucune persistance.
+//
+// donneesTechnique = {
+//   pressionDisponible: { <type>: { valeur, unite:'Pa', debitReference, source, version, provenance } },
+//   composants:        { <type>: [ { composant, valeur, unite:'Pa', source, version, provenance } ] }, // optionnel
+//   terminaux:         { <type>: { valeur, unite:'Pa', debitReference, source, version, provenance } }  // optionnel
+// }   avec <type> ∈ { extraction, insufflation }.
+function analysePressionVmc(pieces, contexte, preEtude, donneesTechnique) {
+  preEtude = preEtude || {};
+  donneesTechnique = donneesTechnique || {};
+  var systeme = preEtude.systeme || 'inconnue';
+  var determine = (systeme === 'simple_flux' || systeme === 'hygro' || systeme === 'double_flux');
+  var dispoIn = donneesTechnique.pressionDisponible || {};
+  var compIn = donneesTechnique.composants || {};
+  var termIn = donneesTechnique.terminaux || {};
+
+  var donneesManquantes = [], pointsAVerifier = [], hypotheses = [], limites = [];
+  var dm = function (champ, impact) { if (champ && !donneesManquantes.some(function (x) { return x.champ === champ; })) donneesManquantes.push({ champ: champ, impact: impact || null }); };
+  var pv = function (o) { if (o && !pointsAVerifier.some(function (x) { return x.description === o.description; })) pointsAVerifier.push(o); };
+  (preEtude.hypotheses || []).forEach(function (h) { if (h.clef === 'equilibrage_df') hypotheses.push({ clef: h.clef, valeur: h.valeur, origine: 'hypothese' }); });
+
+  var num = function (v) { return (typeof v === 'number' && isFinite(v)) ? v : null; };
+  var pertesReseauLot15 = (preEtude.pertes && Array.isArray(preEtude.pertes.reseaux)) ? preEtude.pertes.reseaux : [];
+  var preDimReseaux = (preEtude.preDimensionnement && Array.isArray(preEtude.preDimensionnement.reseaux)) ? preEtude.preDimensionnement.reseaux : [];
+  var cheminsPre = preEtude.chemins || { favorise: [], defavorise: [] };
+  var debitPourType = function (type) { var r = preDimReseaux.filter(function (x) { return x.type === type; })[0]; return r ? num(r.debitProjet) : null; };
+  var cheminType = function (arr, type) { var c = (arr || []).filter(function (x) { return x.reseau === type; })[0]; return c || null; };
+
+  var reseaux = [];
+  pertesReseauLot15.forEach(function (pr) {
+    var type = pr.type; // extraction | insufflation
+    var debitEtudie = debitPourType(type);
+    var debitOrigine = (type === 'insufflation') ? 'hypothese' : 'projet'; // DF insufflation = cible d'équilibrage
+
+    // Pertes réseau calculées (LOT15, chemin décrit). null → incomplet.
+    var pReseau = num(pr.pressionNecessaire);
+
+    // Composants centrale + terminaux : ajoutés SEULEMENT si fournis ; sinon signalés (jamais 0).
+    var comps = Array.isArray(compIn[type]) ? compIn[type] : null;
+    var somComp = null, compComplet = true;
+    if (comps) { somComp = 0; comps.forEach(function (c) { var v = num(c.valeur); if (v == null) compComplet = false; else somComp += v; }); }
+    else { dm('pertes_internes_centrale_non_documentees:' + type, 'pression_necessaire'); }
+    var term = termIn[type] || null; var pTerm = term ? num(term.valeur) : null;
+    if (!term) dm('pertes_terminaux_non_documentees:' + type, 'pression_necessaire');
+
+    var pertesNecessaires = null, detail = null, complet = true;
+    if (pReseau != null) {
+      var total = pReseau + (somComp != null ? somComp : 0) + (pTerm != null ? pTerm : 0);
+      detail = { reseau: pReseau, composants: (somComp != null ? Math.round(somComp * 100) / 100 : null), terminaux: pTerm };
+      pertesNecessaires = { valeur: Math.round(total * 100) / 100, unite: 'Pa', detail: detail };
+      if (!comps || !compComplet || !term) complet = false; // termes manquants → total = borne inférieure
+    } else { dm('pertes_reseau_non_calculables:' + type, 'pression_necessaire'); }
+
+    // Pression disponible (externe). Provenance conservée. Débit de référence vérifié.
+    var dispoBrut = dispoIn[type] || null;
+    var pressionDisponible = null, debitCompatible = null;
+    if (dispoBrut && num(dispoBrut.valeur) != null) {
+      pressionDisponible = { valeur: num(dispoBrut.valeur), unite: 'Pa', debitReference: num(dispoBrut.debitReference),
+        source: (dispoBrut.source || null), version: (dispoBrut.version || null), provenance: (dispoBrut.provenance || null) };
+      var dref = pressionDisponible.debitReference;
+      debitCompatible = (dref != null && debitEtudie != null && dref === debitEtudie);
+      if (!debitCompatible) { dm('debit_reference_incompatible:' + type, 'comparaison'); pv({ type: 'technique', description: 'Pression disponible ' + type + ' documentée à un débit différent du débit étudié : comparaison non applicable telle quelle.' }); }
+    } else { dm('pression_disponible_groupe:' + type, 'comparaison'); }
+
+    // Marge = disponible − nécessaire, UNIQUEMENT si les deux connues et débit compatible.
+    var margePa = null, statut;
+    if (!determine) statut = 'indetermine';
+    else if (pertesNecessaires == null || pressionDisponible == null) statut = 'incomplet';
+    else if (debitCompatible === false) statut = 'a_verifier';
+    else {
+      margePa = Math.round((pressionDisponible.valeur - pertesNecessaires.valeur) * 100) / 100;
+      if (!complet) statut = 'a_verifier'; // pertes nécessaires incomplètes → marge = borne, à confirmer
+      else if (margePa < 0) statut = 'pression_insuffisante';
+      else statut = 'comparaison_possible';
+    }
+
+    reseaux.push({
+      type: type, base: 'projete', // l'analyse porte sur la topologie projetée/étudiée (existant physique non modélisé)
+      debitEtudie: debitEtudie, uniteDebit: 'm3/h', debitOrigine: debitOrigine,
+      cheminFavorise: cheminType(cheminsPre.favorise, type),
+      cheminDefavorise: cheminType(cheminsPre.defavorise, type),
+      pressionDisponible: pressionDisponible,
+      pertesNecessaires: pertesNecessaires,
+      margePa: margePa,
+      statut: statut
+    });
+  });
+
+  if (!reseaux.length && determine) pv({ type: 'technique', description: 'Aucun réseau exploitable pour l\'analyse de pression.' });
+  if (!cheminsPre.favorise.length && determine) dm('chemin_physique_non_decrit', 'analyse_chemins');
+
+  // --- Synthèse ---
+  var dispoConnues = reseaux.map(function (r) { return r.pressionDisponible ? r.pressionDisponible.valeur : null; }).filter(function (v) { return v != null; });
+  var necConnues = reseaux.map(function (r) { return r.pertesNecessaires ? r.pertesNecessaires.valeur : null; }).filter(function (v) { return v != null; });
+  var comparables = reseaux.filter(function (r) { return r.margePa != null; });
+  var plusContraignant = null;
+  comparables.forEach(function (r) { if (!plusContraignant || r.margePa < plusContraignant.margePa) plusContraignant = r; });
+  var synthese = {
+    comparaisonPossible: comparables.length > 0,
+    reseauLePlusContraignant: plusContraignant ? plusContraignant.type : null,
+    pressionDisponibleMaximaleConnue: dispoConnues.length ? Math.max.apply(null, dispoConnues) : null,
+    pressionNecessaireMaximaleCalculable: necConnues.length ? Math.max.apply(null, necConnues) : null
+  };
+
+  // --- Statut global + raison ---
+  var statutGlobal, raisonStatut;
+  if (!determine) { statutGlobal = 'indetermine'; raisonStatut = 'Système non déterminé (' + systeme + ').'; }
+  else if (reseaux.some(function (r) { return r.statut === 'pression_insuffisante'; })) { statutGlobal = 'pression_insuffisante'; raisonStatut = 'Au moins un réseau présente une marge négative sur les données fournies.'; }
+  else if (comparables.length && comparables.every(function (r) { return r.statut === 'comparaison_possible'; })) { statutGlobal = 'comparaison_possible'; raisonStatut = 'Pression disponible et pertes nécessaires connues sur le(s) réseau(x), débit compatible.'; }
+  else if (reseaux.some(function (r) { return r.statut === 'a_verifier'; })) { statutGlobal = 'a_verifier'; raisonStatut = 'Comparaison partielle : termes de perte non documentés ou débit de référence à confirmer.'; }
+  else { statutGlobal = 'incomplet'; raisonStatut = 'Pression disponible et/ou pertes nécessaires manquantes.'; }
+
+  limites = [
+    'Comparaison sur une pression disponible ponctuelle fournie (pas de courbe débit/pression ; interpolation non réalisée).',
+    'Pertes internes de centrale et pertes terminaux prises en compte uniquement si documentées (données constructeur).',
+    'Analyse sur la topologie projetée/étudiée ; existant physique relevé non distingué.',
+    'Aucune sélection produit, aucune conclusion de conformité, aucune marge de sécurité imposée.'
+  ];
+
+  return {
+    systeme: systeme,
+    statut: statutGlobal,
+    raisonStatut: raisonStatut,
+    reseaux: reseaux,
+    synthese: synthese,
+    donneesManquantes: donneesManquantes,
+    pointsAVerifier: pointsAVerifier,
+    hypotheses: hypotheses,
+    limites: limites
+  };
+}
+
+
+// =====================================================================
+// M57 LOT17-B — DONNÉES CONSTRUCTEUR / COURBES DÉBIT-PRESSION VMC
+// =====================================================================
+// Couche de DONNÉES + ÉVALUATION PURE. Décrit des groupes/terminaux constructeur et
+// fournit à LOT17-A une pression disponible AU DÉBIT ÉTUDIÉ (point exact ou interpolation
+// entre deux points encadrants). AUCUNE extrapolation, AUCUNE valeur par défaut, AUCUNE
+// sélection de produit, AUCUN prix/Runtime/catalogue, AUCUNE conformité. Provenance conservée.
+
+function _num17(v) { return (typeof v === 'number' && isFinite(v)) ? v : null; }
+function _null17(v) { return (v == null) ? null : v; }
+
+// Normalise un groupe VMC constructeur (contrat déclaratif). Points de courbe invalides écartés.
+function creerGroupeVmc(spec) {
+  spec = spec || {};
+  var courbe = (Array.isArray(spec.courbe) ? spec.courbe : []).map(function (p) {
+    return { debit: _num17(p && p.debit), uniteDebit: 'm3/h', pression: _num17(p && p.pression), unitePression: 'Pa' };
+  }).filter(function (p) { return p.debit != null && p.pression != null; });
+  var perte = function (o) { return o ? { valeur: _num17(o.valeur), unite: 'Pa', debitReference: _num17(o.debitReference), source: _null17(o.source), version: _null17(o.version), provenance: _null17(o.provenance) } : null; };
+  var pi = spec.pertesInternes || {};
+  return {
+    id: _null17(spec.id), type: (spec.type === 'SF' || spec.type === 'DF') ? spec.type : null,
+    fabricant: _null17(spec.fabricant), reference: _null17(spec.reference), source: _null17(spec.source), version: _null17(spec.version), provenance: _null17(spec.provenance),
+    courbe: courbe,
+    plageFonctionnement: spec.plageFonctionnement ? { debitMin: _num17(spec.plageFonctionnement.debitMin), debitMax: _num17(spec.plageFonctionnement.debitMax), pressionMin: _num17(spec.plageFonctionnement.pressionMin), pressionMax: _num17(spec.plageFonctionnement.pressionMax) } : null,
+    pertesInternes: { filtre: perte(pi.filtre), echangeur: perte(pi.echangeur), batterie: perte(pi.batterie) }
+  };
+}
+
+// Normalise un terminal constructeur.
+function creerTerminalVmc(spec) {
+  spec = spec || {};
+  var courbe = (Array.isArray(spec.courbe) ? spec.courbe : []).map(function (p) {
+    return { debit: _num17(p && p.debit), uniteDebit: 'm3/h', pression: _num17(p && p.pression), unitePression: 'Pa' };
+  }).filter(function (p) { return p.debit != null && p.pression != null; });
+  return {
+    id: _null17(spec.id), fabricant: _null17(spec.fabricant), reference: _null17(spec.reference), type: _null17(spec.type),
+    courbe: courbe,
+    plageFonctionnement: spec.plageFonctionnement ? { debitMin: _num17(spec.plageFonctionnement.debitMin), debitMax: _num17(spec.plageFonctionnement.debitMax), pressionMin: _num17(spec.plageFonctionnement.pressionMin), pressionMax: _num17(spec.plageFonctionnement.pressionMax) } : null,
+    source: _null17(spec.source), version: _null17(spec.version), provenance: _null17(spec.provenance)
+  };
+}
+
+// Évalue une courbe débit/pression au débit étudié. Point exact OU interpolation linéaire
+// entre deux points ENCADRANTS. Hors intervalle → 'hors_courbe' (extrapolation REFUSÉE).
+// Courbe vide → 'donnee_absente'. Provenance conservée. Aucune pression inventée.
+function evaluerCourbeVmc(courbe, debitEtudie, meta) {
+  meta = meta || {};
+  var base = { debitEtudie: _num17(debitEtudie), unitePression: 'Pa', pression: null, methode: null, pointsSource: null,
+    fabricant: _null17(meta.fabricant), reference: _null17(meta.reference), source: _null17(meta.source), version: _null17(meta.version), provenance: _null17(meta.provenance) };
+  var pts = (Array.isArray(courbe) ? courbe : []).filter(function (p) { return p && typeof p.debit === 'number' && typeof p.pression === 'number'; });
+  if (!pts.length) { base.statut = 'donnee_absente'; base.raison = 'courbe vide ou sans point valide'; return base; }
+  if (typeof debitEtudie !== 'number') { base.statut = 'a_verifier'; base.raison = 'débit étudié non fourni'; return base; }
+  pts = pts.slice().sort(function (a, b) { return a.debit - b.debit; });
+  var exact = pts.filter(function (p) { return p.debit === debitEtudie; })[0];
+  if (exact) { base.statut = 'donnee_exacte'; base.pression = exact.pression; base.methode = 'point_constructeur'; base.pointsSource = [{ debit: exact.debit, pression: exact.pression }]; return base; }
+  var bas = null, haut = null;
+  for (var i = 0; i < pts.length; i++) { if (pts[i].debit < debitEtudie) bas = pts[i]; if (pts[i].debit > debitEtudie) { haut = pts[i]; break; } }
+  if (bas && haut) {
+    var p = bas.pression + (haut.pression - bas.pression) * (debitEtudie - bas.debit) / (haut.debit - bas.debit);
+    base.statut = 'interpolee'; base.pression = Math.round(p * 100) / 100; base.methode = 'interpolation_lineaire_constructeur';
+    base.pointsSource = [{ debit: bas.debit, pression: bas.pression }, { debit: haut.debit, pression: haut.pression }];
+    return base;
+  }
+  base.statut = 'hors_courbe'; base.raison = 'débit hors de l\'intervalle des points constructeur (extrapolation refusée)';
+  return base;
+}
+
+// Position d'un débit vis-à-vis d'une plage de fonctionnement (sans inventer de plage).
+function positionDebitPlage(plage, debit) {
+  if (!plage || typeof debit !== 'number') return 'plage_absente';
+  var min = plage.debitMin, max = plage.debitMax;
+  if (typeof min !== 'number' && typeof max !== 'number') return 'plage_absente';
+  if (typeof min === 'number' && debit < min) return 'inferieur';
+  if (typeof max === 'number' && debit > max) return 'superieur';
+  return 'dans_plage';
+}
+
+// Adapte des données constructeur → contrat consommé par analysePressionVmc (LOT17-A).
+// N'effectue AUCUNE sélection : s'il y a plusieurs groupes pour un réseau, il ne départage
+// pas (aucune pression produite + note). SF/DF traités séparément (jamais fusionnés).
+function adapterDonneesConstructeurPourPression(donneesConstructeur, preEtude) {
+  donneesConstructeur = donneesConstructeur || {};
+  var out = { pressionDisponible: {}, composants: {}, terminaux: {}, evaluations: {}, notes: [] };
+  var preDim = (preEtude && preEtude.preDimensionnement && Array.isArray(preEtude.preDimensionnement.reseaux)) ? preEtude.preDimensionnement.reseaux : [];
+  var debitType = function (type) { var r = preDim.filter(function (x) { return x.type === type; })[0]; return r ? _num17(r.debitProjet) : null; };
+
+  ['extraction', 'insufflation'].forEach(function (type) {
+    var Q = debitType(type);
+    var groupes = (donneesConstructeur.groupes && Array.isArray(donneesConstructeur.groupes[type])) ? donneesConstructeur.groupes[type] : [];
+    if (groupes.length > 1) { out.notes.push({ champ: 'plusieurs_groupes_non_departages:' + type, impact: 'aucune_selection' }); }
+    else if (groupes.length === 1) {
+      var g = groupes[0];
+      var ev = evaluerCourbeVmc(g.courbe, Q, { fabricant: g.fabricant, reference: g.reference, source: g.source, version: g.version, provenance: g.provenance });
+      out.evaluations[type] = { groupe: ev, positionPlage: positionDebitPlage(g.plageFonctionnement, Q) };
+      if (ev.statut === 'donnee_exacte' || ev.statut === 'interpolee') {
+        out.pressionDisponible[type] = { valeur: ev.pression, unite: 'Pa', debitReference: Q, source: g.source, version: g.version, provenance: g.provenance, methode: ev.methode };
+      }
+      // Pertes internes documentées → composants (aucune si absentes ; 0 documenté conservé).
+      var comps = [];
+      ['filtre', 'echangeur', 'batterie'].forEach(function (k) { var pk = g.pertesInternes ? g.pertesInternes[k] : null; if (pk && typeof pk.valeur === 'number') comps.push({ composant: k, valeur: pk.valeur, unite: 'Pa', debitReference: pk.debitReference, source: pk.source || g.source, version: pk.version || g.version, provenance: pk.provenance || g.provenance }); });
+      if (comps.length) out.composants[type] = comps;
+    }
+    // Terminal (un seul évalué ; pas de sélection multiple).
+    var terms = (donneesConstructeur.terminaux && Array.isArray(donneesConstructeur.terminaux[type])) ? donneesConstructeur.terminaux[type] : [];
+    if (terms.length === 1) {
+      var t = terms[0];
+      var evt = evaluerCourbeVmc(t.courbe, Q, { fabricant: t.fabricant, reference: t.reference, source: t.source, version: t.version, provenance: t.provenance });
+      out.evaluations[type] = out.evaluations[type] || {}; out.evaluations[type].terminal = evt;
+      if (evt.statut === 'donnee_exacte' || evt.statut === 'interpolee') out.terminaux[type] = { valeur: evt.pression, unite: 'Pa', debitReference: Q, source: t.source, version: t.version, provenance: t.provenance, methode: evt.methode };
+    } else if (terms.length > 1) { out.notes.push({ champ: 'plusieurs_terminaux_non_departages:' + type, impact: 'aucune_selection' }); }
+  });
+  return out;
+}
+
+
+// =====================================================================
+// M57 LOT18 — MODÈLE DE VISITE TECHNIQUE VMC (source de vérité terrain)
+// =====================================================================
+// Couche de DONNÉES pure : constructeurs/validateurs de relevé de visite + normalisation
+// vers le contrat donneesReseau (LOT15-B). AUCUN calcul (pertes/pression), AUCUNE sélection,
+// AUCUN prix/Runtime/catalogue, AUCUNE conformité, AUCUN traitement image, AUCUNE 3D/BIM.
+// « inconnu / non_mesure / inaccessible » ≠ 0 : jamais converti en valeur. Provenance ≠ statut.
+// donneesVisite (vérité terrain) ≠ donneesReseau (projection pour les moteurs).
+
+var STATUT_VISITE = { MESURE: 'mesure', ESTIME: 'estime', INCONNU: 'inconnu', NON_ACCESSIBLE: 'non_accessible', NON_MESURE: 'non_mesure', NON_APPLICABLE: 'non_applicable', A_VERIFIER: 'a_verifier', DOCUMENTE: 'documente', RELEVE_DECLARATIF: 'releve_declaratif' };
+var PROVENANCE_VISITE = { CLIENT: 'client', TECHNICIEN: 'technicien', MESURE_INSTRUMENTEE: 'mesure_instrumentee', CONSTRUCTEUR: 'constructeur', DOCUMENT_EXISTANT: 'document_existant', CALCUL_DSBAT: 'calcul_dsbat', HYPOTHESE: 'hypothese', PHOTO_INTERPRETEE: 'photo_interpretee' };
+var ACCESSIBILITE_VISITE = { VISIBLE: 'visible', CACHE: 'cache', INACCESSIBLE: 'inaccessible', PARTIELLE: 'partiellement_accessible', NON_VERIFIABLE: 'non_verifiable' };
+var NATURE_VISITE = { EXISTANT_RELEVE: 'existant_releve', EXISTANT_DECLARE: 'existant_declare', PROJETE: 'projete', THEORIQUE_DSBAT: 'theorique_dsbat', CONSTRUCTEUR: 'constructeur', MESURE: 'mesure' };
+
+function _o18(v) { return (v == null) ? null : v; }
+// Champ physique = valeur + STATUT explicite (jamais un simple null pour représenter l'état).
+function creerChampValeur(spec) {
+  spec = spec || {};
+  return { valeur: (spec.valeur != null ? spec.valeur : null), unite: _o18(spec.unite), statut: _o18(spec.statut) || STATUT_VISITE.INCONNU, provenance: _o18(spec.provenance), nature: _o18(spec.nature), source: _o18(spec.source) };
+}
+// Champ pouvant porter PLUSIEURS observations contradictoires + une valeur de référence tracée.
+function creerChampObserve(observations, reference) {
+  return {
+    observations: (Array.isArray(observations) ? observations : []).map(creerChampValeur),
+    reference: reference ? { valeur: (reference.valeur != null ? reference.valeur : null), unite: _o18(reference.unite), statut: _o18(reference.statut) || STATUT_VISITE.DOCUMENTE, provenance: _o18(reference.provenance), choisiePar: _o18(reference.choisiePar), raison: _o18(reference.raison) } : null
+  };
+}
+
+function creerInstallationVisite(spec) {
+  spec = spec || {};
+  return { id: _o18(spec.id), typeSysteme: _o18(spec.typeSysteme), statutInstallation: _o18(spec.statutInstallation), contexte: _o18(spec.contexte), perimetreVisite: _o18(spec.perimetreVisite), dateVisite: _o18(spec.dateVisite), intervenant: _o18(spec.intervenant), niveauCompletude: _o18(spec.niveauCompletude) };
+}
+function creerNoeudVisite(spec) { spec = spec || {}; return { id: _o18(spec.id), type: _o18(spec.type), provenance: _o18(spec.provenance), statut: _o18(spec.statut) || STATUT_VISITE.INCONNU, commentaire: _o18(spec.commentaire) }; }
+function _champ(v) { return (v && (v.observations !== undefined || v.valeur !== undefined || v.statut !== undefined)) ? v : creerChampValeur(v && typeof v === 'object' ? v : { valeur: v }); }
+function creerSingulariteVisite(spec) {
+  spec = spec || {};
+  return { id: _o18(spec.id), type: _o18(spec.type), tronconId: _o18(spec.tronconId), positionRelative: _o18(spec.positionRelative), geometrie: (spec.geometrie != null ? spec.geometrie : 'inconnu'), reference: _o18(spec.reference), quantite: (spec.quantite && spec.quantite.valeur !== undefined ? spec.quantite : _champ(spec.quantite)), provenance: _o18(spec.provenance), statut: _o18(spec.statut) || STATUT_VISITE.INCONNU, commentaire: _o18(spec.commentaire) };
+}
+function creerTronconVisite(spec) {
+  spec = spec || {};
+  return {
+    id: _o18(spec.id), role: _o18(spec.role), noeudAmont: _o18(spec.noeudAmont), noeudAval: _o18(spec.noeudAval), pieceRef: _o18(spec.pieceRef),
+    longueur: _champ(spec.longueur), diametre: _champ(spec.diametre), section: _champ(spec.section),
+    diametreProjet: _champ(spec.diametreProjet), sectionProjet: _champ(spec.sectionProjet), // THÉORIQUES, distincts du relevé
+    typeConduit: _o18(spec.typeConduit), materiau: _o18(spec.materiau), etat: _o18(spec.etat), sensFlux: _o18(spec.sensFlux),
+    debit: _champ(spec.debit),
+    singularites: (Array.isArray(spec.singularites) ? spec.singularites : []).map(creerSingulariteVisite),
+    provenance: _o18(spec.provenance), statut: _o18(spec.statut) || STATUT_VISITE.INCONNU, accessibilite: _o18(spec.accessibilite), commentaire: _o18(spec.commentaire)
+  };
+}
+function creerReseauVisite(spec) {
+  spec = spec || {};
+  var TYPES = { extraction: 1, insufflation: 1, prise_air_neuf: 1, rejet: 1 };
+  return { id: _o18(spec.id), type: TYPES[spec.type] ? spec.type : null,
+    noeuds: (Array.isArray(spec.noeuds) ? spec.noeuds : []).map(creerNoeudVisite),
+    troncons: (Array.isArray(spec.troncons) ? spec.troncons : []).map(creerTronconVisite),
+    terminaux: (Array.isArray(spec.terminaux) ? spec.terminaux : []).map(creerTerminalVisite) };
+}
+function creerTerminalVisite(spec) {
+  spec = spec || {};
+  return { id: _o18(spec.id), pieceRef: _o18(spec.pieceRef), fonction: _o18(spec.fonction), reseauId: _o18(spec.reseauId), type: _o18(spec.type), fabricant: _o18(spec.fabricant), reference: _o18(spec.reference), diametreRaccordement: _champ(spec.diametreRaccordement), debitDeclare: _champ(spec.debitDeclare), etat: _o18(spec.etat), accessibilite: _o18(spec.accessibilite), provenance: _o18(spec.provenance), statut: _o18(spec.statut) || STATUT_VISITE.INCONNU, photos: (Array.isArray(spec.photos) ? spec.photos : []), mesures: (Array.isArray(spec.mesures) ? spec.mesures : []), commentaire: _o18(spec.commentaire) };
+}
+function creerCentraleVisite(spec) { spec = spec || {}; return { id: _o18(spec.id), type: _o18(spec.type), fabricant: _o18(spec.fabricant), reference: _o18(spec.reference), emplacement: _o18(spec.emplacement), accessibilite: _o18(spec.accessibilite), etat: _o18(spec.etat), provenance: _o18(spec.provenance), statut: _o18(spec.statut) || STATUT_VISITE.INCONNU, commentaire: _o18(spec.commentaire), photos: (Array.isArray(spec.photos) ? spec.photos : []) }; }
+function creerInterfaceVisite(spec) { spec = spec || {}; return { id: _o18(spec.id), type: _o18(spec.type), emplacement: _o18(spec.emplacement), accessibilite: _o18(spec.accessibilite), etat: _o18(spec.etat), provenance: _o18(spec.provenance), statut: _o18(spec.statut) || STATUT_VISITE.INCONNU, reference: _o18(spec.reference), commentaire: _o18(spec.commentaire), photos: (Array.isArray(spec.photos) ? spec.photos : []) }; }
+function creerMesureVisite(spec) {
+  spec = spec || {};
+  // Une valeur SANS instrument n'est pas une mesure instrumentée (statut à préciser par l'appelant).
+  var statut = _o18(spec.statut) || (spec.instrument ? STATUT_VISITE.MESURE : STATUT_VISITE.RELEVE_DECLARATIF);
+  return { id: _o18(spec.id), pointId: _o18(spec.pointId), grandeur: _o18(spec.grandeur), valeur: (spec.valeur != null ? spec.valeur : null), unite: _o18(spec.unite), date: _o18(spec.date), instrument: _o18(spec.instrument), referenceInstrument: _o18(spec.referenceInstrument), modeFonctionnement: _o18(spec.modeFonctionnement), regime: _o18(spec.regime), conditions: _o18(spec.conditions), operateur: _o18(spec.operateur), methode: _o18(spec.methode), incertitude: _o18(spec.incertitude), provenance: _o18(spec.provenance) || (spec.instrument ? PROVENANCE_VISITE.MESURE_INSTRUMENTEE : PROVENANCE_VISITE.TECHNICIEN), statut: statut, photoRef: _o18(spec.photoRef), commentaire: _o18(spec.commentaire) };
+}
+function creerHypotheseVisite(spec) { spec = spec || {}; return { id: _o18(spec.id), objetId: _o18(spec.objetId), description: _o18(spec.description), valeur: (spec.valeur != null ? spec.valeur : null), statut: _o18(spec.statut) || STATUT_VISITE.A_VERIFIER, auteur: _o18(spec.auteur), date: _o18(spec.date), provenance: PROVENANCE_VISITE.HYPOTHESE }; }
+function creerPhotoRef(spec) { spec = spec || {}; return { id: _o18(spec.id), objetType: _o18(spec.objetType), objetId: _o18(spec.objetId), provenance: _o18(spec.provenance), date: _o18(spec.date), commentaire: _o18(spec.commentaire) }; }
+
+function creerDonneesVisite(spec) {
+  spec = spec || {};
+  return {
+    installation: creerInstallationVisite(spec.installation),
+    reseaux: (Array.isArray(spec.reseaux) ? spec.reseaux : []).map(creerReseauVisite),
+    centrale: spec.centrale ? creerCentraleVisite(spec.centrale) : null,
+    priseAirNeuf: spec.priseAirNeuf ? creerInterfaceVisite(Object.assign({ type: 'prise_air_neuf' }, spec.priseAirNeuf)) : null,
+    rejet: spec.rejet ? creerInterfaceVisite(Object.assign({ type: 'rejet' }, spec.rejet)) : null,
+    mesures: (Array.isArray(spec.mesures) ? spec.mesures : []).map(creerMesureVisite),
+    hypotheses: (Array.isArray(spec.hypotheses) ? spec.hypotheses : []).map(creerHypotheseVisite),
+    photos: (Array.isArray(spec.photos) ? spec.photos : []).map(creerPhotoRef)
+  };
+}
+
+// Extrait la valeur RÉELLE d'un champ (mesure/documenté/estimé, ou référence si contradiction).
+// Contradictions non arbitrées → null + incohérence (jamais de choix silencieux). inconnu → null.
+function _valeurReelleChamp(champ, statutsOk, incoherences, ref) {
+  if (!champ) return null;
+  statutsOk = statutsOk || [STATUT_VISITE.MESURE, STATUT_VISITE.DOCUMENTE, STATUT_VISITE.ESTIME, STATUT_VISITE.RELEVE_DECLARATIF];
+  if (champ.reference && champ.reference.valeur != null) return (typeof champ.reference.valeur === 'number' ? champ.reference.valeur : null);
+  var obs = champ.observations ? champ.observations : [champ];
+  var num = obs.filter(function (o) { return typeof o.valeur === 'number' && statutsOk.indexOf(o.statut) !== -1; }).map(function (o) { return o.valeur; });
+  var distinctes = num.filter(function (v, i, a) { return a.indexOf(v) === i; });
+  if (distinctes.length > 1) { if (incoherences) incoherences.push({ champ: ref || 'valeur', type: 'valeurs_contradictoires_non_arbitrees' }); return null; }
+  return distinctes.length ? distinctes[0] : null;
+}
+
+// Normalise donneesVisite → donneesReseau (LOT15-B), en conservant provenance/statuts, en
+// distinguant réel/projeté, en signalant incohérences et données insuffisantes. NE CALCULE RIEN.
+function normaliserVisiteVersReseau(donneesVisite) {
+  donneesVisite = donneesVisite || {};
+  var incoherences = [], donneesManquantes = [];
+  var dm = function (champ, impact) { if (!donneesManquantes.some(function (x) { return x.champ === champ; })) donneesManquantes.push({ champ: champ, impact: impact || 'donneesReseau' }); };
+  var reseaux = (donneesVisite.reseaux || []).filter(function (r) { return r.type === 'extraction' || r.type === 'insufflation'; }).map(function (r) {
+    var troncons = (r.troncons || []).map(function (t) {
+      var ref = (t.id || t.pieceRef || t.role || 'troncon');
+      var L = _valeurReelleChamp(t.longueur, null, incoherences, 'longueur:' + ref);
+      var D = _valeurReelleChamp(t.diametre, null, incoherences, 'diametre:' + ref);
+      var S = _valeurReelleChamp(t.section, null, incoherences, 'section:' + ref);
+      if (L == null) dm('longueur:' + ref, 'pertes');
+      if (D == null && S == null) dm('diametre_ou_section:' + ref, 'pertes');
+      return {
+        id: t.id, role: t.role, pieceRef: t.pieceRef,
+        longueur: L, diametre: D, section: S,
+        diametreProjet: _valeurReelleChamp(t.diametreProjet, [NATURE_VISITE.PROJETE, STATUT_VISITE.DOCUMENTE, STATUT_VISITE.ESTIME], null, null),
+        typeConduit: t.typeConduit,
+        debit: _valeurReelleChamp(t.debit, null, incoherences, 'debit:' + ref),
+        singularites: (t.singularites || []).map(function (s) { return { type: s.type, quantite: (s.quantite && s.quantite.valeur != null ? s.quantite.valeur : null), geometrie: (s.geometrie != null ? s.geometrie : 'inconnu'), reference: s.reference }; }),
+        provenance: t.provenance
+      };
+    });
+    return { id: r.id, type: r.type, troncons: troncons, terminaux: (r.terminaux || []).map(function (tm) { return { id: tm.id, pieceRef: tm.pieceRef, fonction: tm.fonction, reference: tm.reference, provenance: tm.provenance }; }) };
+  });
+  var iface = function (o) { return o ? { type: o.type, reference: o.reference, provenance: o.provenance } : null; };
+  var donneesReseau = creerDonneesReseau({ reseaux: reseaux, centrale: donneesVisite.centrale ? { type: donneesVisite.centrale.type, reference: donneesVisite.centrale.reference, provenance: donneesVisite.centrale.provenance } : null, priseAirNeuf: iface(donneesVisite.priseAirNeuf), rejet: iface(donneesVisite.rejet) });
+  return { donneesReseau: donneesReseau, incoherences: incoherences, donneesManquantes: donneesManquantes };
+}
+
+// Valide un jeu de visite (structure + suffisance pour LOT15-A), sans rien inventer.
+function validerDonneesVisite(donneesVisite) {
+  var norm = normaliserVisiteVersReseau(donneesVisite);
+  var v = validerDonneesReseau(norm.donneesReseau);
+  return { valide: v.valide && norm.incoherences.length === 0, donneesManquantes: v.donneesManquantes.concat(norm.donneesManquantes.filter(function (d) { return !v.donneesManquantes.some(function (x) { return x.champ === d.champ; }); })), incoherences: norm.incoherences };
+}
+
+
+// =====================================================================
+// M57 LOT19 — Collecte / persistance / reprise de VISITE VMC (couche pure)
+// =====================================================================
+// Couche de COLLECTE + PERSISTANCE de la visite terrain. Réutilise les contrats LOT18,
+// NE recalcule RIEN (ni pertes/pression/débit/section), NE sélectionne aucun produit,
+// N'écrit JAMAIS dans la configuration tarifaire, aucun prix/Runtime/catalogue. donneesVisite reste la
+// SOURCE DE VÉRITÉ ; l'UI n'est qu'une projection reconstruite depuis elle.
+// Actions IMMUABLES : chaque action renvoie une NOUVELLE visite (les entrées ne sont pas
+// mutées) — un re-render ne recrée aucun ID, une restauration préserve tout.
+
+function nouvelleVisiteVmc(spec) { return creerDonneesVisite(spec || {}); }
+// Persistance : la visite est déjà un objet JSON-sérialisable ; sérialiser = cloner tel quel.
+function serialiserVisiteVmc(donneesVisite) { return donneesVisite ? JSON.parse(JSON.stringify(donneesVisite)) : null; }
+// Restauration : reconstruit via les contrats LOT18 (garantit la forme, préserve IDs/statuts/
+// provenance/contradictions/valeurs réelles et projetées).
+function restaurerVisiteVmc(obj) { return obj ? creerDonneesVisite(obj) : null; }
+function _cloneVisite(dv) { return creerDonneesVisite(dv ? JSON.parse(JSON.stringify(dv)) : {}); }
+function _reseauVisite(dv, reseauId) { return (dv.reseaux || []).filter(function (r) { return r.id === reseauId; })[0] || null; }
+
+function ajouterReseauVisite(dv, spec) { var c = _cloneVisite(dv); c.reseaux.push(creerReseauVisite(spec)); return c; }
+function ajouterNoeudVisite(dv, reseauId, spec) { var c = _cloneVisite(dv); var r = _reseauVisite(c, reseauId); if (r) r.noeuds.push(creerNoeudVisite(spec)); return c; }
+function ajouterTronconVisite(dv, reseauId, spec) { var c = _cloneVisite(dv); var r = _reseauVisite(c, reseauId); if (r) r.troncons.push(creerTronconVisite(spec)); return c; }
+function ajouterTerminalVisite(dv, reseauId, spec) { var c = _cloneVisite(dv); var r = _reseauVisite(c, reseauId); if (r) r.terminaux.push(creerTerminalVisite(spec)); return c; }
+function ajouterMesureVisiteA(dv, spec) { var c = _cloneVisite(dv); c.mesures.push(creerMesureVisite(spec)); return c; }
+function ajouterHypotheseVisiteA(dv, spec) { var c = _cloneVisite(dv); c.hypotheses.push(creerHypotheseVisite(spec)); return c; }
+function ajouterPhotoVisiteA(dv, spec) { var c = _cloneVisite(dv); c.photos.push(creerPhotoRef(spec)); return c; }
+function definirInstallationVisite(dv, spec) { var c = _cloneVisite(dv); c.installation = creerInstallationVisite(spec); return c; }
+function definirCentraleVisite(dv, spec) { var c = _cloneVisite(dv); c.centrale = creerCentraleVisite(spec); return c; }
+function definirInterfaceVisite(dv, quelle, spec) { var c = _cloneVisite(dv); if (quelle === 'priseAirNeuf') c.priseAirNeuf = creerInterfaceVisite(Object.assign({ type: 'prise_air_neuf' }, spec)); else if (quelle === 'rejet') c.rejet = creerInterfaceVisite(Object.assign({ type: 'rejet' }, spec)); return c; }
+
+// Résumé pour l'UI (validation + normalisation), SANS calcul ni conclusion de conformité.
+// statutVisite ∈ 'incomplet' | 'complet' — jamais « conforme »/« dimensionné »/« pression suffisante ».
+function resumeVisiteVmc(donneesVisite) {
+  var val = validerDonneesVisite(donneesVisite || {});
+  var norm = normaliserVisiteVersReseau(donneesVisite || {});
+  return {
+    statutVisite: val.valide ? 'complet' : 'incomplet',
+    donneesSuffisantes: val.valide,
+    donneesManquantes: val.donneesManquantes,
+    incoherences: val.incoherences,
+    donneesReseau: norm.donneesReseau
+  };
+}
+
+
+// =====================================================================
+// M57 LOT20 — VUE-MODÈLE UI TERRAIN VMC (pur, sans DOM)
+// =====================================================================
+// Couche PURE fournissant à l'UI de collecte (DOM, dans le configurateur) des libellés
+// terrain et une vue-modèle dérivée de donneesVisite. NE calcule RIEN, N'écrit RIEN, aucun
+// prix/Runtime/catalogue/config tarifaire. L'UI n'est qu'un rendu de cette vue ; la vérité
+// reste donneesVisite (les mutations passent par les actions immuables LOT19).
+
+var _LIBELLES_STATUT_VISITE = { mesure: 'Mesuré', estime: 'Estimé', inconnu: 'Je ne sais pas', non_accessible: 'Non accessible', non_mesure: 'Non mesuré', non_applicable: 'Non applicable', a_verifier: 'À vérifier', documente: 'Documenté', releve_declaratif: 'Relevé déclaratif' };
+var _LIBELLES_PROVENANCE_VISITE = { client: 'Déclaré client', technicien: 'Relevé technicien', mesure_instrumentee: 'Mesuré (instrument)', constructeur: 'Constructeur', document_existant: 'Document existant', calcul_dsbat: 'Calcul DS.BAT', hypothese: 'Hypothèse', photo_interpretee: 'Photo interprétée' };
+var _LIBELLES_TYPE_RESEAU = { extraction: 'Extraction', insufflation: 'Insufflation', prise_air_neuf: 'Prise d\'air neuf', rejet: 'Rejet' };
+function libelleStatutVisite(code) { return _LIBELLES_STATUT_VISITE[code] || (code || 'Je ne sais pas'); }
+function libelleProvenanceVisite(code) { return _LIBELLES_PROVENANCE_VISITE[code] || (code || '—'); }
+function libelleTypeReseauVisite(code) { return _LIBELLES_TYPE_RESEAU[code] || (code || '—'); }
+
+// Vue-modèle dérivée (aucune mutation, aucun calcul métier) pour le rendu de l'UI terrain.
+function construireVueVisite(donneesVisite) {
+  var dv = donneesVisite || null;
+  if (!dv) return { existe: false, resume: null, reseaux: [], compteurs: { reseaux: 0, noeuds: 0, troncons: 0, terminaux: 0, mesures: 0, photos: 0, hypotheses: 0 } };
+  var reseaux = (dv.reseaux || []).map(function (r) {
+    return { id: r.id, type: r.type, libelleType: libelleTypeReseauVisite(r.type),
+      nbNoeuds: (r.noeuds || []).length, nbTroncons: (r.troncons || []).length, nbTerminaux: (r.terminaux || []).length,
+      noeuds: r.noeuds || [], troncons: r.troncons || [], terminaux: r.terminaux || [] };
+  });
+  var compt = { reseaux: reseaux.length,
+    noeuds: reseaux.reduce(function (s, r) { return s + r.nbNoeuds; }, 0),
+    troncons: reseaux.reduce(function (s, r) { return s + r.nbTroncons; }, 0),
+    terminaux: reseaux.reduce(function (s, r) { return s + r.nbTerminaux; }, 0),
+    mesures: (dv.mesures || []).length, photos: (dv.photos || []).length, hypotheses: (dv.hypotheses || []).length };
+  return {
+    existe: true,
+    installation: dv.installation || null,
+    reseaux: reseaux,
+    centrale: dv.centrale || null,
+    priseAirNeuf: dv.priseAirNeuf || null,
+    rejet: dv.rejet || null,
+    mesures: dv.mesures || [],
+    photos: dv.photos || [],
+    hypotheses: dv.hypotheses || [],
+    compteurs: compt,
+    resume: resumeVisiteVmc(dv) // statut incomplet/complet + manques + incohérences (aucune conformité)
+  };
+}
+
+
+// =====================================================================
+// M57 LOT21 — CHAÎNAGE VISITE RÉELLE → ÉTUDE VMC (orchestrateur pur)
+// =====================================================================
+// etudierVisiteVmc(pieces, contexte, donneesVisite, options?) relie la VISITE terrain
+// (source de vérité, LOT18/19) à l'ÉTUDE technique (LOT16 → LOT15-A → LOT17-A) via la SEULE
+// frontière officielle normaliserVisiteVersReseau (LOT18) — aucune 2e conversion, aucun 2e
+// format « donneesReseau ». Il NE calcule RIEN lui-même (ni perte, ni pression, ni section,
+// ni diamètre) : il DÉLÈGUE aux moteurs existants. Il NE sélectionne aucun produit, NE
+// compare aucun groupe, NE produit aucun prix, N'écrit JAMAIS la configuration tarifaire /
+// Runtime / catalogue, et N'appelle PAS de projection tarifaire. Il NE mute pas la visite.
+//
+// RÉEL ≠ PROJETÉ : options.contexteEtude ∈ 'existant'(défaut) | 'projet' | 'mixte' rend
+// EXPLICITE la source utilisée par l'étude. 'existant' = diamètres RELEVÉS ; 'projet' =
+// diamètres PROJETÉS (théoriques, LOT14) ; 'mixte' = relevé sinon projeté, CHAQUE
+// substitution tracée en pointsAVerifier. Jamais d'écrasement silencieux du relevé par le
+// projeté. Donnée inconnue → reste null (jamais 0/valeur inventée). Une mesure locale
+// (bouche/terminal) N'est PAS propagée au réseau : aucune propagation n'est introduite ici.
+//
+// options = { referentielPertes?, donneesTechnique?, contexteEtude? }
+
+// Dérive PUREMENT les données réseau à étudier selon le contexte, SANS écraser le relevé
+// (norm.donneesReseau reste intact). Retourne le contrat riche { reseaux:[…] } attendu par
+// preEtudeVmc (LOT16). 'existant' = relevé tel quel. Une valeur absente reste null.
+function _selectionnerDonneesEtude(donneesReseau, contexteEtude, pointsAVerifier) {
+  if (!donneesReseau || !Array.isArray(donneesReseau.reseaux)) return donneesReseau || {};
+  if (contexteEtude === 'existant') return donneesReseau; // relevé = comportement par défaut
+  var reseaux = donneesReseau.reseaux.map(function (r) {
+    return Object.assign({}, r, {
+      troncons: (r.troncons || []).map(function (t) {
+        var d = t.diametre;
+        var ref = (t.id || t.pieceRef || t.role || 'troncon');
+        if (contexteEtude === 'projet') {
+          if (t.diametreProjet != null) d = t.diametreProjet;   // étude PROJET : valeur projetée explicite
+        } else if (contexteEtude === 'mixte') {
+          if (d == null && t.diametreProjet != null) {           // relevé absent → projeté, TRACÉ
+            d = t.diametreProjet;
+            if (pointsAVerifier) pointsAVerifier.push({ type: 'donnee', description: 'Diamètre projeté utilisé faute de relevé (' + ref + ').' });
+          }
+        }
+        return Object.assign({}, t, { diametre: d }); // section relevée conservée telle quelle
+      })
+    });
+  });
+  return { reseaux: reseaux, centrale: donneesReseau.centrale, priseAirNeuf: donneesReseau.priseAirNeuf, rejet: donneesReseau.rejet };
+}
+
+function etudierVisiteVmc(pieces, contexte, donneesVisite, options) {
+  options = options || {};
+  contexte = contexte || {};
+  var contexteEtude = (options.contexteEtude === 'projet' || options.contexteEtude === 'mixte') ? options.contexteEtude : 'existant';
+
+  // 1. Frontière officielle UNIQUE : visite → donneesReseau (RELEVÉ). Ne mute pas la visite.
+  var norm = normaliserVisiteVersReseau(donneesVisite || {});
+  var pointsAVerifier = [];
+
+  // 2. Choix EXPLICITE réel/projeté (dérivation pure ; norm.donneesReseau n'est pas modifié).
+  var donneesReseauEtude = _selectionnerDonneesEtude(norm.donneesReseau, contexteEtude, pointsAVerifier);
+
+  // 3. Étude DÉLÉGUÉE (LOT16 enchaîne L10→L15-A). Aucune règle recréée, aucun calcul ici.
+  var etude = preEtudeVmc(pieces, contexte, { donneesReseau: donneesReseauEtude, referentielPertes: options.referentielPertes });
+
+  // 4. Analyse pression DÉLÉGUÉE (LOT17-A) : ne consomme que des pertes réellement calculées
+  //    + données techniques FOURNIES (constructeur, LOT17-B). Sans données → statut a_verifier
+  //    selon le contrat LOT17-A (aucun 0 Pa implicite, aucune sélection de centrale ici).
+  var pression = analysePressionVmc(pieces, contexte, etude, options.donneesTechnique || {});
+
+  // 5. Agrégation des manques / points à vérifier (contrats existants, aucune nouvelle taxonomie).
+  var donneesManquantes = [];
+  var addDm = function (d) { if (d && d.champ && !donneesManquantes.some(function (x) { return x.champ === d.champ; })) donneesManquantes.push(d); };
+  (norm.donneesManquantes || []).forEach(addDm);
+  (etude.donneesManquantes || []).forEach(addDm);
+  (pression.donneesManquantes || []).forEach(addDm);
+  (etude.pointsAVerifier || []).forEach(function (p) { pointsAVerifier.push(p); });
+  (pression.pointsAVerifier || []).forEach(function (p) { pointsAVerifier.push(p); });
+
+  return {
+    contexteEtude: contexteEtude,
+    visite: donneesVisite || null,   // source de vérité (référence, non mutée) : provenance/statuts restent consultables
+    normalisation: { donneesReseau: norm.donneesReseau, incoherences: norm.incoherences, donneesManquantes: norm.donneesManquantes },
+    etude: etude,               // sortie LOT16 complète (réutilisée, non dupliquée)
+    pertes: etude.pertes,       // référence vers etude.pertes (pas de recalcul, pas de copie de logique)
+    pression: pression,         // sortie LOT17-A complète
+    donneesManquantes: donneesManquantes,
+    pointsAVerifier: pointsAVerifier,
+    hypotheses: etude.hypotheses || [],
+    statut: etude.statutEtude   // taxonomie LOT16 réutilisée : jamais « conforme » / « dimensionné »
+  };
+}
+
+
+// =====================================================================
+// M57 LOT22 — RÉFÉRENTIEL DE PERTES DE CHARGE VMC (production, sourcé, versionné)
+// =====================================================================
+// Couche de DONNÉES TECHNIQUES pure. Fournit au moteur LOT15-A un référentiel de pertes
+// SOURCÉ, VERSIONNÉ, TRAÇABLE, à DOMAINE explicite. Ce N'EST PAS un catalogue commercial :
+// aucune marque, aucun prix, aucune référence commerciale, aucune sélection de produit,
+// aucune courbe constructeur (celles-ci restent dans LOT17-B). AUCUNE valeur inventée : une
+// entrée sans source/référence exacte/unité/domaine est INUTILISABLE. Une fixture (statut/
+// provenance 'test') ne peut JAMAIS servir de référentiel de production. Le moteur reste
+// LOT15-A ; LOT22 ne calcule rien, ne touche ni la configuration tarifaire, ni prix, ni Runtime.
+//
+// Deux formes :
+//   • FORME PRODUCTION (rich, ce fichier) : entrées CONDITIONNELLES documentées.
+//   • FORME MOTEUR (LOT15-B) : maps { conduit:{ diametre:R } } / { type:{ geometrie:{coefficient} } }
+//     produites par compilerReferentielPertes(). LOT15-A consomme la forme moteur INCHANGÉE.
+
+var STATUT_REFERENTIEL = { PRODUCTION: 'production', PROVISOIRE: 'provisoire', TEST: 'test', RETIRE: 'retire' };
+// Champs commerciaux INTERDITS dans un référentiel technique (contrôle de non-contamination).
+var _CHAMPS_COMMERCIAUX = ['marque', 'prix', 'prixHT', 'prixTTC', 'referenceCommerciale', 'refCommerciale', 'modele', 'fournisseur', 'codeArticle', 'ean', 'catalogue'];
+// Détecte, sur la spec BRUTE (avant normalisation), la présence d'un champ commercial.
+function _detecterChampsCommerciaux(spec) {
+  if (!spec || typeof spec !== 'object') return [];
+  return _CHAMPS_COMMERCIAUX.filter(function (c) { return Object.prototype.hasOwnProperty.call(spec, c) && spec[c] != null; });
+}
+
+// Entrée linéaire CONDITIONNELLE : R (Pa/m) valable pour (typeConduit, diamètre|section,
+// [débit min/max]) dans un domaine tracé. Valeur absente → null (jamais inventée).
+function creerEntreeLineairePertes(spec) {
+  spec = spec || {};
+  return {
+    id: _ouNull(spec.id), typeConduit: _ouNull(spec.typeConduit),
+    diametre: _nombreOuNull(spec.diametre), uniteDiametre: _ouNull(spec.uniteDiametre),
+    section: _nombreOuNull(spec.section), uniteSection: _ouNull(spec.uniteSection),
+    debitMin: _nombreOuNull(spec.debitMin), debitMax: _nombreOuNull(spec.debitMax), uniteDebit: _ouNull(spec.uniteDebit),
+    R: _nombreOuNull(spec.R), unite: _ouNull(spec.unite),
+    geometrie: _ouNull(spec.geometrie), domaine: _ouNull(spec.domaine),
+    methode: _ouNull(spec.methode), source: _ouNull(spec.source), referenceExacte: _ouNull(spec.referenceExacte),
+    versionSource: _ouNull(spec.versionSource), datePublication: _ouNull(spec.datePublication),
+    statut: _ouNull(spec.statut), _champsCommerciaux: _detecterChampsCommerciaux(spec)
+  };
+}
+// Entrée singulière CONDITIONNELLE : ζ (sans unité) pour une géométrie/config identifiable.
+function creerEntreeSinguliere(spec) {
+  spec = spec || {};
+  return {
+    id: _ouNull(spec.id), type: _ouNull(spec.type), geometrie: _ouNull(spec.geometrie),
+    angle: _nombreOuNull(spec.angle), diametre: _nombreOuNull(spec.diametre), section: _nombreOuNull(spec.section),
+    typeConduit: _ouNull(spec.typeConduit), sensFlux: _ouNull(spec.sensFlux),
+    rapportDebits: _nombreOuNull(spec.rapportDebits), rapportSections: _nombreOuNull(spec.rapportSections),
+    coefficient: _nombreOuNull(spec.coefficient), unite: (spec.unite != null ? spec.unite : ''),
+    domaine: _ouNull(spec.domaine), methode: _ouNull(spec.methode), source: _ouNull(spec.source),
+    referenceExacte: _ouNull(spec.referenceExacte), versionSource: _ouNull(spec.versionSource),
+    datePublication: _ouNull(spec.datePublication), statut: _ouNull(spec.statut), _champsCommerciaux: _detecterChampsCommerciaux(spec)
+  };
+}
+
+// Entrée RUGOSITÉ absolue ε par famille de conduit (M57 LOT24/LOT25 : requise par la méthode
+// Darcy-Weisbach). Sourcée/conditionnelle ; valeur absente → null (jamais inventée).
+function creerEntreeRugosite(spec) {
+  spec = spec || {};
+  return {
+    id: _ouNull(spec.id), typeConduit: _ouNull(spec.typeConduit), geometrie: _ouNull(spec.geometrie),
+    epsilon: _nombreOuNull(spec.epsilon), uniteEpsilon: _ouNull(spec.uniteEpsilon),
+    domaine: _ouNull(spec.domaine), etatPose: _ouNull(spec.etatPose),
+    source: _ouNull(spec.source), referenceExacte: _ouNull(spec.referenceExacte), versionSource: _ouNull(spec.versionSource),
+    datePublication: _ouNull(spec.datePublication), statut: _ouNull(spec.statut), _champsCommerciaux: _detecterChampsCommerciaux(spec)
+  };
+}
+
+// Construit le référentiel PRODUCTION (rich). Familles éventuellement vides (V1 assumé
+// incomplet plutôt que rempli de valeurs non vérifiées). Aucun champ commercial.
+function creerReferentielProductionPertes(spec) {
+  spec = spec || {};
+  var mva = spec.masseVolumiqueAir;
+  var mu = spec.viscositeDynamiqueAir;
+  return {
+    referentielId: _ouNull(spec.referentielId), nom: _ouNull(spec.nom), version: _ouNull(spec.version),
+    datePublication: _ouNull(spec.datePublication), dateActivation: _ouNull(spec.dateActivation),
+    statut: _ouNull(spec.statut), sourcePrincipale: _ouNull(spec.sourcePrincipale), provenance: _ouNull(spec.provenance),
+    masseVolumiqueAir: mva ? { valeur: _nombreOuNull(mva.valeur), unite: _ouNull(mva.unite), source: _ouNull(mva.source), conditions: _ouNull(mva.conditions), version: _ouNull(mva.version) } : null,
+    // M57 LOT25 (additif) : viscosité dynamique de l'air, requise par Reynolds. Non remplie en V1.
+    viscositeDynamiqueAir: mu ? { valeur: _nombreOuNull(mu.valeur), unite: _ouNull(mu.unite), source: _ouNull(mu.source), conditions: _ouNull(mu.conditions), version: _ouNull(mu.version) } : null,
+    methodes: (Array.isArray(spec.methodes) ? spec.methodes : []).map(function (m) { return { id: _ouNull(m.id), nom: _ouNull(m.nom), unite: _ouNull(m.unite), conditions: _ouNull(m.conditions), source: _ouNull(m.source), version: _ouNull(m.version), domaine: _ouNull(m.domaine) }; }),
+    lineaires: (Array.isArray(spec.lineaires) ? spec.lineaires : []).map(creerEntreeLineairePertes),
+    singuliers: (Array.isArray(spec.singuliers) ? spec.singuliers : []).map(creerEntreeSinguliere),
+    // M57 LOT25 (additif) : rugosités ε par famille de conduit. Vide en V1 (aucune valeur non vérifiée).
+    rugosites: (Array.isArray(spec.rugosites) ? spec.rugosites : []).map(creerEntreeRugosite),
+    limites: (Array.isArray(spec.limites) ? spec.limites.slice() : [])
+  };
+}
+// Reconstruit depuis un objet JSON parsé (contrat identique). Aucun chemin de fichier ici.
+function chargerReferentielPertesDepuisJSON(obj) { return creerReferentielProductionPertes(obj || {}); }
+
+function _contientChampCommercial(o) {
+  if (!o || typeof o !== 'object') return false;
+  if (Array.isArray(o._champsCommerciaux) && o._champsCommerciaux.length) return true; // détecté sur la spec brute
+  return _CHAMPS_COMMERCIAUX.some(function (c) { return Object.prototype.hasOwnProperty.call(o, c) && o[c] != null; });
+}
+
+// Validation PRODUCTION (renforcée). Rejette : fixture/test, entrée sans source/référence/
+// unité/domaine, R/ζ non finis ou négatifs, masse volumique non renseignée, champ commercial.
+// Familles vides tolérées (référentiel valide mais non utilisable pour le calcul → honnête).
+function validerReferentielProduction(ref) {
+  var erreurs = [];
+  var need = function (cond, code) { if (!cond) erreurs.push(code); };
+  need(ref && ref.referentielId != null, 'referentielId_absent');
+  need(ref && ref.version != null, 'version_absente');
+  need(ref && ref.datePublication != null, 'datePublication_absente');
+  need(ref && ref.sourcePrincipale != null, 'sourcePrincipale_absente');
+  need(ref && ref.statut != null, 'statut_absent');
+  var estProduction = !!(ref && ref.statut === STATUT_REFERENTIEL.PRODUCTION && ref.provenance !== 'test');
+  if (ref && (ref.statut === STATUT_REFERENTIEL.TEST || ref.provenance === 'test')) erreurs.push('fixture_non_utilisable_en_production');
+  var mva = ref && ref.masseVolumiqueAir;
+  need(mva && typeof mva.valeur === 'number' && isFinite(mva.valeur) && mva.valeur > 0 && mva.unite && mva.source, 'masse_volumique_incomplete');
+
+  var lineaires = (ref && Array.isArray(ref.lineaires)) ? ref.lineaires : [];
+  var singuliers = (ref && Array.isArray(ref.singuliers)) ? ref.singuliers : [];
+  var entreeErr = function (e, prefixe) {
+    var pb = [];
+    if (_contientChampCommercial(e)) pb.push('champ_commercial');
+    if (e.source == null) pb.push('source_absente');
+    if (e.referenceExacte == null) pb.push('reference_exacte_absente');
+    if (e.domaine == null) pb.push('domaine_absent');
+    if (e.statut == null) pb.push('statut_absent');
+    return pb.map(function (p) { return prefixe + ':' + (e.id || '?') + ':' + p; });
+  };
+  lineaires.forEach(function (e) {
+    if (e.unite !== 'Pa/m') erreurs.push('lineaire:' + (e.id || '?') + ':unite_invalide');
+    if (!(typeof e.R === 'number' && isFinite(e.R))) erreurs.push('lineaire:' + (e.id || '?') + ':R_non_fini');
+    else if (e.R < 0) erreurs.push('lineaire:' + (e.id || '?') + ':R_negatif');
+    if (e.typeConduit == null) erreurs.push('lineaire:' + (e.id || '?') + ':type_conduit_absent');
+    if (e.diametre == null && e.section == null) erreurs.push('lineaire:' + (e.id || '?') + ':diametre_ou_section_absent');
+    Array.prototype.push.apply(erreurs, entreeErr(e, 'lineaire'));
+  });
+  singuliers.forEach(function (e) {
+    if (e.unite !== '') erreurs.push('singulier:' + (e.id || '?') + ':unite_invalide');
+    if (!(typeof e.coefficient === 'number' && isFinite(e.coefficient))) erreurs.push('singulier:' + (e.id || '?') + ':coefficient_non_fini');
+    else if (e.coefficient < 0) erreurs.push('singulier:' + (e.id || '?') + ':coefficient_negatif');
+    if (e.type == null) erreurs.push('singulier:' + (e.id || '?') + ':type_absent');
+    if (e.geometrie == null) erreurs.push('singulier:' + (e.id || '?') + ':geometrie_absente');
+    Array.prototype.push.apply(erreurs, entreeErr(e, 'singulier'));
+  });
+  // M57 LOT25 (additif) : rugosités ε (validées seulement si présentes → V1 vide reste valide).
+  var rugosites = (ref && Array.isArray(ref.rugosites)) ? ref.rugosites : [];
+  rugosites.forEach(function (e) {
+    if (!(typeof e.epsilon === 'number' && isFinite(e.epsilon))) erreurs.push('rugosite:' + (e.id || '?') + ':epsilon_non_fini');
+    else if (e.epsilon < 0) erreurs.push('rugosite:' + (e.id || '?') + ':epsilon_negatif');
+    if (e.uniteEpsilon == null) erreurs.push('rugosite:' + (e.id || '?') + ':unite_absente');
+    if (e.typeConduit == null) erreurs.push('rugosite:' + (e.id || '?') + ':type_conduit_absent');
+    Array.prototype.push.apply(erreurs, entreeErr(e, 'rugosite'));
+  });
+  var visc = ref && ref.viscositeDynamiqueAir;
+  if (visc) { if (!(typeof visc.valeur === 'number' && isFinite(visc.valeur) && visc.valeur > 0 && visc.unite && visc.source)) erreurs.push('viscosite_dynamique_incomplete'); }
+  var valide = erreurs.length === 0;
+  return {
+    valide: valide,
+    erreurs: erreurs,
+    utilisableEnProduction: valide && estProduction,
+    familles: { lineaires: lineaires.length, singuliers: singuliers.length },
+    utilisablePourCalcul: valide && estProduction && (lineaires.length > 0 || singuliers.length > 0) // vide = honnêtement non calculable
+  };
+}
+
+// Compile le référentiel PRODUCTION (rich) → forme MOTEUR (LOT15-B) consommée par LOT15-A,
+// SANS modifier le moteur. Ne compile PAS une entrée hors des capacités V1 du moteur (une
+// condition de débit n'est pas discriminable côté moteur : entrée reportée, jamais aplatie
+// silencieusement) ni un conflit (même conduit/diamètre, R différents → aucune valeur choisie).
+function compilerReferentielPertes(ref) {
+  var rapport = { entreesCompilees: [], entreesNonCompilees: [], conflits: [] };
+  var lineaire = {}, singulier = {};
+  var v = validerReferentielProduction(ref);
+  if (!v.utilisableEnProduction) {
+    // Référentiel non utilisable (fixture, invalide) → maps vides + raison. Aucun calcul possible.
+    return { referentiel: creerReferentielPertes({ id: ref && ref.referentielId, methode: (ref && ref.methodes && ref.methodes[0] && ref.methodes[0].id) || null, source: ref && ref.sourcePrincipale, version: ref && ref.version, provenance: ref && ref.provenance, dateValidation: ref && ref.datePublication, masseVolumiqueAir: ref && ref.masseVolumiqueAir, lineaire: {}, singulier: {} }), rapport: Object.assign(rapport, { utilisable: false, raison: v.erreurs }) };
+  }
+  (ref.lineaires || []).forEach(function (e) {
+    if (e.diametre == null) { rapport.entreesNonCompilees.push({ id: e.id, raison: 'diametre_requis_par_moteur_v1' }); return; }
+    if (e.debitMin != null || e.debitMax != null) { rapport.entreesNonCompilees.push({ id: e.id, raison: 'condition_debit_non_supportee_v1' }); return; } // pas d'aplatissement silencieux
+    lineaire[e.typeConduit] = lineaire[e.typeConduit] || {};
+    if (lineaire[e.typeConduit][e.diametre] != null && lineaire[e.typeConduit][e.diametre] !== e.R) {
+      rapport.conflits.push({ conduit: e.typeConduit, diametre: e.diametre }); delete lineaire[e.typeConduit][e.diametre]; return; // aucun choix silencieux
+    }
+    lineaire[e.typeConduit][e.diametre] = e.R; rapport.entreesCompilees.push({ type: 'lineaire', id: e.id });
+  });
+  (ref.singuliers || []).forEach(function (e) {
+    if (e.geometrie == null) { rapport.entreesNonCompilees.push({ id: e.id, raison: 'geometrie_requise_par_moteur_v1' }); return; }
+    singulier[e.type] = singulier[e.type] || {};
+    singulier[e.type][e.geometrie] = { coefficient: e.coefficient }; rapport.entreesCompilees.push({ type: 'singulier', id: e.id });
+  });
+  var moteur = creerReferentielPertes({
+    id: ref.referentielId, methode: (ref.methodes && ref.methodes[0] && ref.methodes[0].id) || 'table_lineaire_pa_par_m',
+    source: ref.sourcePrincipale, version: ref.version, provenance: ref.provenance, dateValidation: ref.datePublication,
+    masseVolumiqueAir: ref.masseVolumiqueAir, lineaire: lineaire, singulier: singulier
+  });
+  rapport.utilisable = true;
+  return { referentiel: moteur, rapport: rapport };
+}
+
+// Trace minimale pour rendre une étude auditable : « quel référentiel / version a été utilisé ? »
+function traceReferentielPertes(ref) {
+  if (!ref) return null;
+  return { referentielId: _ouNull(ref.referentielId), version: _ouNull(ref.version), statut: _ouNull(ref.statut), sourcePrincipale: _ouNull(ref.sourcePrincipale), datePublication: _ouNull(ref.datePublication) };
+}
+
+
+// =====================================================================
+// M57 LOT25 — MOTEUR DE PERTES LINÉAIRES DÉBIT-DÉPENDANT VMC (Darcy-Weisbach)
+// =====================================================================
+// Moteur MATHÉMATIQUE PUR. Calcule une perte de charge LINÉAIRE par la méthode Darcy-Weisbach
+//   Δp = f · (L/Dh) · (ρ·V²/2),  V = Q/S,  S = π·Dh²/4 (circulaire),  Re = ρ·V·Dh/μ
+// avec fermeture du coefficient de frottement : f = 64/Re (laminaire, Re<2000) ; Colebrook-White
+// résolue numériquement (turbulent). Réf. méthode : ASHRAE Handbook—Fundamentals, Duct Design
+// (Darcy, éq. 19 ; Colebrook 1938-39, éq. 20). Le moteur NE fournit AUCUNE valeur : ρ, μ, ε
+// viennent d'un référentiel INJECTÉ. Il ne lit aucun fichier, aucun stockage local, aucun rendu,
+// ne touche ni configuration tarifaire, ni catalogue, ni prix, ni Runtime, ne fait AUCUN fallback.
+// « donnée absente » → statut incomplet + null (jamais 0, jamais moyenne, jamais valeur prudente).
+// LOT25 traite UNIQUEMENT le linéaire (les pertes singulières restent hors de ce moteur).
+
+var METHODE_PERTE_LINEAIRE_VMC = 'darcy_weisbach_colebrook_white';
+// Bornes de régime. La zone de TRANSITION (RE_LAMINAIRE_MAX ≤ Re < RE_TURBULENT_MIN) n'est
+// couverte NI par f=64/Re NI par Colebrook : elle est signalée, jamais calculée comme établie.
+var RE_LAMINAIRE_MAX = 2000;
+var RE_TURBULENT_MIN = 4000;
+
+// Conversion EXPLICITE vers SI. Retourne {ok, valeur} | {manquant} | {invalide, raison}.
+function _versSI(champ, categorie) {
+  if (champ == null || (typeof champ === 'object' && champ.valeur == null)) return { manquant: true };
+  var v = (typeof champ === 'object') ? champ.valeur : champ;
+  var u = (typeof champ === 'object') ? champ.unite : null;
+  if (typeof v !== 'number' || !isFinite(v)) return { invalide: true, raison: 'valeur_non_numerique' };
+  var f;
+  if (categorie === 'debit') f = ({ 'm3/s': 1, 'm3/h': 1 / 3600, 'l/s': 1 / 1000, 'L/s': 1 / 1000 })[u];
+  else if (categorie === 'longueur') f = ({ 'm': 1, 'cm': 0.01, 'mm': 0.001 })[u];
+  else if (categorie === 'diametre' || categorie === 'rugosite') f = ({ 'm': 1, 'cm': 0.01, 'mm': 0.001 })[u];
+  else if (categorie === 'masseVolumique') f = ({ 'kg/m3': 1, 'kg/m³': 1 })[u];
+  else if (categorie === 'viscosite') f = ({ 'Pa.s': 1, 'Pa·s': 1, 'pa.s': 1 })[u];
+  if (f == null) return { invalide: true, raison: 'unite_inconnue:' + (u == null ? 'absente' : u) };
+  return { ok: true, valeur: v * f };
+}
+
+// Résolution numérique de Colebrook-White : 1/√f = -2·log10( εr/3.7 + 2.51/(Re·√f) ).
+// Itération de point fixe déterministe et bornée. f0=0.02 (valeur initiale documentée, hors zone
+// physique sensible) ; critère |f_{n+1}-f_n| ≤ tolérance ; maxIterations borne stricte.
+function _resoudreColebrook(Re, epsilonRelatif, maxIterations, tolerance) {
+  var f = 0.02, i = 0, conv = false, fNew;
+  for (i = 0; i < maxIterations; i++) {
+    var rhs = -2 * Math.log(epsilonRelatif / 3.7 + 2.51 / (Re * Math.sqrt(f))) / Math.LN10; // log10
+    fNew = 1 / (rhs * rhs);
+    if (!isFinite(fNew) || fNew <= 0) { return { f: null, iterations: i + 1, convergence: false, critere: 'valeur_non_physique' }; }
+    if (Math.abs(fNew - f) <= tolerance) { return { f: fNew, iterations: i + 1, convergence: true, critere: '|Δf|<=' + tolerance }; }
+    f = fNew;
+  }
+  return { f: null, iterations: i, convergence: false, critere: 'max_iterations_atteint' };
+}
+
+function calculerPerteLineaireVmc(entree, options) {
+  entree = entree || {};
+  options = options || {};
+  var maxIter = (typeof options.maxIterations === 'number' && options.maxIterations > 0) ? options.maxIterations : 50;
+  var tol = (typeof options.tolerance === 'number' && options.tolerance > 0) ? options.tolerance : 1e-8;
+  var methode = Object.assign({ id: METHODE_PERTE_LINEAIRE_VMC, version: null, source: null, provenance: null, referentielId: null },
+    options.methode || {});
+  var donneesManquantes = [], pointsAVerifier = [], erreurs = [], hypotheses = [];
+  var base = function (statut, extra) {
+    return Object.assign({
+      statut: statut, methode: methode,
+      debit: null, section: null, vitesse: null, reynolds: null, regime: null,
+      facteurFrottement: null, perteLineaire: null, perteParMetre: null,
+      parametresUtilises: null, hypotheses: hypotheses, erreurs: erreurs,
+      donneesManquantes: donneesManquantes, pointsAVerifier: pointsAVerifier
+    }, extra || {});
+  };
+
+  // 0. Géométrie : V1 circulaire uniquement (aucun diamètre équivalent inventé).
+  var geo = entree.geometrie || 'circulaire';
+  if (geo !== 'circulaire') { pointsAVerifier.push({ type: 'technique', description: 'Géométrie « ' + geo +' » non supportée (V1 circulaire uniquement).' }); return base('geometrie_non_supportee'); }
+
+  // 1. Conversion SI + validation de signe/plausibilité.
+  var Q = _versSI(entree.debit, 'debit');
+  var L = _versSI(entree.longueur, 'longueur');
+  var D = _versSI(entree.diametreHydraulique, 'diametre');
+  var EPS = _versSI(entree.rugosite, 'rugosite');
+  var air = entree.air || {};
+  var RHO = _versSI(air.masseVolumique, 'masseVolumique');
+  var MU = _versSI(air.viscositeDynamique, 'viscosite');
+  var inval = function (r, o) { if (o.invalide) erreurs.push(r + ':' + o.raison); };
+  inval('debit', Q); inval('longueur', L); inval('diametre_hydraulique', D); inval('rugosite', EPS);
+  inval('masse_volumique', RHO); inval('viscosite_dynamique', MU);
+  if (Q.ok && Q.valeur < 0) erreurs.push('debit:valeur_negative');
+  if (L.ok && L.valeur < 0) erreurs.push('longueur:valeur_negative');
+  if (D.ok && D.valeur <= 0) erreurs.push('diametre_hydraulique:valeur_non_positive');
+  if (EPS.ok && EPS.valeur < 0) erreurs.push('rugosite:valeur_negative');
+  if (RHO.ok && RHO.valeur <= 0) erreurs.push('masse_volumique:valeur_non_positive');
+  if (MU.ok && MU.valeur <= 0) erreurs.push('viscosite_dynamique:valeur_non_positive');
+  if (erreurs.length) return base('invalide');
+
+  // 2. Données indispensables à toute la chaîne géométrie/débit.
+  if (D.manquant) donneesManquantes.push({ champ: 'diametre_hydraulique', impact: 'section_vitesse' });
+  if (Q.manquant) donneesManquantes.push({ champ: 'debit', impact: 'vitesse' });
+  if (L.manquant) donneesManquantes.push({ champ: 'longueur', impact: 'perte_lineaire' });
+  if (donneesManquantes.length) return base('incomplet');
+
+  var S = Math.PI * D.valeur * D.valeur / 4;                 // m²
+  var champDebit = { valeur: Q.valeur, unite: 'm3/s' };
+  var champSection = { valeur: S, unite: 'm2' };
+
+  // 3. Débit nul : Δp = 0 (aucun écoulement → aucune perte). Justifié, pas une valeur inventée.
+  if (Q.valeur === 0) {
+    return base('debit_nul', { debit: champDebit, section: champSection, vitesse: { valeur: 0, unite: 'm/s' }, reynolds: { valeur: 0 }, regime: null,
+      perteLineaire: { valeur: 0, unite: 'Pa' }, perteParMetre: (L.valeur > 0 ? { valeur: 0, unite: 'Pa/m' } : null) });
+  }
+
+  // 4. Reynolds nécessite ρ et μ.
+  if (RHO.manquant) donneesManquantes.push({ champ: 'masse_volumique_air', impact: 'reynolds_perte' });
+  if (MU.manquant) donneesManquantes.push({ champ: 'viscosite_dynamique_air', impact: 'reynolds' });
+  if (donneesManquantes.length) return base('incomplet', { debit: champDebit, section: champSection });
+
+  var V = Q.valeur / S;                                      // m/s
+  var Re = RHO.valeur * V * D.valeur / MU.valeur;
+  var champV = { valeur: V, unite: 'm/s' }, champRe = { valeur: Re };
+  var regime = (Re < RE_LAMINAIRE_MAX) ? 'laminaire' : ((Re < RE_TURBULENT_MIN) ? 'transition' : 'turbulent');
+
+  // 5. Coefficient de frottement.
+  // Zone de TRANSITION (2000 ≤ Re < 4000) : la méthode retenue ne la couvre pas proprement
+  // → perte NON calculée (jamais présentée comme établie), statut explicite.
+  if (regime === 'transition') {
+    pointsAVerifier.push({ type: 'technique', description: 'Reynolds en zone de transition (' + RE_LAMINAIRE_MAX + ' ≤ Re < ' + RE_TURBULENT_MIN + ') : perte non calculable par la méthode retenue (laminaire / Colebrook-White).' });
+    return base('transition', { debit: champDebit, section: champSection, vitesse: champV, reynolds: champRe, regime: regime });
+  }
+  var ff;
+  if (regime === 'laminaire') {
+    ff = { valeur: 64 / Re, methode: 'laminaire_64_sur_Re', iterations: 0, convergence: true, critere: 'exact' };
+  } else {
+    if (EPS.manquant) { donneesManquantes.push({ champ: 'rugosite', impact: 'colebrook_turbulent' }); return base('incomplet', { debit: champDebit, section: champSection, vitesse: champV, reynolds: champRe, regime: regime }); }
+    var col = _resoudreColebrook(Re, EPS.valeur / D.valeur, maxIter, tol);
+    if (!col.convergence || col.f == null) {
+      return base('calcul_non_converge', { debit: champDebit, section: champSection, vitesse: champV, reynolds: champRe, regime: regime,
+        facteurFrottement: { valeur: null, methode: 'colebrook_white', iterations: col.iterations, convergence: false, critere: col.critere } });
+    }
+    ff = { valeur: col.f, methode: 'colebrook_white', iterations: col.iterations, convergence: true, critere: col.critere };
+  }
+
+  // 6. Darcy-Weisbach.
+  var dP = ff.valeur * (L.valeur / D.valeur) * (RHO.valeur * V * V / 2); // Pa
+  var parMetre = (L.valeur > 0) ? { valeur: dP / L.valeur, unite: 'Pa/m' } : null;
+
+  return base('calculable', {
+    debit: champDebit, section: champSection, vitesse: champV, reynolds: champRe, regime: regime,
+    facteurFrottement: ff,
+    perteLineaire: { valeur: dP, unite: 'Pa' },
+    perteParMetre: parMetre,
+    parametresUtilises: {
+      epsilon: (EPS.ok ? { valeur: EPS.valeur, unite: 'm' } : null),
+      masseVolumique: { valeur: RHO.valeur, unite: 'kg/m3' },
+      viscositeDynamique: { valeur: MU.valeur, unite: 'Pa.s' },
+      diametreHydraulique: { valeur: D.valeur, unite: 'm' }, longueur: { valeur: L.valeur, unite: 'm' }
+    }
+  });
+}
+
+// Adaptateur LOT22 → entrée LOT25. Frontière SÉPARÉE du moteur. Lit une entrée de référentiel
+// DÉJÀ injectée (ne charge aucun fichier), récupère ε de la famille de conduit, ρ/μ de l'air et
+// les métadonnées de méthode, refuse une donnée non exploitable. AUCUN fallback, AUCUN choix
+// silencieux de famille/diamètre/produit. Ne calcule rien (délègue à calculerPerteLineaireVmc).
+function adaptateurReferentielPertesVmc(troncon, referentiel, options) {
+  troncon = troncon || {}; options = options || {};
+  var raisons = [];
+  if (!referentiel) return { exploitable: false, entree: null, raisons: ['referentiel_absent'], trace: null };
+  // ε : recherche STRICTE par famille (+ géométrie si fournie). Aucune famille voisine, aucune moyenne.
+  var rugs = Array.isArray(referentiel.rugosites) ? referentiel.rugosites : [];
+  var famille = troncon.typeConduit || null;
+  var candidat = rugs.filter(function (r) {
+    return r.typeConduit === famille && (troncon.geometrieRugosite == null || r.geometrie === troncon.geometrieRugosite);
+  });
+  if (famille == null) raisons.push('type_conduit_absent_troncon');
+  if (candidat.length === 0) raisons.push('rugosite_absente_famille:' + (famille || '?'));
+  if (candidat.length > 1) raisons.push('rugosite_ambigue_famille:' + (famille || '?')); // aucun choix silencieux
+  var eps = (candidat.length === 1) ? candidat[0] : null;
+  var mva = referentiel.masseVolumiqueAir, mu = referentiel.viscositeDynamiqueAir;
+  if (!(mva && typeof mva.valeur === 'number')) raisons.push('masse_volumique_absente_referentiel');
+  if (!(mu && typeof mu.valeur === 'number')) raisons.push('viscosite_absente_referentiel');
+  if (raisons.length) return { exploitable: false, entree: null, raisons: raisons, trace: traceReferentielPertes(referentiel) };
+
+  var entree = {
+    geometrie: 'circulaire',
+    debit: (troncon.debit != null ? { valeur: troncon.debit, unite: troncon.uniteDebit || 'm3/h' } : null),
+    longueur: (troncon.longueur != null ? { valeur: troncon.longueur, unite: troncon.uniteLongueur || 'm' } : null),
+    diametreHydraulique: (troncon.diametre != null ? { valeur: troncon.diametre, unite: troncon.uniteDiametre || 'mm' } : null),
+    rugosite: { valeur: eps.epsilon, unite: eps.uniteEpsilon },
+    air: { masseVolumique: { valeur: mva.valeur, unite: mva.unite }, viscositeDynamique: { valeur: mu.valeur, unite: mu.unite } }
+  };
+  var methode = {
+    id: METHODE_PERTE_LINEAIRE_VMC,
+    version: referentiel.version || null, source: referentiel.sourcePrincipale || null,
+    provenance: referentiel.provenance || null, referentielId: referentiel.referentielId || null,
+    rugositeSource: eps.source || null, rugositeReference: eps.referenceExacte || null, rugositeDomaine: eps.domaine || null
+  };
+  return { exploitable: true, entree: entree, methode: methode, raisons: [], trace: traceReferentielPertes(referentiel) };
+}
+
+
+if (typeof module !== "undefined" && module.exports) module.exports = { getVmcPourPiece, _vmcRole, evaluationSupportVmc, controlesOublisVmc, verifierVMC, obligationsVmc, besoinVmc, debitsVmc, topologieVmc, preDimensionnementVmc, preCalculSectionVmc, pertesDeChargeVmc, preEtudeVmc, PROVENANCE_VMC, creerDonneesReseau, validerDonneesReseau, adapterDonneesReseauPourPertes, creerReferentielPertes, validerReferentielPertes, champsReleveVisite, analysePressionVmc, creerGroupeVmc, creerTerminalVmc, evaluerCourbeVmc, positionDebitPlage, adapterDonneesConstructeurPourPression, STATUT_VISITE, PROVENANCE_VISITE, ACCESSIBILITE_VISITE, NATURE_VISITE, creerChampValeur, creerChampObserve, creerInstallationVisite, creerNoeudVisite, creerTronconVisite, creerReseauVisite, creerSingulariteVisite, creerTerminalVisite, creerCentraleVisite, creerInterfaceVisite, creerMesureVisite, creerHypotheseVisite, creerPhotoRef, creerDonneesVisite, normaliserVisiteVersReseau, validerDonneesVisite, nouvelleVisiteVmc, serialiserVisiteVmc, restaurerVisiteVmc, ajouterReseauVisite, ajouterNoeudVisite, ajouterTronconVisite, ajouterTerminalVisite, ajouterMesureVisiteA, ajouterHypotheseVisiteA, ajouterPhotoVisiteA, definirInstallationVisite, definirCentraleVisite, definirInterfaceVisite, resumeVisiteVmc, libelleStatutVisite, libelleProvenanceVisite, libelleTypeReseauVisite, construireVueVisite, etudierVisiteVmc, STATUT_REFERENTIEL, creerEntreeLineairePertes, creerEntreeSinguliere, creerReferentielProductionPertes, chargerReferentielPertesDepuisJSON, validerReferentielProduction, compilerReferentielPertes, traceReferentielPertes, creerEntreeRugosite, calculerPerteLineaireVmc, adaptateurReferentielPertesVmc, METHODE_PERTE_LINEAIRE_VMC, RE_LAMINAIRE_MAX, RE_TURBULENT_MIN };
