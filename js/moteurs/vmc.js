@@ -2411,6 +2411,24 @@ function etudeDarcyVmc(donneesReseau, referentiel, options) {
       note: 'Perte LINÉAIRE seule (hors singularités / composants / centrale) — résultat technique, pas une validation.' };
   });
 
+  // M57 LOT31 (additif) : enrichissement de la voie Darcy par la PERTE SINGULIÈRE (Σ ζ·½ρV²).
+  // Voie PARALLÈLE : n'altère NI la voie historique LOT15-A (etude.pertes) NI le total linéaire
+  // ci-dessus. ζ lus dans le référentiel de PRODUCTION (jamais inventés, aucun repli sur la
+  // table LOT15-A). extraction / insufflation restent SÉPARÉS (jamais additionnés).
+  var singulierEtude = etudeSinguliereVmc(donneesReseau, referentiel, options);
+  (singulierEtude.donneesManquantes || []).forEach(function (d) { dm(d.champ, d.impact || 'darcy'); });
+  reseaux.forEach(function (r) {
+    var sr = (singulierEtude.reseaux || []).filter(function (x) { return x.type === r.type; })[0] || null;
+    r.singulier = sr ? { statut: sr.statut, perteSinguliereTotale: sr.perteSinguliereTotale, troncons: sr.troncons, note: sr.note } : null;
+    var lin = (r.perteLineaireTotale && r.perteLineaireTotale.valeur != null) ? r.perteLineaireTotale.valeur : null;
+    var sng = (sr && sr.perteSinguliereTotale && sr.perteSinguliereTotale.valeur != null) ? sr.perteSinguliereTotale.valeur : null;
+    // Perte totale Darcy PAR RÉSEAU = linéaire + singulière, UNIQUEMENT si les DEUX sont
+    // entièrement calculées (jamais un total partiel). Aucune addition entre réseaux distincts.
+    r.perteTotaleDarcy = (lin != null && sng != null)
+      ? { valeur: Math.round((lin + sng) * 1000) / 1000, unite: 'Pa', composantes: { lineaire: lin, singuliere: sng } }
+      : null;
+  });
+
   if (reseaux.length === 0) dm('donnees_reseau', 'darcy');
   var tousLin = (reseaux.length > 0) && reseaux.every(function (r) { return r.statut === 'lineaire_calculee'; });
   var auMoinsUn = reseaux.some(function (r) { return r.statut === 'lineaire_calculee' || r.statut === 'partiel'; });
@@ -2422,9 +2440,10 @@ function etudeDarcyVmc(donneesReseau, referentiel, options) {
     referentiel: traceReferentielPertes(referentiel),
     statut: statutGlobal,
     reseaux: reseaux,                 // extraction / insufflation SÉPARÉS (jamais fusionnés)
+    singulier: singulierEtude,        // M57 LOT31 : voie singulière additive (jamais fusionnée avec l'historique)
     donneesManquantes: donneesManquantes,
     pointsAVerifier: pointsAVerifier,
-    limites: ['Perte LINÉAIRE uniquement (Darcy-Weisbach). Singularités, composants, pression centrale et conformité NON traités ici.']
+    limites: ['Perte LINÉAIRE (Darcy-Weisbach) et perte SINGULIÈRE (Σ ζ·½ρV², M57 LOT31) calculées EN VOIES SÉPARÉES ; composants et pression centrale NON traités ici.']
   };
 }
 
@@ -2451,4 +2470,146 @@ function comparerPerteLineaireVmc(pertesHistorique, etudeDarcy) {
 }
 
 
-if (typeof module !== "undefined" && module.exports) module.exports = { getVmcPourPiece, _vmcRole, evaluationSupportVmc, controlesOublisVmc, verifierVMC, obligationsVmc, besoinVmc, debitsVmc, topologieVmc, preDimensionnementVmc, preCalculSectionVmc, pertesDeChargeVmc, preEtudeVmc, PROVENANCE_VMC, creerDonneesReseau, validerDonneesReseau, adapterDonneesReseauPourPertes, creerReferentielPertes, validerReferentielPertes, champsReleveVisite, analysePressionVmc, creerGroupeVmc, creerTerminalVmc, evaluerCourbeVmc, positionDebitPlage, adapterDonneesConstructeurPourPression, STATUT_VISITE, PROVENANCE_VISITE, ACCESSIBILITE_VISITE, NATURE_VISITE, ETAT_POSE_VISITE, creerDonneesPose, creerChampValeur, creerChampObserve, creerInstallationVisite, creerNoeudVisite, creerTronconVisite, creerReseauVisite, creerSingulariteVisite, creerTerminalVisite, creerCentraleVisite, creerInterfaceVisite, creerMesureVisite, creerHypotheseVisite, creerPhotoRef, creerDonneesVisite, normaliserVisiteVersReseau, validerDonneesVisite, nouvelleVisiteVmc, serialiserVisiteVmc, restaurerVisiteVmc, ajouterReseauVisite, ajouterNoeudVisite, ajouterTronconVisite, ajouterTerminalVisite, ajouterMesureVisiteA, ajouterHypotheseVisiteA, ajouterPhotoVisiteA, definirInstallationVisite, definirCentraleVisite, definirInterfaceVisite, resumeVisiteVmc, libelleStatutVisite, libelleProvenanceVisite, libelleTypeReseauVisite, construireVueVisite, etudierVisiteVmc, STATUT_REFERENTIEL, creerEntreeLineairePertes, creerEntreeSinguliere, creerReferentielProductionPertes, chargerReferentielPertesDepuisJSON, validerReferentielProduction, compilerReferentielPertes, traceReferentielPertes, creerEntreeRugosite, calculerPerteLineaireVmc, adaptateurReferentielPertesVmc, METHODE_PERTE_LINEAIRE_VMC, RE_LAMINAIRE_MAX, RE_TURBULENT_MIN, etudeDarcyVmc, comparerPerteLineaireVmc, deriverDebitsTronconsVmc, validerTopologieVmc, parcourirGrapheVmc };
+// =====================================================================
+// M57 LOT31 — PERTE SINGULIÈRE VMC (voie Darcy, additive, sans repli)
+// =====================================================================
+// etudeSinguliereVmc(donneesReseau, referentiel, options?) calcule, PAR TRONÇON et PAR RÉSEAU,
+// la perte SINGULIÈRE = Σ ζ · ½·ρ·V²  (V = Q/S, S = π·D²/4). C'est un NOUVEAU calcul PUR et
+// ADDITIF, jumeau singulier de la voie linéaire Darcy (LOT25/LOT27) : il n'altère NI la voie
+// historique LOT15-A (etude.pertes), NI le total linéaire de LOT27.
+//  • ρ et ζ viennent EXCLUSIVEMENT du référentiel de PRODUCTION injecté (referentiel.singuliers).
+//    AUCUNE valeur écrite ici, AUCUN ζ inventé. Aucun repli sur la table compilée de LOT15-A.
+//  • ζ résolu par correspondance STRICTE (type + géométrie) : 0 candidat → absent ; >1 → ambigu
+//    (aucun choix silencieux). Un ζ absent/ambigu/non fini → tronçon 'incomplet' (perte null).
+//  • Donnée absente (ρ, débit, diamètre) → 'incomplet' + null (jamais 0, jamais moyenne).
+//    Un tronçon SANS singularité déclarée → 0 Pa (fait établi, pas une valeur inventée).
+//  • extraction / insufflation traités SÉPARÉMENT (SF/DF), JAMAIS additionnés.
+//  • Débit : relevé prioritaire ; sinon dérivé déterministe LOT28 ; sinon null. Hors money-path.
+function etudeSinguliereVmc(donneesReseau, referentiel, options) {
+  options = options || {};
+  if (!referentiel) return { disponible: false, raison: 'referentiel_production_absent', reseaux: [], donneesManquantes: [{ champ: 'referentiel_production', impact: 'singulier' }], pointsAVerifier: [] };
+  var reseauxIn = (donneesReseau && Array.isArray(donneesReseau.reseaux)) ? donneesReseau.reseaux : [];
+  var donneesManquantes = [], pointsAVerifier = [];
+  var dm = function (c, i) { if (c && !donneesManquantes.some(function (x) { return x.champ === c; })) donneesManquantes.push({ champ: c, impact: i || 'singulier' }); };
+  var r3 = function (v) { return (v == null) ? null : Math.round(v * 1000) / 1000; };
+
+  // ρ depuis le référentiel de PRODUCTION (même source que la voie linéaire LOT25/27). Jamais inventée.
+  var RHO = _versSI(referentiel.masseVolumiqueAir, 'masseVolumique');
+
+  // Débit dérivé (LOT28) — identique à la voie linéaire, pour rester cohérent quand le débit n'est
+  // pas relevé sur le tronçon. Aucun débit inventé : un débit non démontrable reste null.
+  var derivation = deriverDebitsTronconsVmc(donneesReseau);
+  var debitDerivePour = function (type, tronconId) {
+    var rr = (derivation.reseaux || []).filter(function (x) { return x.type === type; })[0];
+    var td = rr ? (rr.troncons || []).filter(function (x) { return x.tronconId === tronconId; })[0] : null;
+    return (td && td.origine === 'derive' && typeof td.debit === 'number') ? td : null;
+  };
+
+  // ζ : correspondance STRICTE (type + géométrie EXACTE) dans le référentiel de production. Aucun
+  // choix silencieux (0 → absent, >1 → ambigu), et JAMAIS de wildcard : une géométrie non fournie
+  // n'atteint pas ce lookup (rejetée en amont). Valeur non finie/négative → refusée (jamais corrigée).
+  var zetaProd = function (type, geometrie) {
+    var sing = Array.isArray(referentiel.singuliers) ? referentiel.singuliers : [];
+    var cand = sing.filter(function (s) { return s.type === type && s.geometrie === geometrie; });
+    var etiquette = (type || '?') + '/' + (geometrie || '?');
+    if (cand.length === 0) return { ok: false, raison: 'coefficient_singulier_absent:' + etiquette };
+    if (cand.length > 1) return { ok: false, raison: 'coefficient_singulier_ambigu:' + etiquette };
+    var z = cand[0].coefficient;
+    if (!(typeof z === 'number' && isFinite(z))) return { ok: false, raison: 'coefficient_singulier_non_fini:' + etiquette };
+    if (z < 0) return { ok: false, raison: 'coefficient_singulier_negatif:' + etiquette };
+    return { ok: true, coefficient: z, source: cand[0].source || null, referenceExacte: cand[0].referenceExacte || null, versionSource: cand[0].versionSource || null };
+  };
+
+  var reseaux = reseauxIn.map(function (r) {
+    var troncons = (r.troncons || []).map(function (t) {
+      var ref = (t.id || t.pieceRef || t.role || 'troncon');
+      var der = (t.debit == null) ? debitDerivePour(r.type, (t.id || null)) : null;
+      var debitUtilise = (t.debit != null) ? t.debit : (der ? der.debit : null);
+      var origineDebit = (t.debit != null) ? 'releve' : (der ? 'derive' : 'absent');
+      var sings = Array.isArray(t.singularites) ? t.singularites : [];
+      var base = {
+        tronconId: (t.id || null), ref: ref, pieceRef: (t.pieceRef || null), reseau: r.type,
+        debit: (debitUtilise != null ? debitUtilise : null), origineDebit: origineDebit,
+        diametre: (t.diametre != null ? t.diametre : null), nbSingularites: sings.length
+      };
+      // Aucune singularité déclarée sur ce tronçon → perte singulière = 0 (fait établi).
+      if (sings.length === 0) return Object.assign(base, { statut: 'calculable', perteSinguliere: { valeur: 0, unite: 'Pa' }, pressionDynamique: null, vitesse: null, singularites: [] });
+
+      // Données requises pour ½·ρ·V² : ρ (référentiel) + débit + diamètre (tronçon).
+      var manque = [];
+      if (!RHO.ok) manque.push('masse_volumique_air');
+      var Q = _versSI((debitUtilise != null ? { valeur: debitUtilise, unite: (t.uniteDebit || 'm3/h') } : null), 'debit');
+      var D = _versSI((t.diametre != null ? { valeur: t.diametre, unite: (t.uniteDiametre || 'mm') } : null), 'diametre');
+      if (Q.manquant) manque.push('debit:' + ref);
+      if (D.manquant) manque.push('diametre:' + ref);
+      if (manque.length) {
+        manque.forEach(function (c) { dm(c, 'perte_singuliere'); });
+        return Object.assign(base, { statut: 'incomplet', perteSinguliere: null, pressionDynamique: null, vitesse: null, donneesManquantes: manque, singularites: sings.map(function (s) { return { type: s.type, geometrie: s.geometrie, quantite: (typeof s.quantite === 'number' ? s.quantite : null), coefficient: null, statut: 'incomplet' }; }) });
+      }
+      if (!(D.valeur > 0)) { dm('diametre_non_positif:' + ref, 'perte_singuliere'); return Object.assign(base, { statut: 'incomplet', perteSinguliere: null, pressionDynamique: null, vitesse: null }); }
+
+      var S = Math.PI * D.valeur * D.valeur / 4;   // m²
+      var V = Q.valeur / S;                         // m/s
+      var pdyn = 0.5 * RHO.valeur * V * V;          // Pa (½·ρ·V²)
+      var somme = 0, complet = true, detail = [];
+      sings.forEach(function (s) {
+        var geo = s.geometrie;
+        // Géométrie ABSENTE ou INCONNUE ('inconnu' = sentinelle de normalisation) → incomplet.
+        // JAMAIS de lookup wildcard : sans géométrie identifiée, aucun ζ ne peut être choisi.
+        if (geo == null || geo === 'inconnu' || geo === '') {
+          complet = false; dm('geometrie_singularite_absente:' + (s.type || '?'), 'perte_singuliere');
+          detail.push({ type: s.type, geometrie: (geo != null ? geo : null), quantite: (typeof s.quantite === 'number' && isFinite(s.quantite) ? s.quantite : null), coefficient: null, statut: 'incomplet', raison: 'geometrie_absente' });
+          return;
+        }
+        // Quantité ABSENTE ou INCONNUE (non nombre fini > 0) → incomplet. JAMAIS de défaut 1.
+        if (!(typeof s.quantite === 'number' && isFinite(s.quantite) && s.quantite > 0)) {
+          complet = false; dm('quantite_singularite_absente:' + (s.type || '?') + '/' + geo, 'perte_singuliere');
+          detail.push({ type: s.type, geometrie: geo, quantite: null, coefficient: null, statut: 'incomplet', raison: 'quantite_absente' });
+          return;
+        }
+        var q = s.quantite; // multiplicité RÉELLEMENT fournie (jamais inventée)
+        var z = zetaProd(s.type, geo);
+        if (!z.ok) { complet = false; dm(z.raison, 'perte_singuliere'); detail.push({ type: s.type, geometrie: geo, quantite: q, coefficient: null, statut: 'incomplet', raison: z.raison }); return; }
+        var contrib = z.coefficient * q * pdyn;
+        somme += contrib;
+        detail.push({ type: s.type, geometrie: geo, quantite: q, coefficient: z.coefficient, perte: { valeur: r3(contrib), unite: 'Pa' }, source: z.source, referenceExacte: z.referenceExacte, statut: 'calculable' });
+      });
+      return Object.assign(base, {
+        statut: complet ? 'calculable' : 'incomplet',
+        vitesse: { valeur: V, unite: 'm/s' },
+        pressionDynamique: { valeur: r3(pdyn), unite: 'Pa' },
+        perteSinguliere: complet ? { valeur: r3(somme), unite: 'Pa' } : null,
+        singularites: detail
+      });
+    });
+    var calc = troncons.filter(function (t) { return t.statut === 'calculable'; });
+    var statutReseau = (troncons.length === 0) ? 'indetermine' : ((calc.length === troncons.length) ? 'singuliere_calculee' : (calc.length > 0 ? 'partiel' : 'incomplet'));
+    // Total singulier UNIQUEMENT si TOUS les tronçons sont calculables (jamais un total partiel).
+    var totalOk = (calc.length === troncons.length && troncons.length > 0);
+    var perteTot = totalOk ? r3(calc.reduce(function (s, t) { return s + t.perteSinguliere.valeur; }, 0)) : null;
+    return {
+      type: r.type, statut: statutReseau, troncons: troncons,
+      perteSinguliereTotale: (perteTot == null ? null : { valeur: perteTot, unite: 'Pa' }),
+      note: 'Perte SINGULIÈRE seule (Σ ζ·½ρV², ζ issus du référentiel de production) — hors linéaire / composants / centrale ; résultat technique.'
+    };
+  });
+
+  if (reseaux.length === 0) dm('donnees_reseau', 'singulier');
+  var tous = (reseaux.length > 0) && reseaux.every(function (r) { return r.statut === 'singuliere_calculee'; });
+  var auMoinsUn = reseaux.some(function (r) { return r.statut === 'singuliere_calculee' || r.statut === 'partiel'; });
+  var statutGlobal = (reseaux.length === 0) ? 'indetermine' : (tous ? 'singuliere_calculee' : (auMoinsUn ? 'partiel' : 'incomplet'));
+
+  return {
+    disponible: true,
+    methode: 'perte_singuliere_zeta_pression_dynamique',
+    referentiel: traceReferentielPertes(referentiel),
+    statut: statutGlobal,
+    reseaux: reseaux,                 // extraction / insufflation SÉPARÉS (jamais additionnés)
+    donneesManquantes: donneesManquantes,
+    pointsAVerifier: pointsAVerifier,
+    limites: ['Perte SINGULIÈRE uniquement (Σ ζ·½ρV²). ζ lus dans le référentiel de production (aucun inventé, aucun repli sur la table LOT15-A). Linéaire / composants / pression centrale non traités ici.']
+  };
+}
+
+
+if (typeof module !== "undefined" && module.exports) module.exports = { getVmcPourPiece, _vmcRole, evaluationSupportVmc, controlesOublisVmc, verifierVMC, obligationsVmc, besoinVmc, debitsVmc, topologieVmc, preDimensionnementVmc, preCalculSectionVmc, pertesDeChargeVmc, preEtudeVmc, PROVENANCE_VMC, creerDonneesReseau, validerDonneesReseau, adapterDonneesReseauPourPertes, creerReferentielPertes, validerReferentielPertes, champsReleveVisite, analysePressionVmc, creerGroupeVmc, creerTerminalVmc, evaluerCourbeVmc, positionDebitPlage, adapterDonneesConstructeurPourPression, STATUT_VISITE, PROVENANCE_VISITE, ACCESSIBILITE_VISITE, NATURE_VISITE, ETAT_POSE_VISITE, creerDonneesPose, creerChampValeur, creerChampObserve, creerInstallationVisite, creerNoeudVisite, creerTronconVisite, creerReseauVisite, creerSingulariteVisite, creerTerminalVisite, creerCentraleVisite, creerInterfaceVisite, creerMesureVisite, creerHypotheseVisite, creerPhotoRef, creerDonneesVisite, normaliserVisiteVersReseau, validerDonneesVisite, nouvelleVisiteVmc, serialiserVisiteVmc, restaurerVisiteVmc, ajouterReseauVisite, ajouterNoeudVisite, ajouterTronconVisite, ajouterTerminalVisite, ajouterMesureVisiteA, ajouterHypotheseVisiteA, ajouterPhotoVisiteA, definirInstallationVisite, definirCentraleVisite, definirInterfaceVisite, resumeVisiteVmc, libelleStatutVisite, libelleProvenanceVisite, libelleTypeReseauVisite, construireVueVisite, etudierVisiteVmc, STATUT_REFERENTIEL, creerEntreeLineairePertes, creerEntreeSinguliere, creerReferentielProductionPertes, chargerReferentielPertesDepuisJSON, validerReferentielProduction, compilerReferentielPertes, traceReferentielPertes, creerEntreeRugosite, calculerPerteLineaireVmc, adaptateurReferentielPertesVmc, METHODE_PERTE_LINEAIRE_VMC, RE_LAMINAIRE_MAX, RE_TURBULENT_MIN, etudeDarcyVmc, comparerPerteLineaireVmc, deriverDebitsTronconsVmc, validerTopologieVmc, parcourirGrapheVmc, etudeSinguliereVmc };
