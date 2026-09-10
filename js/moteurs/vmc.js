@@ -2971,4 +2971,135 @@ function margePressionCheminVmc(perteCheminDarcy, donneesTechnique, options) {
 }
 
 
-if (typeof module !== "undefined" && module.exports) module.exports = { getVmcPourPiece, _vmcRole, evaluationSupportVmc, controlesOublisVmc, verifierVMC, obligationsVmc, besoinVmc, debitsVmc, topologieVmc, preDimensionnementVmc, preCalculSectionVmc, pertesDeChargeVmc, preEtudeVmc, PROVENANCE_VMC, creerDonneesReseau, validerDonneesReseau, adapterDonneesReseauPourPertes, creerReferentielPertes, validerReferentielPertes, champsReleveVisite, analysePressionVmc, creerGroupeVmc, creerTerminalVmc, evaluerCourbeVmc, positionDebitPlage, adapterDonneesConstructeurPourPression, STATUT_VISITE, PROVENANCE_VISITE, ACCESSIBILITE_VISITE, NATURE_VISITE, ETAT_POSE_VISITE, creerDonneesPose, creerChampValeur, creerChampObserve, creerInstallationVisite, creerNoeudVisite, creerTronconVisite, creerReseauVisite, creerSingulariteVisite, creerTerminalVisite, creerCentraleVisite, creerInterfaceVisite, creerMesureVisite, creerHypotheseVisite, creerPhotoRef, creerDonneesVisite, normaliserVisiteVersReseau, validerDonneesVisite, nouvelleVisiteVmc, serialiserVisiteVmc, restaurerVisiteVmc, ajouterReseauVisite, ajouterNoeudVisite, ajouterTronconVisite, ajouterTerminalVisite, ajouterMesureVisiteA, ajouterHypotheseVisiteA, ajouterPhotoVisiteA, definirInstallationVisite, definirCentraleVisite, definirInterfaceVisite, resumeVisiteVmc, libelleStatutVisite, libelleProvenanceVisite, libelleTypeReseauVisite, construireVueVisite, etudierVisiteVmc, STATUT_REFERENTIEL, creerEntreeLineairePertes, creerEntreeSinguliere, creerReferentielProductionPertes, chargerReferentielPertesDepuisJSON, validerReferentielProduction, compilerReferentielPertes, traceReferentielPertes, creerEntreeRugosite, calculerPerteLineaireVmc, adaptateurReferentielPertesVmc, METHODE_PERTE_LINEAIRE_VMC, RE_LAMINAIRE_MAX, RE_TURBULENT_MIN, etudeDarcyVmc, comparerPerteLineaireVmc, deriverDebitsTronconsVmc, validerTopologieVmc, parcourirGrapheVmc, etudeSinguliereVmc, perteCheminDarcyVmc, margePressionCheminVmc };
+// =====================================================================
+// M57 LOT34 — SYNTHÈSE D'ÉTUDE VMC CONSOLIDÉE (agrégateur pur, 3 niveaux)
+// =====================================================================
+// syntheseEtudeVmc(perteChemin, margePression, options?) : agrégateur PUR et DÉTERMINISTE qui
+// replie la voie PHYSIQUE (chemin critique LOT32 → marge LOT33) en 3 niveaux : chemin → réseau
+// → global. Aucune nouvelle physique, AUCUN recalcul, AUCUNE re-somme : il RÉFÉRENCE les résultats
+// LOT32/LOT33. La voie historique LOT15-A/16 n'est JAMAIS fusionnée ici (LOT32/33 = seule voie
+// autoritaire). Hors money-path. Jamais de conformité, de suffisance, d'équilibrage, de point de
+// fonctionnement, d'acoustique, de sélection produit ni de prix.
+//  • Frontière LOT32/33 respectée : perteMaximaleCalculee = linéaire + singulière des tronçons ;
+//    la perte terminale reste séparée. LOT34 ne somme rien et ne réintroduit aucune perte.
+//  • `statut` (5 valeurs) et `garantie` (booléen) restent DISTINCTS.
+//  • SF extraction / DF extraction / DF insufflation traités SÉPARÉMENT ; jamais fusionnés.
+//  • Global = maillon le PLUS DÉGRADÉ des réseaux NÉCESSAIRES ; statuts locaux + raisons conservés ;
+//    l'incertitude d'un réseau ne modifie jamais le statut d'un autre réseau indépendant.
+//  • Manques dédupliqués par identité technique stable (champ), provenance (réseaux) conservée.
+// Statuts réseau : calcule_certain | calcule_incertain | incomplet | indetermine | hors_domaine.
+var _SEVERITE_RESEAU_LOT34 = { calcule_certain: 0, calcule_incertain: 1, incomplet: 2, indetermine: 3, hors_domaine: 4 };
+function syntheseEtudeVmc(perteChemin, margePression, options) {
+  options = options || {};
+  var systeme = options.systeme || null;
+  // Réseaux NÉCESSAIRES selon le système (jamais inventé : non précisé → non vérifié, signalé).
+  var requis = (systeme === 'double_flux') ? ['extraction', 'insufflation']
+    : ((systeme === 'simple_flux' || systeme === 'hygro') ? ['extraction'] : null);
+
+  // Agrégation des manques/points à vérifier, dédupliqués par identité stable, provenance conservée.
+  var globalManques = [], globalPV = [], dmKey = {}, pvKey = {};
+  var addDm = function (reseauType, d) {
+    if (!d || !d.champ) return;
+    if (!dmKey[d.champ]) { dmKey[d.champ] = { champ: d.champ, impact: (d.impact || null), reseaux: [] }; globalManques.push(dmKey[d.champ]); }
+    if (reseauType && dmKey[d.champ].reseaux.indexOf(reseauType) === -1) dmKey[d.champ].reseaux.push(reseauType);
+  };
+  var addPv = function (reseauType, p) {
+    if (!p || !p.description) return;
+    if (!pvKey[p.description]) { pvKey[p.description] = { type: (p.type || null), description: p.description, reseaux: [] }; globalPV.push(pvKey[p.description]); }
+    if (reseauType && pvKey[p.description].reseaux.indexOf(reseauType) === -1) pvKey[p.description].reseaux.push(reseauType);
+  };
+
+  var dispoChemin = !!(perteChemin && perteChemin.disponible === true);
+  var reseauxChemin = dispoChemin && Array.isArray(perteChemin.reseaux) ? perteChemin.reseaux : [];
+  var margeParType = {};
+  ((margePression && Array.isArray(margePression.reseaux)) ? margePression.reseaux : []).forEach(function (m) { margeParType[m.type] = m; });
+
+  var typesPresents = reseauxChemin.map(function (r) { return r.type; });
+  var tousTypes = typesPresents.slice();
+  if (requis) requis.forEach(function (t) { if (tousTypes.indexOf(t) === -1) tousTypes.push(t); });
+
+  var reseaux = tousTypes.map(function (type) {
+    var rc = reseauxChemin.filter(function (r) { return r.type === type; })[0] || null;
+    var mr = margeParType[type] || null;
+    var estRequis = requis ? (requis.indexOf(type) !== -1) : true;
+
+    // Réseau NÉCESSAIRE absent → indéterminé, jamais fusionné avec un autre côté (DF).
+    if (!rc) {
+      addDm(type, { champ: 'reseau_requis_absent:' + type, impact: 'synthese' });
+      return { type: type, requis: estRequis, present: false, statut: 'indetermine', garantie: false, raisons: ['reseau_requis_absent'], chemins: [], cheminCritique: null, perteChemin: null, margePression: null, donneesManquantes: [{ champ: 'reseau_requis_absent:' + type, impact: 'synthese' }], pointsAVerifier: [] };
+    }
+
+    // Collecte des manques/PV LOT32 + LOT33 (déduplication globale par champ/description).
+    (rc.donneesManquantes || []).forEach(function (d) { addDm(type, d); });
+    (rc.pointsAVerifier || []).forEach(function (p) { addPv(type, p); });
+    if (mr) { (mr.donneesManquantes || []).forEach(function (d) { addDm(type, d); }); (mr.pointsAVerifier || []).forEach(function (p) { addPv(type, p); }); }
+
+    // Statut réseau (règles verrouillées). hors_domaine = incompatibilité de convention/régime OU
+    // incohérence explicite (débits). garantie = marge FERME (calculée positive OU insuffisance robuste).
+    var cheminCalcule = (rc.cheminCritiqueCalcule != null);
+    var incoherenceExplicite = !!(rc.coherenceDebits && rc.coherenceDebits.statut === 'incoherences_signalees');
+    var horsDomaine = (mr && (mr.natureCompatible === false || mr.regimeCompatible === false)) || incoherenceExplicite;
+    var garantie = !!(mr && (mr.statut === 'marge_calculee' || mr.statut === 'pression_insuffisante'));
+    var statut;
+    if (horsDomaine) statut = 'hors_domaine';
+    else if (rc.statut === 'indetermine') statut = 'indetermine';
+    else if (!cheminCalcule) statut = 'incomplet';
+    else statut = garantie ? 'calcule_certain' : 'calcule_incertain';
+
+    var raisons = [];
+    if (mr && mr.raison) raisons.push(mr.raison);
+    if (incoherenceExplicite) raisons.push('debits_incoherents_signales');
+    if (mr && mr.natureCompatible === false) raisons.push('nature_pression_incompatible');
+    if (mr && mr.regimeCompatible === false) raisons.push('regime_incompatible');
+    if (rc.maximumCertain === false) raisons.push('maximum_non_certain');
+
+    return {
+      type: type, requis: estRequis, present: true,
+      statut: statut, garantie: garantie,
+      // NIVEAU CHEMIN : référence aux chemins LOT32 (dont incomplets), non recopiés/recalculés.
+      chemins: (Array.isArray(rc.chemins) ? rc.chemins : []),
+      cheminCritique: (rc.cheminCritiqueCalcule ? { terminal: rc.cheminCritiqueCalcule.terminal, troncons: rc.cheminCritiqueCalcule.troncons } : null),
+      // RÉFÉRENCES (origine explicite ; LOT34 ne recalcule ni ne resomme aucune perte/marge).
+      perteChemin: { origine: 'LOT32', statut: rc.statut, maximumCertain: rc.maximumCertain, perteMaximaleCalculee: (rc.cheminCritiqueCalcule ? rc.cheminCritiqueCalcule.perteMaximaleCalculee : null), coherenceDebits: (rc.coherenceDebits || null) },
+      margePression: (mr ? { origine: 'LOT33', statut: mr.statut, margePa: mr.margePa, debitCompatible: mr.debitCompatible, natureCompatible: mr.natureCompatible, regimeCompatible: mr.regimeCompatible, ambiguiteTerminal: mr.ambiguiteTerminal } : { origine: 'LOT33', statut: 'non_evaluee', margePa: null }),
+      raisons: raisons,
+      donneesManquantes: (rc.donneesManquantes || []).concat(mr ? (mr.donneesManquantes || []) : []),
+      pointsAVerifier: (rc.pointsAVerifier || []).concat(mr ? (mr.pointsAVerifier || []) : [])
+    };
+  });
+
+  // Global = maillon le plus dégradé des réseaux NÉCESSAIRES (chaque statut local calculé indépendamment).
+  var necessaires = reseaux.filter(function (r) { return r.requis; });
+  var baseGlobal = necessaires.length ? necessaires : reseaux;
+  var statutEtude = 'indetermine', sev = -1;
+  baseGlobal.forEach(function (r) { var s = _SEVERITE_RESEAU_LOT34[r.statut]; if (typeof s === 'number' && s > sev) { sev = s; statutEtude = r.statut; } });
+  var garantieGlobale = baseGlobal.length > 0
+    && baseGlobal.every(function (r) { return r.garantie === true; })
+    && (!requis || requis.every(function (t) { return reseaux.some(function (r) { return r.type === t && r.present; }); }));
+
+  if (!requis) addPv(null, { type: 'perimetre', description: 'Système de ventilation non précisé (options.systeme) : ensemble des réseaux nécessaires non vérifié.' });
+  if (!dispoChemin) addDm(null, { champ: 'perte_chemin_absente', impact: 'synthese' });
+
+  return {
+    disponible: dispoChemin,
+    methode: 'synthese_etude_vmc_consolidee',
+    systeme: systeme,
+    reseauxNecessaires: requis,
+    voieAutoritaire: 'LOT32_LOT33',       // voie physique ; LOT15-A/16 non fusionnée
+    statutEtude: statutEtude,
+    garantieGlobale: garantieGlobale,
+    reseaux: reseaux,                      // SF : extraction ; DF : extraction + insufflation — jamais fusionnés
+    donneesManquantes: globalManques,
+    pointsAVerifier: globalPV,
+    hypotheses: [],
+    note: 'Synthèse consolidée de la voie physique (chemin critique LOT32 → marge LOT33). Références, aucun recalcul ni re-somme ; voie LOT15-A/16 non fusionnée. Statut = maillon le plus faible des réseaux nécessaires ; statut et garantie distincts.',
+    limites: [
+      'Agrégateur pur : références LOT32/LOT33, aucune perte/marge recalculée ni resommée.',
+      'Statut d\'étude = plus faible maillon des réseaux nécessaires ; statuts locaux et raisons conservés (réseaux indépendants).',
+      'Aucune conformité, aucun jugement de couverture, aucun équilibrage, aucun point de fonctionnement, aucune acoustique, aucune sélection produit, aucun prix.'
+    ]
+  };
+}
+
+
+if (typeof module !== "undefined" && module.exports) module.exports = { getVmcPourPiece, _vmcRole, evaluationSupportVmc, controlesOublisVmc, verifierVMC, obligationsVmc, besoinVmc, debitsVmc, topologieVmc, preDimensionnementVmc, preCalculSectionVmc, pertesDeChargeVmc, preEtudeVmc, PROVENANCE_VMC, creerDonneesReseau, validerDonneesReseau, adapterDonneesReseauPourPertes, creerReferentielPertes, validerReferentielPertes, champsReleveVisite, analysePressionVmc, creerGroupeVmc, creerTerminalVmc, evaluerCourbeVmc, positionDebitPlage, adapterDonneesConstructeurPourPression, STATUT_VISITE, PROVENANCE_VISITE, ACCESSIBILITE_VISITE, NATURE_VISITE, ETAT_POSE_VISITE, creerDonneesPose, creerChampValeur, creerChampObserve, creerInstallationVisite, creerNoeudVisite, creerTronconVisite, creerReseauVisite, creerSingulariteVisite, creerTerminalVisite, creerCentraleVisite, creerInterfaceVisite, creerMesureVisite, creerHypotheseVisite, creerPhotoRef, creerDonneesVisite, normaliserVisiteVersReseau, validerDonneesVisite, nouvelleVisiteVmc, serialiserVisiteVmc, restaurerVisiteVmc, ajouterReseauVisite, ajouterNoeudVisite, ajouterTronconVisite, ajouterTerminalVisite, ajouterMesureVisiteA, ajouterHypotheseVisiteA, ajouterPhotoVisiteA, definirInstallationVisite, definirCentraleVisite, definirInterfaceVisite, resumeVisiteVmc, libelleStatutVisite, libelleProvenanceVisite, libelleTypeReseauVisite, construireVueVisite, etudierVisiteVmc, STATUT_REFERENTIEL, creerEntreeLineairePertes, creerEntreeSinguliere, creerReferentielProductionPertes, chargerReferentielPertesDepuisJSON, validerReferentielProduction, compilerReferentielPertes, traceReferentielPertes, creerEntreeRugosite, calculerPerteLineaireVmc, adaptateurReferentielPertesVmc, METHODE_PERTE_LINEAIRE_VMC, RE_LAMINAIRE_MAX, RE_TURBULENT_MIN, etudeDarcyVmc, comparerPerteLineaireVmc, deriverDebitsTronconsVmc, validerTopologieVmc, parcourirGrapheVmc, etudeSinguliereVmc, perteCheminDarcyVmc, margePressionCheminVmc, syntheseEtudeVmc };
