@@ -4763,15 +4763,19 @@ async function genererPDFConfig() {
   window.visiteAjouterReseau = function () { commit(ajouterReseauVisite(donneesVisiteVmc, { id: newId('R'), type: v('vi_rtype') })); };
   window.visiteAjouterNoeud = function (rid) { commit(ajouterNoeudVisite(donneesVisiteVmc, rid, { id: newId('N'), type: v('vi_ntype_' + rid) || null, statut: v('vi_nstat_' + rid), provenance: v('vi_nprov_' + rid) })); };
   window.visiteAjouterTroncon = function (rid) {
+    // M57 LOT30-A : données de pose UNIQUEMENT pour un conduit flexible (observation, jamais un calcul).
+    var cond = v('vi_tcond_' + rid) || null;
+    var flexible = /souple|flexible/i.test(cond || '');
+    var pose = flexible ? { etatPose: v('vi_tpose_' + rid) || null, compression: v('vi_tcomp_' + rid) || null, deformation: v('vi_tdef_' + rid) || null, courbure: v('vi_tcourb_' + rid) || null, provenance: v('vi_tprov_' + rid) || 'technicien', statut: v('vi_tlstat_' + rid) || null } : null;
     commit(ajouterTronconVisite(donneesVisiteVmc, rid, {
       id: newId('T'), role: v('vi_trole_' + rid) || null, noeudAmont: v('vi_tam_' + rid) || null, noeudAval: v('vi_tav_' + rid) || null, pieceRef: v('vi_tpiece_' + rid) || null,
       longueur: creerChampValeur({ valeur: num('vi_tlong_' + rid), unite: 'm', statut: v('vi_tlstat_' + rid), provenance: v('vi_tprov_' + rid) }),
       diametre: creerChampValeur({ valeur: num('vi_tdreel_' + rid), unite: 'mm', statut: v('vi_tlstat_' + rid), provenance: v('vi_tprov_' + rid), nature: 'existant_releve' }),
       diametreProjet: creerChampValeur({ valeur: num('vi_tdproj_' + rid), unite: 'mm', statut: 'documente', nature: 'projete' }),
-      typeConduit: v('vi_tcond_' + rid) || null, etat: v('vi_tetat_' + rid) || null
+      typeConduit: cond, etat: v('vi_tetat_' + rid) || null, donneesPose: pose
     }));
   };
-  window.visiteAjouterTerminal = function (rid) { commit(ajouterTerminalVisite(donneesVisiteVmc, rid, { id: newId('TM'), reseauId: rid, pieceRef: v('vi_tmpiece_' + rid) || null, fonction: v('vi_tmfct_' + rid) || null, type: v('vi_tmtype_' + rid) || null, statut: v('vi_tmstat_' + rid), provenance: v('vi_tmprov_' + rid) })); };
+  window.visiteAjouterTerminal = function (rid) { commit(ajouterTerminalVisite(donneesVisiteVmc, rid, { id: newId('TM'), reseauId: rid, pieceRef: v('vi_tmpiece_' + rid) || null, fonction: v('vi_tmfct_' + rid) || null, type: v('vi_tmtype_' + rid) || null, noeudId: v('vi_tmnoeud_' + rid) || null, statut: v('vi_tmstat_' + rid), provenance: v('vi_tmprov_' + rid) })); };
   window.visiteMajCentrale = function () { commit(definirCentraleVisite(donneesVisiteVmc, { id: (donneesVisiteVmc.centrale && donneesVisiteVmc.centrale.id) || newId('C'), type: v('vi_ctype') || null, fabricant: v('vi_cfab') || null, reference: v('vi_cref') || null, etat: v('vi_cetat') || null, statut: v('vi_cstat'), provenance: v('vi_cprov') })); };
   window.visiteMajInterface = function (quelle) { var pref = quelle === 'priseAirNeuf' ? 'vi_pa' : 'vi_rj'; commit(definirInterfaceVisite(donneesVisiteVmc, quelle, { type: v(pref + 'type') || 'inconnu', emplacement: v(pref + 'empl') || null, statut: v(pref + 'stat'), provenance: v(pref + 'prov') })); };
   window.visiteAjouterMesure = function () { var inst = v('vi_minst') || null; commit(ajouterMesureVisiteA(donneesVisiteVmc, { id: newId('M'), pointId: v('vi_mpoint') || null, grandeur: v('vi_mgr') || null, valeur: num('vi_mval'), unite: v('vi_muni') || null, instrument: inst, operateur: v('vi_mope') || null })); };
@@ -4807,10 +4811,16 @@ async function genererPDFConfig() {
       // Nœud
       resCorps += '<div style="margin-top:6px;">Nœud : ' + inp('vi_ntype_' + r.id, 'type') + ' ' + selStatut('vi_nstat_' + r.id) + ' ' + selProv('vi_nprov_' + r.id) + ' <button type="button" onclick="visiteAjouterNoeud(\'' + r.id + '\')">+ Nœud</button></div>';
       // Tronçon
-      resCorps += '<div style="margin-top:6px;">Tronçon : ' + inp('vi_tam_' + r.id, 'amont') + ' → ' + inp('vi_tav_' + r.id, 'aval') + ' ' + inp('vi_trole_' + r.id, 'rôle') + ' ' + inp('vi_tpiece_' + r.id, 'pièce') + ' L ' + inp('vi_tlong_' + r.id, 'm') + ' <br>Ø relevé ' + inp('vi_tdreel_' + r.id, 'mm') + ' · Ø projeté ' + inp('vi_tdproj_' + r.id, 'mm') + ' ' + inp('vi_tcond_' + r.id, 'conduit') + ' ' + inp('vi_tetat_' + r.id, 'état') + ' ' + selStatut('vi_tlstat_' + r.id) + ' ' + selProv('vi_tprov_' + r.id) + ' <button type="button" onclick="visiteAjouterTroncon(\'' + r.id + '\')">+ Tronçon</button></div>';
+      // M57 LOT30-A : état de pose (observation, à renseigner si conduit = souple/flexible).
+      var selPose = function (id, opts) { return '<select id="' + id + '"><option value="">—</option>' + opts.map(function (o) { return '<option value="' + o + '">' + esc(o.replace(/_/g, ' ')) + '</option>'; }).join('') + '</select>'; };
+      var poseForm = 'Pose (flexible) : ' + selPose('vi_tpose_' + r.id, ['entierement_deploye', 'partiellement_comprime', 'fortement_comprime', 'affaisse', 'ecrase', 'inconnu', 'non_applicable'])
+        + ' compression ' + selPose('vi_tcomp_' + r.id, ['aucune', 'faible', 'importante', 'inconnue'])
+        + ' déformation ' + selPose('vi_tdef_' + r.id, ['aucune', 'legere', 'importante', 'inconnue'])
+        + ' courbure ' + selPose('vi_tcourb_' + r.id, ['aucune', 'faible', 'importante', 'inconnue']);
+      resCorps += '<div style="margin-top:6px;">Tronçon : ' + inp('vi_tam_' + r.id, 'amont') + ' → ' + inp('vi_tav_' + r.id, 'aval') + ' ' + inp('vi_trole_' + r.id, 'rôle') + ' ' + inp('vi_tpiece_' + r.id, 'pièce') + ' L ' + inp('vi_tlong_' + r.id, 'm') + ' <br>Ø relevé ' + inp('vi_tdreel_' + r.id, 'mm') + ' · Ø projeté ' + inp('vi_tdproj_' + r.id, 'mm') + ' ' + inp('vi_tcond_' + r.id, 'conduit') + ' ' + inp('vi_tetat_' + r.id, 'état') + ' ' + selStatut('vi_tlstat_' + r.id) + ' ' + selProv('vi_tprov_' + r.id) + ' <br>' + poseForm + ' <button type="button" onclick="visiteAjouterTroncon(\'' + r.id + '\')">+ Tronçon</button></div>';
       (r.troncons || []).forEach(function (t) { resCorps += '<div style="font-size:0.82rem;color:#475569;">• ' + esc(t.id) + ' ' + esc(t.noeudAmont || '?') + '→' + esc(t.noeudAval || '?') + ' — Ø relevé ' + esc(t.diametre && t.diametre.valeur != null ? t.diametre.valeur : libelleStatutVisite(t.diametre && t.diametre.statut)) + ' / Ø projeté ' + esc(t.diametreProjet && t.diametreProjet.valeur != null ? t.diametreProjet.valeur : '—') + '</div>'; });
       // Terminal
-      resCorps += '<div style="margin-top:6px;">Terminal : <select id="vi_tmpiece_' + r.id + '">' + piecesOptions() + '</select> ' + inp('vi_tmfct_' + r.id, 'fonction') + ' ' + inp('vi_tmtype_' + r.id, 'type') + ' ' + selStatut('vi_tmstat_' + r.id) + ' ' + selProv('vi_tmprov_' + r.id) + ' <button type="button" onclick="visiteAjouterTerminal(\'' + r.id + '\')">+ Terminal</button></div>';
+      resCorps += '<div style="margin-top:6px;">Terminal : <select id="vi_tmpiece_' + r.id + '">' + piecesOptions() + '</select> ' + inp('vi_tmfct_' + r.id, 'fonction') + ' ' + inp('vi_tmtype_' + r.id, 'type') + ' ' + inp('vi_tmnoeud_' + r.id, 'nœud (id)') + ' ' + selStatut('vi_tmstat_' + r.id) + ' ' + selProv('vi_tmprov_' + r.id) + ' <button type="button" onclick="visiteAjouterTerminal(\'' + r.id + '\')">+ Terminal</button></div>';
       (r.terminaux || []).forEach(function (tm) { resCorps += '<div style="font-size:0.82rem;color:#475569;">• Terminal ' + esc(tm.pieceRef || 'pièce inconnue') + ' ' + esc(tm.fonction || '') + '</div>'; });
       resCorps += '</div>';
     });

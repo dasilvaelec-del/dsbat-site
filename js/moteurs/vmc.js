@@ -966,10 +966,13 @@ function creerDonneesReseau(spec) {
   var out = { reseaux: [], centrale: null, priseAirNeuf: null, rejet: null };
   (Array.isArray(spec.reseaux) ? spec.reseaux : []).forEach(function (r) {
     if (!r || (r.type !== 'extraction' && r.type !== 'insufflation')) return; // type obligatoire, sinon ignoré (jamais deviné)
-    var reseau = { id: _ouNull(r.id), type: r.type, troncons: [], terminaux: [] };
+    // M57 LOT29 (additif) : liste des nœuds du réseau (arêtes du graphe). Vide si non décrite.
+    var reseau = { id: _ouNull(r.id), type: r.type, noeuds: (Array.isArray(r.noeuds) ? r.noeuds.map(function (n) { return { id: _ouNull(n && n.id != null ? n.id : n), type: _ouNull(n && n.type) }; }) : []), troncons: [], terminaux: [] };
     (Array.isArray(r.troncons) ? r.troncons : []).forEach(function (t) {
       reseau.troncons.push({
         id: _ouNull(t.id), role: _ouNull(t.role), origine: _ouNull(t.origine), destination: _ouNull(t.destination), pieceRef: _ouNull(t.pieceRef),
+        noeudAmont: _ouNull(t.noeudAmont), noeudAval: _ouNull(t.noeudAval), // M57 LOT29 (additif) : arête orientée du graphe
+        donneesPose: _ouNull(t.donneesPose), // M57 LOT30-A (additif) : observation d'état de pose, conservée sans transformation
         longueur: _nombreOuNull(t.longueur), uniteLongueur: (t.longueur != null ? 'm' : null),
         debit: _nombreOuNull(t.debit),
         diametre: _nombreOuNull(t.diametre),          // RELEVÉ réel
@@ -983,7 +986,7 @@ function creerDonneesReseau(spec) {
       });
     });
     (Array.isArray(r.terminaux) ? r.terminaux : []).forEach(function (tm) {
-      reseau.terminaux.push({ id: _ouNull(tm.id), pieceRef: _ouNull(tm.pieceRef), fonction: _ouNull(tm.fonction), reference: _ouNull(tm.reference), provenance: _ouNull(tm.provenance) });
+      reseau.terminaux.push({ id: _ouNull(tm.id), pieceRef: _ouNull(tm.pieceRef), fonction: _ouNull(tm.fonction), reference: _ouNull(tm.reference), noeudId: _ouNull(tm.noeudId), debit: _nombreOuNull(tm.debit), provenance: _ouNull(tm.provenance) });
     });
     out.reseaux.push(reseau);
   });
@@ -1367,6 +1370,19 @@ function creerSingulariteVisite(spec) {
   spec = spec || {};
   return { id: _o18(spec.id), type: _o18(spec.type), tronconId: _o18(spec.tronconId), positionRelative: _o18(spec.positionRelative), geometrie: (spec.geometrie != null ? spec.geometrie : 'inconnu'), reference: _o18(spec.reference), quantite: (spec.quantite && spec.quantite.valeur !== undefined ? spec.quantite : _champ(spec.quantite)), provenance: _o18(spec.provenance), statut: _o18(spec.statut) || STATUT_VISITE.INCONNU, commentaire: _o18(spec.commentaire) };
 }
+// M57 LOT30-A — États de pose QUALITATIFS (observation terrain, JAMAIS un coefficient).
+var ETAT_POSE_VISITE = { ENTIEREMENT_DEPLOYE: 'entierement_deploye', PARTIELLEMENT_COMPRIME: 'partiellement_comprime', FORTEMENT_COMPRIME: 'fortement_comprime', AFFAISSE: 'affaisse', ECRASE: 'ecrase', INCONNU: 'inconnu', NON_APPLICABLE: 'non_applicable' };
+// donneesPose : OBSERVATION de l'état de pose d'un conduit (surtout flexible). PUREMENT
+// qualitative — aucune conversion en %/coefficient/rugosité/perte. Absence → null (compat).
+// Une observation technicien N'EST PAS une mesure instrumentée (statut à préciser par l'appelant).
+function creerDonneesPose(spec) {
+  if (spec == null) return null; // conduit sans données de pose relevées (ancienne visite incluse)
+  return {
+    etatPose: _o18(spec.etatPose), compression: _o18(spec.compression), deformation: _o18(spec.deformation),
+    courbure: _o18(spec.courbure), provenance: _o18(spec.provenance), statut: _o18(spec.statut) || STATUT_VISITE.INCONNU,
+    commentaire: _o18(spec.commentaire)
+  };
+}
 function creerTronconVisite(spec) {
   spec = spec || {};
   return {
@@ -1374,6 +1390,7 @@ function creerTronconVisite(spec) {
     longueur: _champ(spec.longueur), diametre: _champ(spec.diametre), section: _champ(spec.section),
     diametreProjet: _champ(spec.diametreProjet), sectionProjet: _champ(spec.sectionProjet), // THÉORIQUES, distincts du relevé
     typeConduit: _o18(spec.typeConduit), materiau: _o18(spec.materiau), etat: _o18(spec.etat), sensFlux: _o18(spec.sensFlux),
+    donneesPose: creerDonneesPose(spec.donneesPose), // M57 LOT30-A (additif) : état de pose, observationnel
     debit: _champ(spec.debit),
     singularites: (Array.isArray(spec.singularites) ? spec.singularites : []).map(creerSingulariteVisite),
     provenance: _o18(spec.provenance), statut: _o18(spec.statut) || STATUT_VISITE.INCONNU, accessibilite: _o18(spec.accessibilite), commentaire: _o18(spec.commentaire)
@@ -1389,7 +1406,9 @@ function creerReseauVisite(spec) {
 }
 function creerTerminalVisite(spec) {
   spec = spec || {};
-  return { id: _o18(spec.id), pieceRef: _o18(spec.pieceRef), fonction: _o18(spec.fonction), reseauId: _o18(spec.reseauId), type: _o18(spec.type), fabricant: _o18(spec.fabricant), reference: _o18(spec.reference), diametreRaccordement: _champ(spec.diametreRaccordement), debitDeclare: _champ(spec.debitDeclare), etat: _o18(spec.etat), accessibilite: _o18(spec.accessibilite), provenance: _o18(spec.provenance), statut: _o18(spec.statut) || STATUT_VISITE.INCONNU, photos: (Array.isArray(spec.photos) ? spec.photos : []), mesures: (Array.isArray(spec.mesures) ? spec.mesures : []), commentaire: _o18(spec.commentaire) };
+  // M57 LOT29 (additif) : noeudId = nœud de raccordement physique du terminal (jamais déduit de
+  // pieceRef). null si inconnu — aucune relation fabriquée.
+  return { id: _o18(spec.id), pieceRef: _o18(spec.pieceRef), fonction: _o18(spec.fonction), reseauId: _o18(spec.reseauId), noeudId: _o18(spec.noeudId), type: _o18(spec.type), fabricant: _o18(spec.fabricant), reference: _o18(spec.reference), diametreRaccordement: _champ(spec.diametreRaccordement), debitDeclare: _champ(spec.debitDeclare), etat: _o18(spec.etat), accessibilite: _o18(spec.accessibilite), provenance: _o18(spec.provenance), statut: _o18(spec.statut) || STATUT_VISITE.INCONNU, photos: (Array.isArray(spec.photos) ? spec.photos : []), mesures: (Array.isArray(spec.mesures) ? spec.mesures : []), commentaire: _o18(spec.commentaire) };
 }
 function creerCentraleVisite(spec) { spec = spec || {}; return { id: _o18(spec.id), type: _o18(spec.type), fabricant: _o18(spec.fabricant), reference: _o18(spec.reference), emplacement: _o18(spec.emplacement), accessibilite: _o18(spec.accessibilite), etat: _o18(spec.etat), provenance: _o18(spec.provenance), statut: _o18(spec.statut) || STATUT_VISITE.INCONNU, commentaire: _o18(spec.commentaire), photos: (Array.isArray(spec.photos) ? spec.photos : []) }; }
 function creerInterfaceVisite(spec) { spec = spec || {}; return { id: _o18(spec.id), type: _o18(spec.type), emplacement: _o18(spec.emplacement), accessibilite: _o18(spec.accessibilite), etat: _o18(spec.etat), provenance: _o18(spec.provenance), statut: _o18(spec.statut) || STATUT_VISITE.INCONNU, reference: _o18(spec.reference), commentaire: _o18(spec.commentaire), photos: (Array.isArray(spec.photos) ? spec.photos : []) }; }
@@ -1445,6 +1464,8 @@ function normaliserVisiteVersReseau(donneesVisite) {
       if (D == null && S == null) dm('diametre_ou_section:' + ref, 'pertes');
       return {
         id: t.id, role: t.role, pieceRef: t.pieceRef,
+        noeudAmont: t.noeudAmont, noeudAval: t.noeudAval, // M57 LOT29 : arêtes du graphe conservées (jamais recalculées)
+        donneesPose: (t.donneesPose != null ? t.donneesPose : null), // M57 LOT30-A : état de pose conservé tel quel (aucune interprétation)
         longueur: L, diametre: D, section: S,
         diametreProjet: _valeurReelleChamp(t.diametreProjet, [NATURE_VISITE.PROJETE, STATUT_VISITE.DOCUMENTE, STATUT_VISITE.ESTIME], null, null),
         typeConduit: t.typeConduit,
@@ -1453,7 +1474,7 @@ function normaliserVisiteVersReseau(donneesVisite) {
         provenance: t.provenance
       };
     });
-    return { id: r.id, type: r.type, troncons: troncons, terminaux: (r.terminaux || []).map(function (tm) { return { id: tm.id, pieceRef: tm.pieceRef, fonction: tm.fonction, reference: tm.reference, provenance: tm.provenance }; }) };
+    return { id: r.id, type: r.type, noeuds: (r.noeuds || []).map(function (n) { return { id: n.id, type: n.type }; }), troncons: troncons, terminaux: (r.terminaux || []).map(function (tm) { return { id: tm.id, pieceRef: tm.pieceRef, fonction: tm.fonction, reference: tm.reference, noeudId: tm.noeudId, debit: _valeurReelleChamp(tm.debitDeclare, null, incoherences, 'debit_terminal:' + (tm.id || tm.pieceRef || '?')), provenance: tm.provenance }; }) };
   });
   var iface = function (o) { return o ? { type: o.type, reference: o.reference, provenance: o.provenance } : null; };
   var donneesReseau = creerDonneesReseau({ reseaux: reseaux, centrale: donneesVisite.centrale ? { type: donneesVisite.centrale.type, reference: donneesVisite.centrale.reference, provenance: donneesVisite.centrale.provenance } : null, priseAirNeuf: iface(donneesVisite.priseAirNeuf), rejet: iface(donneesVisite.rejet) });
@@ -1633,6 +1654,15 @@ function etudierVisiteVmc(pieces, contexte, donneesVisite, options) {
   (etude.pointsAVerifier || []).forEach(function (p) { pointsAVerifier.push(p); });
   (pression.pointsAVerifier || []).forEach(function (p) { pointsAVerifier.push(p); });
 
+  // 6. M57 LOT27 — VOIE PARALLÈLE Darcy/Colebrook (LOT25), ADDITIVE. N'altère PAS etude.pertes
+  //    (voie historique LOT15-A intacte). Déclenchée seulement si un référentiel PRODUCTION
+  //    (rugosités + air) est fourni. Débit/longueur/diamètre = réseau normalisé (relevé),
+  //    aucune invention, aucun fallback de famille. Comparaison observationnelle (aucun arbitrage).
+  var darcy = options.referentielProduction
+    ? etudeDarcyVmc(donneesReseauEtude, options.referentielProduction, { contexteEtude: contexteEtude })
+    : { disponible: false, raison: 'referentiel_production_non_fourni', reseaux: [] };
+  if (darcy.disponible) darcy.comparaison = comparerPerteLineaireVmc(etude.pertes, darcy);
+
   return {
     contexteEtude: contexteEtude,
     visite: donneesVisite || null,   // source de vérité (référence, non mutée) : provenance/statuts restent consultables
@@ -1640,6 +1670,7 @@ function etudierVisiteVmc(pieces, contexte, donneesVisite, options) {
     etude: etude,               // sortie LOT16 complète (réutilisée, non dupliquée)
     pertes: etude.pertes,       // référence vers etude.pertes (pas de recalcul, pas de copie de logique)
     pression: pression,         // sortie LOT17-A complète
+    darcy: darcy,               // M57 LOT27 : voie Darcy/Colebrook (additive), jamais fusionnée avec l'historique
     donneesManquantes: donneesManquantes,
     pointsAVerifier: pointsAVerifier,
     hypotheses: etude.hypotheses || [],
@@ -1806,8 +1837,10 @@ function validerReferentielProduction(ref) {
     valide: valide,
     erreurs: erreurs,
     utilisableEnProduction: valide && estProduction,
-    familles: { lineaires: lineaires.length, singuliers: singuliers.length },
-    utilisablePourCalcul: valide && estProduction && (lineaires.length > 0 || singuliers.length > 0) // vide = honnêtement non calculable
+    familles: { lineaires: lineaires.length, singuliers: singuliers.length, rugosites: rugosites.length },
+    utilisablePourCalcul: valide && estProduction && (lineaires.length > 0 || singuliers.length > 0), // voie LOT15-A (table R/ζ) : vide = honnêtement non calculable
+    // M57 LOT26 (additif) : voie LOT25 (Darcy-Weisbach) — calculable si ε(famille) + ρ + μ présents.
+    utilisablePourCalculDarcy: valide && estProduction && rugosites.length > 0 && !!(ref && ref.masseVolumiqueAir && typeof ref.masseVolumiqueAir.valeur === 'number' && ref.viscositeDynamiqueAir && typeof ref.viscositeDynamiqueAir.valeur === 'number')
   };
 }
 
@@ -2049,4 +2082,373 @@ function adaptateurReferentielPertesVmc(troncon, referentiel, options) {
 }
 
 
-if (typeof module !== "undefined" && module.exports) module.exports = { getVmcPourPiece, _vmcRole, evaluationSupportVmc, controlesOublisVmc, verifierVMC, obligationsVmc, besoinVmc, debitsVmc, topologieVmc, preDimensionnementVmc, preCalculSectionVmc, pertesDeChargeVmc, preEtudeVmc, PROVENANCE_VMC, creerDonneesReseau, validerDonneesReseau, adapterDonneesReseauPourPertes, creerReferentielPertes, validerReferentielPertes, champsReleveVisite, analysePressionVmc, creerGroupeVmc, creerTerminalVmc, evaluerCourbeVmc, positionDebitPlage, adapterDonneesConstructeurPourPression, STATUT_VISITE, PROVENANCE_VISITE, ACCESSIBILITE_VISITE, NATURE_VISITE, creerChampValeur, creerChampObserve, creerInstallationVisite, creerNoeudVisite, creerTronconVisite, creerReseauVisite, creerSingulariteVisite, creerTerminalVisite, creerCentraleVisite, creerInterfaceVisite, creerMesureVisite, creerHypotheseVisite, creerPhotoRef, creerDonneesVisite, normaliserVisiteVersReseau, validerDonneesVisite, nouvelleVisiteVmc, serialiserVisiteVmc, restaurerVisiteVmc, ajouterReseauVisite, ajouterNoeudVisite, ajouterTronconVisite, ajouterTerminalVisite, ajouterMesureVisiteA, ajouterHypotheseVisiteA, ajouterPhotoVisiteA, definirInstallationVisite, definirCentraleVisite, definirInterfaceVisite, resumeVisiteVmc, libelleStatutVisite, libelleProvenanceVisite, libelleTypeReseauVisite, construireVueVisite, etudierVisiteVmc, STATUT_REFERENTIEL, creerEntreeLineairePertes, creerEntreeSinguliere, creerReferentielProductionPertes, chargerReferentielPertesDepuisJSON, validerReferentielProduction, compilerReferentielPertes, traceReferentielPertes, creerEntreeRugosite, calculerPerteLineaireVmc, adaptateurReferentielPertesVmc, METHODE_PERTE_LINEAIRE_VMC, RE_LAMINAIRE_MAX, RE_TURBULENT_MIN };
+// =====================================================================
+// M57 LOT29 — SOCLE DE GRAPHE AÉRAULIQUE VMC (topologie orientée, parcours, validation)
+// =====================================================================
+// Représente et parcourt réellement Terminal→nœud→tronçon→nœud→… Les arêtes orientées sont
+// portées par les tronçons (noeudAmont→noeudAval) et le rattachement terminal par terminal.noeudId.
+// PUR, non mutant, hors money-path, aucune règle réglementaire, aucun débit inventé. LOT29 fournit
+// le SOCLE ; la dérivation de débit (LOT28) l'utilise quand le graphe est réellement décrit.
+
+// Détecte un cycle dans les arêtes orientées noeudAmont→noeudAval (DFS coloration).
+function _grapheCycle(troncons) {
+  var adj = {}; (troncons || []).forEach(function (t) { if (t.noeudAmont != null && t.noeudAval != null) (adj[t.noeudAmont] = adj[t.noeudAmont] || []).push(t.noeudAval); });
+  var etat = {};
+  var dfs = function (n) { if (etat[n] === 0) return true; if (etat[n] === 1) return false; etat[n] = 0; var c = (adj[n] || []).some(dfs); etat[n] = 1; return c; };
+  return Object.keys(adj).some(function (n) { return etat[n] === undefined && dfs(n); });
+}
+
+// Validation topologique PURE. INVALIDE = référence cassée (nœud/amont/aval inconnu, auto-
+// référence, cycle). INCOMPLET = relation manquante (tronçon sans nœuds, terminal non raccordé).
+function validerTopologieVmc(donneesReseau) {
+  var reseauxIn = (donneesReseau && Array.isArray(donneesReseau.reseaux)) ? donneesReseau.reseaux : [];
+  var reseaux = reseauxIn.map(function (r) {
+    var noeuds = {}; (r.noeuds || []).forEach(function (n) { if (n && n.id != null) noeuds[n.id] = true; });
+    var erreurs = [], incomplets = [], signals = [];
+    (r.troncons || []).forEach(function (t) {
+      var ref = t.id || t.role || 'troncon', a = t.noeudAmont, b = t.noeudAval;
+      if (a == null && b == null) { incomplets.push({ code: 'troncon_sans_noeuds', troncon: ref }); return; }
+      if (a != null && !noeuds[a]) erreurs.push({ code: 'troncon_amont_inconnu', troncon: ref, noeud: a });
+      if (b != null && !noeuds[b]) erreurs.push({ code: 'troncon_aval_inconnu', troncon: ref, noeud: b });
+      if (a != null && a === b) erreurs.push({ code: 'troncon_auto_reference', troncon: ref, noeud: a });
+      if (a == null || b == null) incomplets.push({ code: 'troncon_extremite_manquante', troncon: ref });
+    });
+    (r.terminaux || []).forEach(function (tm) {
+      if (tm.noeudId == null) { incomplets.push({ code: 'terminal_non_raccorde', terminal: (tm.id || tm.pieceRef) }); return; }
+      if (!noeuds[tm.noeudId]) erreurs.push({ code: 'noeud_inconnu', terminal: (tm.id || tm.pieceRef), noeud: tm.noeudId });
+    });
+    if (_grapheCycle(r.troncons || [])) erreurs.push({ code: 'cycle_topologique' });
+    var utilises = {};
+    (r.troncons || []).forEach(function (t) { if (t.noeudAmont != null) utilises[t.noeudAmont] = 1; if (t.noeudAval != null) utilises[t.noeudAval] = 1; });
+    (r.terminaux || []).forEach(function (tm) { if (tm.noeudId != null) utilises[tm.noeudId] = 1; });
+    Object.keys(noeuds).forEach(function (id) { if (!utilises[id]) signals.push({ code: 'noeud_isole', noeud: id }); });
+    return { type: r.type, valide: erreurs.length === 0, complet: incomplets.length === 0, erreurs: erreurs, incomplets: incomplets, signals: signals, cycle: _grapheCycle(r.troncons || []) };
+  });
+  return { valide: reseaux.every(function (x) { return x.valide; }), reseaux: reseaux };
+}
+
+// Parcours orienté PUR : index nœuds/tronçons, voisins amont/aval, degrés, terminaux par nœud,
+// cycle. Aucun calcul hydraulique.
+function parcourirGrapheVmc(donneesReseau) {
+  var reseauxIn = (donneesReseau && Array.isArray(donneesReseau.reseaux)) ? donneesReseau.reseaux : [];
+  var reseaux = reseauxIn.map(function (r) {
+    var noeuds = (r.noeuds || []).map(function (n) { return n.id; }).filter(function (x) { return x != null; });
+    var avalDe = {}, amontDe = {}, outDeg = {}, inDeg = {}, edges = [];
+    noeuds.forEach(function (n) { avalDe[n] = []; amontDe[n] = []; outDeg[n] = 0; inDeg[n] = 0; });
+    (r.troncons || []).forEach(function (t) {
+      if (t.noeudAmont == null || t.noeudAval == null) return;
+      edges.push({ id: t.id, amont: t.noeudAmont, aval: t.noeudAval });
+      (avalDe[t.noeudAmont] = avalDe[t.noeudAmont] || []).push(t.noeudAval);
+      (amontDe[t.noeudAval] = amontDe[t.noeudAval] || []).push(t.noeudAmont);
+      outDeg[t.noeudAmont] = (outDeg[t.noeudAmont] || 0) + 1;
+      inDeg[t.noeudAval] = (inDeg[t.noeudAval] || 0) + 1;
+    });
+    var terminauxParNoeud = {};
+    (r.terminaux || []).forEach(function (tm) { if (tm.noeudId != null) (terminauxParNoeud[tm.noeudId] = terminauxParNoeud[tm.noeudId] || []).push({ id: tm.id, debit: (typeof tm.debit === 'number' ? tm.debit : null), fonction: tm.fonction }); });
+    return { type: r.type, noeuds: noeuds, edges: edges, avalDe: avalDe, amontDe: amontDe, outDegree: outDeg, inDegree: inDeg, terminauxParNoeud: terminauxParNoeud, cycle: _grapheCycle(r.troncons || []) };
+  });
+  return { reseaux: reseaux };
+}
+
+// Tri topologique (Kahn) ; reverse=true → aval avant amont. Retourne un ordre partiel (les
+// nœuds d'un cycle éventuel en sont exclus — mais le cycle est déjà refusé en amont).
+function _topoOrder(noeuds, edges, reverse) {
+  var indeg = {}, adj = {}; noeuds.forEach(function (n) { indeg[n] = 0; adj[n] = []; });
+  edges.forEach(function (e) { var from = reverse ? e.aval : e.amont, to = reverse ? e.amont : e.aval; if (adj[from] === undefined) adj[from] = []; if (indeg[to] === undefined) indeg[to] = 0; adj[from].push(to); indeg[to]++; });
+  var q = noeuds.filter(function (n) { return indeg[n] === 0; }), order = [];
+  while (q.length) { var n = q.shift(); order.push(n); (adj[n] || []).forEach(function (m) { indeg[m]--; if (indeg[m] === 0) q.push(m); }); }
+  return order;
+}
+
+// Dérive les débits de tronçon PAR GRAPHE pour un réseau. Extraction : flux amont→aval vers la
+// centrale → un tronçon porte le débit ENTRANT de son nœud amont (déterministe si ce nœud a un
+// seul tronçon sortant). Insufflation : flux vers les terminaux → un tronçon porte la somme des
+// terminaux de son SOUS-ARBRE aval (déterministe si chaque nœud a un seul tronçon entrant).
+// Cycle / référence cassée / ambiguïté (divergence) / terminal sans débit → indéterminé + raison.
+// Un terminal NON raccordé (noeudId null) rend les totaux dérivés non garantis → tronçons dérivés
+// indéterminés (le relevé, lui, reste prioritaire). Aucune invention.
+function _deriverParGrapheReseau(r) {
+  var pv = [], dm = [];
+  var indetTous = function (raison) {
+    return { troncons: (r.troncons || []).map(function (t) { var ref = (t.id || t.pieceRef || t.role || 'troncon'); if (typeof t.debit === 'number') return { tronconId: (t.id || null), ref: ref, reseau: r.type, debit: t.debit, unite: 'm3/h', origine: 'releve', statut: 'releve' }; dm.push({ champ: raison + ':' + ref, impact: 'debit_troncon' }); return { tronconId: (t.id || null), ref: ref, reseau: r.type, debit: null, unite: 'm3/h', origine: 'indetermine', statut: 'indetermine', raison: raison }; }), pointsAVerifier: pv, donneesManquantes: dm };
+  };
+  var val = validerTopologieVmc({ reseaux: [r] }).reseaux[0];
+  if (val.cycle) return indetTous('cycle_topologique');
+  if (!val.valide) return indetTous('topologie_invalide');
+
+  var G = parcourirGrapheVmc({ reseaux: [r] }).reseaux[0];
+  var fonctionAttendue = (r.type === 'extraction') ? 'SORTIE_AIR' : 'INSUFFLATION';
+  var termSum = {}, termComplet = {}, termContrib = {};
+  G.noeuds.forEach(function (n) { termSum[n] = 0; termComplet[n] = true; termContrib[n] = []; });
+  var raccordeAvecDebit = 0, nonRaccordeCoherent = 0;
+  (r.terminaux || []).forEach(function (tm) {
+    if (tm.fonction != null && tm.fonction !== fonctionAttendue) return; // fonction incohérente → hors graphe mécanique
+    if (tm.noeudId == null) { nonRaccordeCoherent++; return; }
+    if (termSum[tm.noeudId] === undefined) { termSum[tm.noeudId] = 0; termComplet[tm.noeudId] = true; termContrib[tm.noeudId] = []; }
+    termContrib[tm.noeudId].push(tm.id || tm.pieceRef);
+    if (typeof tm.debit === 'number') { termSum[tm.noeudId] += tm.debit; raccordeAvecDebit++; } else termComplet[tm.noeudId] = false;
+  });
+  if (nonRaccordeCoherent > 0) { pv.push({ type: 'topologie', description: 'Terminal non raccordé (noeudId absent) dans le réseau ' + r.type + ' : totaux dérivés non garantis.' }); return indetTous('terminal_non_raccorde'); }
+
+  var det = {}, complet = {}, valeur = {}, contrib = {};
+  if (r.type === 'extraction') {
+    var order = _topoOrder(G.noeuds, G.edges, false);
+    order.forEach(function (n) {
+      var d = true, c = termComplet[n], v = termSum[n], ct = (termContrib[n] || []).slice();
+      (G.amontDe[n] || []).forEach(function (x) {
+        if (!(det[x] && G.outDegree[x] === 1)) d = false;
+        else { v += valeur[x]; if (!complet[x]) c = false; ct = ct.concat(contrib[x]); }
+      });
+      det[n] = d; complet[n] = c; valeur[n] = v; contrib[n] = ct;
+    });
+  } else {
+    var order2 = _topoOrder(G.noeuds, G.edges, true);
+    order2.forEach(function (n) {
+      var d = (G.inDegree[n] <= 1), c = termComplet[n], v = termSum[n], ct = (termContrib[n] || []).slice();
+      (G.avalDe[n] || []).forEach(function (y) {
+        if (!det[y]) d = false;
+        else { v += valeur[y]; if (!complet[y]) c = false; ct = ct.concat(contrib[y]); }
+      });
+      det[n] = d; complet[n] = c; valeur[n] = v; contrib[n] = ct;
+    });
+  }
+
+  var troncons = (r.troncons || []).map(function (t) {
+    var ref = (t.id || t.pieceRef || t.role || 'troncon');
+    // Candidat dérivé par graphe.
+    var cand = null;
+    if (t.noeudAmont != null && t.noeudAval != null) {
+      if (r.type === 'extraction') {
+        var x = t.noeudAmont;
+        if (G.outDegree[x] !== 1) cand = { raison: 'topologie_ambigue' };
+        else if (!det[x]) cand = { raison: 'topologie_ambigue' };
+        else if (!complet[x]) cand = { raison: 'terminal_sans_debit' };
+        else cand = { ok: true, valeur: valeur[x], contrib: contrib[x] };
+      } else {
+        var y = t.noeudAval;
+        if (!det[y]) cand = { raison: (G.inDegree[y] > 1 ? 'topologie_ambigue' : 'topologie_insuffisante') };
+        else if (!complet[y]) cand = { raison: 'terminal_sans_debit' };
+        else cand = { ok: true, valeur: valeur[y], contrib: contrib[y] };
+      }
+    } else cand = { raison: 'troncon_sans_noeuds' };
+    // Relevé prioritaire.
+    if (typeof t.debit === 'number') {
+      var out = { tronconId: (t.id || null), ref: ref, reseau: r.type, debit: t.debit, unite: 'm3/h', origine: 'releve', statut: 'releve' };
+      if (cand && cand.ok && cand.valeur !== t.debit) { out.debitDerive = cand.valeur; pv.push({ type: 'coherence', description: 'debit_troncon_releve_different_du_debit_derive:' + ref + ' (relevé ' + t.debit + ' ≠ dérivé ' + cand.valeur + ')' }); }
+      return out;
+    }
+    if (cand && cand.ok) return { tronconId: (t.id || null), ref: ref, reseau: r.type, debit: cand.valeur, unite: 'm3/h', origine: 'derive', methode: 'graphe_' + r.type, terminauxContributeurs: cand.contrib, statut: 'derive' };
+    dm.push({ champ: (cand ? cand.raison : 'topologie_insuffisante') + ':' + ref, impact: 'debit_troncon' });
+    return { tronconId: (t.id || null), ref: ref, reseau: r.type, debit: null, unite: 'm3/h', origine: 'indetermine', statut: 'indetermine', raison: (cand ? cand.raison : 'topologie_insuffisante') };
+  });
+  return { troncons: troncons, pointsAVerifier: pv, donneesManquantes: dm };
+}
+
+
+// =====================================================================
+// M57 LOT28 — DÉRIVATION DÉTERMINISTE DU DÉBIT DE TRONÇON VMC
+// =====================================================================
+// deriverDebitsTronconsVmc(donneesReseau, options?) : DÉDUIT le débit d'un tronçon UNIQUEMENT
+// quand il est DÉMONTRABLE par la topologie disponible + les débits des terminaux (relevés).
+// Aucune invention : débit réglementaire/moyen/par défaut/estimé INTERDITS. Modèle réellement
+// exploitable = arbre à 2 niveaux (antennes rattachées à une pièce + collecteur unique) :
+//   • antenne (pieceRef)  → Σ débits terminaux de la pièce (fonction cohérente avec le réseau) ;
+//   • collecteur (unique) → Σ débits des antennes, si TOUTES déterminées.
+// Un débit RELEVÉ sur le tronçon reste PRIORITAIRE (jamais remplacé) ; un dérivé divergent est
+// signalé sans arbitrage. Ambiguïté / terminal sans débit / topologie insuffisante / cycle →
+// débit null + statut indéterminé + raison explicite. Extraction et insufflation SÉPARÉS.
+// Pur, déterministe, non mutant, hors money-path. NE calcule ni perte, ni pression, ni diamètre.
+function _cycleTopologique(troncons) {
+  // Garde optionnelle : si des arêtes noeudAmont→noeudAval sont présentes, refuser un cycle.
+  var edges = troncons.filter(function (t) { return t.noeudAmont != null && t.noeudAval != null; });
+  if (!edges.length) return false;
+  var adj = {}; edges.forEach(function (t) { (adj[t.noeudAmont] = adj[t.noeudAmont] || []).push(t.noeudAval); });
+  var etat = {}; // 0=en cours, 1=fini
+  var dfs = function (n) {
+    if (etat[n] === 0) return true; if (etat[n] === 1) return false;
+    etat[n] = 0; var ok = (adj[n] || []).some(dfs); etat[n] = 1; return ok;
+  };
+  return Object.keys(adj).some(function (n) { return etat[n] === undefined && dfs(n); });
+}
+
+function deriverDebitsTronconsVmc(donneesReseau, options) {
+  options = options || {};
+  var reseauxIn = (donneesReseau && Array.isArray(donneesReseau.reseaux)) ? donneesReseau.reseaux : [];
+  var donneesManquantes = [], pointsAVerifier = [];
+  var dm = function (c) { if (c && !donneesManquantes.some(function (x) { return x.champ === c; })) donneesManquantes.push({ champ: c, impact: 'debit_troncon' }); };
+  var pv = function (o) { if (o) pointsAVerifier.push(o); };
+
+  var reseaux = reseauxIn.map(function (r) {
+    var indet = function (t, ref, raison) { dm(raison + ':' + ref); return { tronconId: (t.id || null), ref: ref, reseau: r.type, debit: null, unite: 'm3/h', origine: 'indetermine', statut: 'indetermine', raison: raison }; };
+    // M57 LOT29 : si le GRAPHE est réellement décrit (arêtes + terminaux raccordés), dérivation
+    // générale par parcours orienté. Sinon → repli sur l'arbre à 2 niveaux (pièce/collecteur, LOT28).
+    var aGraphe = (r.troncons || []).some(function (t) { return t.noeudAmont != null && t.noeudAval != null; }) && (r.terminaux || []).some(function (tm) { return tm.noeudId != null; });
+    if (aGraphe) {
+      var g = _deriverParGrapheReseau(r);
+      (g.donneesManquantes || []).forEach(function (d) { if (!donneesManquantes.some(function (x) { return x.champ === d.champ; })) donneesManquantes.push(d); });
+      (g.pointsAVerifier || []).forEach(function (p) { pointsAVerifier.push(p); });
+      return { type: r.type, statut: 'traite', mode: 'graphe', troncons: g.troncons };
+    }
+    // Cycle : ne jamais traiter comme un arbre.
+    if (_cycleTopologique(r.troncons || [])) {
+      return { type: r.type, statut: 'indetermine', raison: 'cycle_topologique', troncons: (r.troncons || []).map(function (t) { return indet(t, (t.id || t.pieceRef || t.role || 'troncon'), 'cycle_topologique'); }) };
+    }
+    // 1. Débits terminaux agrégés par pièce (fonction cohérente avec le type de réseau).
+    var fonctionAttendue = (r.type === 'extraction') ? 'SORTIE_AIR' : 'INSUFFLATION';
+    var parPiece = {};
+    (r.terminaux || []).forEach(function (tm) {
+      if (tm.pieceRef == null) { pv({ type: 'topologie', description: 'Terminal non rattaché à une pièce (réseau ' + r.type + ') : non pris en compte dans la dérivation.' }); return; }
+      if (tm.fonction != null && tm.fonction !== fonctionAttendue) return; // fonction incohérente → ignoré
+      var g = parPiece[tm.pieceRef] || (parPiece[tm.pieceRef] = { total: 0, complet: true, terminaux: [] });
+      g.terminaux.push(tm.id || tm.pieceRef);
+      if (typeof tm.debit === 'number') g.total += tm.debit; else g.complet = false;
+    });
+    // 2. Antennes / collecteurs.
+    var troncons0 = r.troncons || [];
+    var estAntenne = function (t) { return t.role === 'antenne' || (t.role == null && t.pieceRef != null); };
+    var antennes = troncons0.filter(estAntenne);
+    var collecteurs = troncons0.filter(function (t) { return t.role === 'collecteur'; });
+    var comptePieceAntenne = {};
+    antennes.forEach(function (t) { if (t.pieceRef != null) comptePieceAntenne[t.pieceRef] = (comptePieceAntenne[t.pieceRef] || 0) + 1; });
+
+    // Débit dérivable d'une antenne (sans tenir compte d'un éventuel relevé) → pour comparaison.
+    var deriveAntenne = function (t) {
+      if (t.pieceRef == null) return { ok: false, raison: 'antenne_sans_pieceRef' };
+      if (comptePieceAntenne[t.pieceRef] > 1) return { ok: false, raison: 'ambiguite_antenne_pieceRef' };
+      var g = parPiece[t.pieceRef];
+      if (!g || g.terminaux.length === 0) return { ok: false, raison: 'aucun_terminal_pour_piece' };
+      if (!g.complet) return { ok: false, raison: 'terminal_sans_debit' };
+      return { ok: true, valeur: g.total, contributeurs: g.terminaux.slice() };
+    };
+    var deriveCollecteur = function () {
+      if (collecteurs.length > 1) return { ok: false, raison: 'plusieurs_collecteurs_topologie_ambigue' };
+      if (antennes.length === 0) return { ok: false, raison: 'aucune_antenne' };
+      var total = 0, contribs = [], complet = true;
+      antennes.forEach(function (a) { var d = deriveAntenne(a); if (!d.ok) { complet = false; return; } total += d.valeur; contribs = contribs.concat(d.contributeurs); });
+      if (!complet) return { ok: false, raison: 'antennes_non_determinees' };
+      return { ok: true, valeur: total, contributeurs: contribs };
+    };
+
+    var troncons = troncons0.map(function (t) {
+      var ref = (t.id || t.pieceRef || t.role || 'troncon');
+      var cand = estAntenne(t) ? deriveAntenne(t) : (t.role === 'collecteur' ? deriveCollecteur() : { ok: false, raison: 'topologie_insuffisante' });
+      // Débit RELEVÉ prioritaire.
+      if (typeof t.debit === 'number') {
+        var out = { tronconId: (t.id || null), ref: ref, reseau: r.type, debit: t.debit, unite: 'm3/h', origine: 'releve', statut: 'releve' };
+        if (cand.ok && cand.valeur !== t.debit) { out.debitDerive = cand.valeur; pv({ type: 'coherence', description: 'debit_troncon_releve_different_du_debit_derive:' + ref + ' (relevé ' + t.debit + ' ≠ dérivé ' + cand.valeur + ')' }); }
+        return out;
+      }
+      if (cand.ok) {
+        return { tronconId: (t.id || null), ref: ref, reseau: r.type, debit: cand.valeur, unite: 'm3/h', origine: 'derive', methode: (estAntenne(t) ? 'somme_debits_terminaux_piece' : 'somme_debits_antennes_aval'), terminauxContributeurs: cand.contributeurs, statut: 'derive' };
+      }
+      return indet(t, ref, cand.raison);
+    });
+    return { type: r.type, statut: 'traite', troncons: troncons };
+  });
+
+  return { reseaux: reseaux, donneesManquantes: donneesManquantes, pointsAVerifier: pointsAVerifier };
+}
+
+
+// =====================================================================
+// M57 LOT27 — BRANCHEMENT Darcy/Colebrook (LOT25) dans l'ÉTUDE (voie parallèle)
+// =====================================================================
+// etudeDarcyVmc(donneesReseau, referentiel, options?) calcule, PAR TRONÇON et PAR RÉSEAU, la
+// perte LINÉAIRE via l'adaptateur LOT22→LOT25 + calculerPerteLineaireVmc. VOIE PARALLÈLE : elle
+// n'altère pas la voie historique LOT15-A (etude.pertes). Débit/longueur/diamètre proviennent du
+// réseau NORMALISÉ (relevé de visite ; le choix existant/projet/mixte est déjà appliqué en amont)
+// — AUCUNE invention, AUCUN fallback de famille, extraction et insufflation JAMAIS additionnées.
+// Ne calcule NI singularités, NI composants, NI pression centrale, NI conformité. Hors money-path.
+function etudeDarcyVmc(donneesReseau, referentiel, options) {
+  options = options || {};
+  if (!referentiel) return { disponible: false, raison: 'referentiel_production_absent', reseaux: [], donneesManquantes: [{ champ: 'referentiel_production', impact: 'darcy' }], pointsAVerifier: [] };
+  var reseauxIn = (donneesReseau && Array.isArray(donneesReseau.reseaux)) ? donneesReseau.reseaux : [];
+  var donneesManquantes = [], pointsAVerifier = [];
+  var dm = function (c, i) { if (c && !donneesManquantes.some(function (x) { return x.champ === c; })) donneesManquantes.push({ champ: c, impact: i || 'darcy' }); };
+
+  // M57 LOT28 : dérivation déterministe du débit de tronçon (utilisée SEULEMENT si le débit du
+  // tronçon n'est pas déjà relevé). Aucune invention : un débit non démontrable reste null.
+  var derivation = deriverDebitsTronconsVmc(donneesReseau);
+  var debitDerivePour = function (type, tronconId) {
+    var rr = (derivation.reseaux || []).filter(function (x) { return x.type === type; })[0];
+    var td = rr ? (rr.troncons || []).filter(function (x) { return x.tronconId === tronconId; })[0] : null;
+    return (td && td.origine === 'derive' && typeof td.debit === 'number') ? td : null;
+  };
+
+  var reseaux = reseauxIn.map(function (r) {
+    var troncons = (r.troncons || []).map(function (t) {
+      var ref = (t.id || t.pieceRef || t.role || 'troncon');
+      // Débit : relevé prioritaire ; sinon dérivé déterministe (LOT28) ; sinon null (aucune invention).
+      var der = (t.debit == null) ? debitDerivePour(r.type, (t.id || null)) : null;
+      var debitUtilise = (t.debit != null) ? t.debit : (der ? der.debit : null);
+      var origineDebit = (t.debit != null) ? 'releve' : (der ? 'derive' : 'absent');
+      var tr = { tronconId: (t.id || null), ref: ref, pieceRef: (t.pieceRef || null), reseau: r.type, typeConduit: (t.typeConduit || null),
+        debit: (debitUtilise != null ? debitUtilise : null), origineDebit: origineDebit,
+        debitDerivation: (der ? { methode: der.methode, terminauxContributeurs: der.terminauxContributeurs } : null),
+        longueur: (t.longueur != null ? t.longueur : null), diametre: (t.diametre != null ? t.diametre : null) };
+      // Adaptateur : ε (famille RÉELLEMENT déclarée) + air + méthode. AUCUN fallback de famille.
+      var a = adaptateurReferentielPertesVmc({ typeConduit: t.typeConduit, debit: debitUtilise, longueur: t.longueur, diametre: t.diametre }, referentiel);
+      if (!a.exploitable) {
+        (a.raisons || []).forEach(function (x) { dm(x, 'darcy'); });
+        return Object.assign(tr, { statut: 'incomplet', perteLineaire: null, perteParMetre: null, calcul: null, donneesManquantes: (a.raisons || []) });
+      }
+      var c = calculerPerteLineaireVmc(a.entree, { methode: a.methode });
+      (c.donneesManquantes || []).forEach(function (d) { dm(d.champ, 'darcy'); });
+      return Object.assign(tr, {
+        statut: c.statut, perteLineaire: c.perteLineaire, perteParMetre: c.perteParMetre,
+        reynolds: c.reynolds, regime: c.regime, facteurFrottement: c.facteurFrottement,
+        methode: c.methode, parametresUtilises: c.parametresUtilises, calcul: c
+      });
+    });
+    var calc = troncons.filter(function (t) { return t.statut === 'calculable'; });
+    var statutReseau = (troncons.length === 0) ? 'indetermine' : ((calc.length === troncons.length) ? 'lineaire_calculee' : (calc.length > 0 ? 'partiel' : 'incomplet'));
+    // Somme linéaire UNIQUEMENT si TOUS les tronçons sont calculables (jamais un total partiel
+    // présenté comme complet). Les pertes SINGULIÈRES / composants ne sont PAS incluses.
+    var totalOk = (calc.length === troncons.length && troncons.length > 0);
+    var perteTot = totalOk ? Math.round(calc.reduce(function (s, t) { return s + t.perteLineaire.valeur; }, 0) * 1000) / 1000 : null;
+    return { type: r.type, statut: statutReseau, troncons: troncons,
+      perteLineaireTotale: (perteTot == null ? null : { valeur: perteTot, unite: 'Pa' }),
+      note: 'Perte LINÉAIRE seule (hors singularités / composants / centrale) — résultat technique, pas une validation.' };
+  });
+
+  if (reseaux.length === 0) dm('donnees_reseau', 'darcy');
+  var tousLin = (reseaux.length > 0) && reseaux.every(function (r) { return r.statut === 'lineaire_calculee'; });
+  var auMoinsUn = reseaux.some(function (r) { return r.statut === 'lineaire_calculee' || r.statut === 'partiel'; });
+  var statutGlobal = (reseaux.length === 0) ? 'indetermine' : (tousLin ? 'lineaire_calculee' : (auMoinsUn ? 'partiel' : 'incomplet'));
+
+  return {
+    disponible: true,
+    methode: METHODE_PERTE_LINEAIRE_VMC,
+    referentiel: traceReferentielPertes(referentiel),
+    statut: statutGlobal,
+    reseaux: reseaux,                 // extraction / insufflation SÉPARÉS (jamais fusionnés)
+    donneesManquantes: donneesManquantes,
+    pointsAVerifier: pointsAVerifier,
+    limites: ['Perte LINÉAIRE uniquement (Darcy-Weisbach). Singularités, composants, pression centrale et conformité NON traités ici.']
+  };
+}
+
+// Comparaison OBSERVATIONNELLE historique (LOT15-A) vs Darcy (LOT25), par tronçon, UNIQUEMENT si
+// même tronçon + mêmes débit/longueur/diamètre. Aucun arbitrage (« lequel est vrai »), aucune
+// fusion, aucune décision. Sinon : comparaison 'impossible' + raison explicite.
+function comparerPerteLineaireVmc(pertesHistorique, etudeDarcy) {
+  var out = [];
+  var hist = [];
+  ((pertesHistorique && pertesHistorique.reseaux) || []).forEach(function (r) { (r.troncons || []).forEach(function (t) { hist.push(Object.assign({ reseau: r.type }, t)); }); });
+  ((etudeDarcy && etudeDarcy.reseaux) || []).forEach(function (r) {
+    (r.troncons || []).forEach(function (td) {
+      var cle = (td.pieceRef || td.ref);
+      var th = hist.filter(function (x) { return x.reseau === r.type && (x.ref === cle || x.ref === td.ref); })[0];
+      if (!th) { out.push({ ref: td.ref, reseau: r.type, comparaison: 'impossible', raison: 'troncon_historique_absent' }); return; }
+      if (!(th.debit === td.debit && th.longueur === td.longueur && th.diametre === td.diametre)) { out.push({ ref: td.ref, reseau: r.type, comparaison: 'impossible', raison: 'entrees_differentes' }); return; }
+      var ph = (th.pertesLineaires != null ? th.pertesLineaires : null);
+      var pd = (td.perteLineaire && td.perteLineaire.valeur != null ? td.perteLineaire.valeur : null);
+      if (ph == null || pd == null) { out.push({ ref: td.ref, reseau: r.type, comparaison: 'impossible', raison: 'une_perte_non_calculee' }); return; }
+      out.push({ ref: td.ref, reseau: r.type, comparaison: 'possible', perteHistorique: ph, perteDarcy: Math.round(pd * 1000) / 1000, ecart: Math.round((pd - ph) * 1000) / 1000 });
+    });
+  });
+  return out;
+}
+
+
+if (typeof module !== "undefined" && module.exports) module.exports = { getVmcPourPiece, _vmcRole, evaluationSupportVmc, controlesOublisVmc, verifierVMC, obligationsVmc, besoinVmc, debitsVmc, topologieVmc, preDimensionnementVmc, preCalculSectionVmc, pertesDeChargeVmc, preEtudeVmc, PROVENANCE_VMC, creerDonneesReseau, validerDonneesReseau, adapterDonneesReseauPourPertes, creerReferentielPertes, validerReferentielPertes, champsReleveVisite, analysePressionVmc, creerGroupeVmc, creerTerminalVmc, evaluerCourbeVmc, positionDebitPlage, adapterDonneesConstructeurPourPression, STATUT_VISITE, PROVENANCE_VISITE, ACCESSIBILITE_VISITE, NATURE_VISITE, ETAT_POSE_VISITE, creerDonneesPose, creerChampValeur, creerChampObserve, creerInstallationVisite, creerNoeudVisite, creerTronconVisite, creerReseauVisite, creerSingulariteVisite, creerTerminalVisite, creerCentraleVisite, creerInterfaceVisite, creerMesureVisite, creerHypotheseVisite, creerPhotoRef, creerDonneesVisite, normaliserVisiteVersReseau, validerDonneesVisite, nouvelleVisiteVmc, serialiserVisiteVmc, restaurerVisiteVmc, ajouterReseauVisite, ajouterNoeudVisite, ajouterTronconVisite, ajouterTerminalVisite, ajouterMesureVisiteA, ajouterHypotheseVisiteA, ajouterPhotoVisiteA, definirInstallationVisite, definirCentraleVisite, definirInterfaceVisite, resumeVisiteVmc, libelleStatutVisite, libelleProvenanceVisite, libelleTypeReseauVisite, construireVueVisite, etudierVisiteVmc, STATUT_REFERENTIEL, creerEntreeLineairePertes, creerEntreeSinguliere, creerReferentielProductionPertes, chargerReferentielPertesDepuisJSON, validerReferentielProduction, compilerReferentielPertes, traceReferentielPertes, creerEntreeRugosite, calculerPerteLineaireVmc, adaptateurReferentielPertesVmc, METHODE_PERTE_LINEAIRE_VMC, RE_LAMINAIRE_MAX, RE_TURBULENT_MIN, etudeDarcyVmc, comparerPerteLineaireVmc, deriverDebitsTronconsVmc, validerTopologieVmc, parcourirGrapheVmc };
