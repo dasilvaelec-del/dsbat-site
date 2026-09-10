@@ -2780,4 +2780,195 @@ function perteCheminDarcyVmc(donneesReseau, etudeDarcy, options) {
 }
 
 
-if (typeof module !== "undefined" && module.exports) module.exports = { getVmcPourPiece, _vmcRole, evaluationSupportVmc, controlesOublisVmc, verifierVMC, obligationsVmc, besoinVmc, debitsVmc, topologieVmc, preDimensionnementVmc, preCalculSectionVmc, pertesDeChargeVmc, preEtudeVmc, PROVENANCE_VMC, creerDonneesReseau, validerDonneesReseau, adapterDonneesReseauPourPertes, creerReferentielPertes, validerReferentielPertes, champsReleveVisite, analysePressionVmc, creerGroupeVmc, creerTerminalVmc, evaluerCourbeVmc, positionDebitPlage, adapterDonneesConstructeurPourPression, STATUT_VISITE, PROVENANCE_VISITE, ACCESSIBILITE_VISITE, NATURE_VISITE, ETAT_POSE_VISITE, creerDonneesPose, creerChampValeur, creerChampObserve, creerInstallationVisite, creerNoeudVisite, creerTronconVisite, creerReseauVisite, creerSingulariteVisite, creerTerminalVisite, creerCentraleVisite, creerInterfaceVisite, creerMesureVisite, creerHypotheseVisite, creerPhotoRef, creerDonneesVisite, normaliserVisiteVersReseau, validerDonneesVisite, nouvelleVisiteVmc, serialiserVisiteVmc, restaurerVisiteVmc, ajouterReseauVisite, ajouterNoeudVisite, ajouterTronconVisite, ajouterTerminalVisite, ajouterMesureVisiteA, ajouterHypotheseVisiteA, ajouterPhotoVisiteA, definirInstallationVisite, definirCentraleVisite, definirInterfaceVisite, resumeVisiteVmc, libelleStatutVisite, libelleProvenanceVisite, libelleTypeReseauVisite, construireVueVisite, etudierVisiteVmc, STATUT_REFERENTIEL, creerEntreeLineairePertes, creerEntreeSinguliere, creerReferentielProductionPertes, chargerReferentielPertesDepuisJSON, validerReferentielProduction, compilerReferentielPertes, traceReferentielPertes, creerEntreeRugosite, calculerPerteLineaireVmc, adaptateurReferentielPertesVmc, METHODE_PERTE_LINEAIRE_VMC, RE_LAMINAIRE_MAX, RE_TURBULENT_MIN, etudeDarcyVmc, comparerPerteLineaireVmc, deriverDebitsTronconsVmc, validerTopologieVmc, parcourirGrapheVmc, etudeSinguliereVmc, perteCheminDarcyVmc };
+// =====================================================================
+// M57 LOT33 — MARGE DE PRESSION SUR CHEMIN RÉEL (raccordement LOT32 ↔ pression LOT17-A/B)
+// =====================================================================
+// margePressionCheminVmc(perteCheminDarcy, donneesTechnique, options?) : fonction PURE qui, PAR
+// RÉSEAU, COMPARE la PRESSION DISPONIBLE (donnée externe, contrat LOT17-A/B, en Pa, provenance
+// conservée) à la PERTE DU CHEMIN CRITIQUE RÉEL (LOT32) — et rien d'autre. Voie PARALLÈLE additive :
+// n'altère ni LOT17-A, ni LOT15-A, ni LOT32.
+//  • Perte réseau = perteCheminDarcy.reseaux[type].cheminCritiqueCalcule.perteMaximaleCalculee (Pa) —
+//    perte totale DÉJÀ calculée par LOT32, jamais resommée. JAMAIS la voie historique LOT15-A.
+//    Aucun repli, aucune perte inventée.
+//  • pressionDisponible = donneesTechnique.pressionDisponible[type] (LOT17-A/B) ; unité Pa vérifiée
+//    (jamais convertie) ; source/version/provenance conservées.
+//  • debitCompatible : vrai seulement si pressionDisponible.debitReference === options.debitProjet[type].
+//    Débit projet absent → non vérifiable (signalé, jamais supposé) ; incompatible → 'a_verifier'.
+//  • Composants centrale / terminal AJOUTÉS uniquement si FOURNIS et exploitables ; sinon signalés
+//    (jamais 0 implicite) → total = borne inférieure → marge NON garantie.
+//  • Double comptage terminal INTERDIT : si une perte terminale LOT32 (chemin critique) ET un terme
+//    terminaux[type] existent, on n'en additionne AUCUN silencieusement — ambiguïté signalée.
+//  • maximumCertain=false OU un terme manquant/ambigu → statut 'marge_non_garantie' (marge = borne
+//    supérieure), jamais un « OK ». Marge < 0 → 'pression_insuffisante' (robuste : la perte réelle
+//    ne peut qu'être ≥ la borne, donc la marge réelle ≤ la marge calculée).
+//  • SF (extraction) / DF (extraction + insufflation) SÉPARÉS ; aucun mélange, aucun total global.
+//  • Hors money-path : aucune sélection produit, aucun équilibrage, aucune acoustique, aucune
+//    conformité, aucun prix, aucune résolution de point de fonctionnement courbe×courbe.
+function margePressionCheminVmc(perteCheminDarcy, donneesTechnique, options) {
+  donneesTechnique = donneesTechnique || {};
+  options = options || {};
+  var dispoIn = donneesTechnique.pressionDisponible || {};
+  var compIn = donneesTechnique.composants || {};
+  var termIn = donneesTechnique.terminaux || {};
+  var debitProjetIn = options.debitProjet || {};
+  var num = function (v) { return (typeof v === 'number' && isFinite(v)) ? v : null; };
+  var r2 = function (v) { return (v == null) ? null : Math.round(v * 100) / 100; };
+
+  if (!perteCheminDarcy || perteCheminDarcy.disponible !== true) {
+    return { disponible: false, raison: 'perte_chemin_absente', reseaux: [], synthese: null, donneesManquantes: [{ champ: 'perte_chemin_darcy', impact: 'marge' }], pointsAVerifier: [], limites: [] };
+  }
+  var reseauxLot32 = Array.isArray(perteCheminDarcy.reseaux) ? perteCheminDarcy.reseaux : [];
+
+  var reseaux = reseauxLot32.map(function (rc) {
+    var type = rc.type; // extraction | insufflation — traités séparément
+    var donneesManquantes = [], pointsAVerifier = [];
+    var dm = function (c, i) { if (c && !donneesManquantes.some(function (x) { return x.champ === c; })) donneesManquantes.push({ champ: c, impact: i || 'marge' }); };
+    var pv = function (o) { if (o && !pointsAVerifier.some(function (x) { return x.description === o.description; })) pointsAVerifier.push(o); };
+
+    // 1. Perte réseau = perte du chemin critique CALCULÉ (LOT32). Jamais LOT15-A.
+    var crit = rc.cheminCritiqueCalcule || null;
+    var perteReseau = (crit && crit.perteMaximaleCalculee && num(crit.perteMaximaleCalculee.valeur) != null) ? num(crit.perteMaximaleCalculee.valeur) : null;
+    if (perteReseau == null) dm('perte_chemin_non_calculee:' + type, 'perte_reseau');
+    var maximumCertain = (rc.maximumCertain === true);
+    if (!maximumCertain) pv({ type: 'incertitude', description: 'Chemin critique ' + type + ' non certain (chemin(s) incomplet(s)) : marge = borne supérieure, le vrai chemin critique peut être plus défavorable.' });
+
+    // 2. Perte terminale : soit celle du chemin critique LOT32, soit un terme terminaux[type] — JAMAIS les deux.
+    var critChemin = crit ? (rc.chemins || []).filter(function (c) { return c.terminal === crit.terminal; })[0] : null;
+    var pTermLot32 = (critChemin && critChemin.perteTerminale && num(critChemin.perteTerminale.valeur) != null) ? num(critChemin.perteTerminale.valeur) : null;
+    var termFourni = termIn[type] || null;
+    var pTermTech = (termFourni && num(termFourni.valeur) != null) ? num(termFourni.valeur) : null;
+    var pTerminal = null, termComplet = true, ambiguiteTerminal = false;
+    if (pTermLot32 != null && pTermTech != null) {
+      ambiguiteTerminal = true; termComplet = false; pTerminal = null; // ne rien additionner en double
+      pv({ type: 'ambiguite', description: 'Perte terminale ' + type + ' présente à la fois côté LOT32 (chemin critique) et côté terminaux[' + type + '] : non additionnées (double comptage évité). Distinguer la source avant de trancher.' });
+      dm('ambiguite_perte_terminale:' + type, 'pertes_necessaires');
+    } else if (pTermLot32 != null) { pTerminal = pTermLot32; }
+    else if (pTermTech != null) { pTerminal = pTermTech; }
+    else { termComplet = false; dm('pertes_terminaux_non_documentees:' + type, 'pertes_necessaires'); } // manque signalé, jamais 0
+
+    // 3. Composants centrale : ajoutés uniquement si fournis ET exploitables ; sinon signalés (jamais 0).
+    var comps = Array.isArray(compIn[type]) ? compIn[type] : null;
+    var somComp = null, compComplet = true;
+    if (comps) {
+      somComp = 0;
+      comps.forEach(function (c) { var v = num(c && c.valeur); if (v == null) { compComplet = false; } else if (c.unite && c.unite !== 'Pa') { compComplet = false; pv({ type: 'unite', description: 'Composant ' + type + ' documenté dans une unité ≠ Pa : ignoré (jamais converti).' }); } else somComp += v; });
+      if (!compComplet) dm('pertes_composants_non_exploitables:' + type, 'pertes_necessaires');
+    } else { compComplet = false; dm('pertes_internes_centrale_non_documentees:' + type, 'pertes_necessaires'); }
+
+    // 4. Pression disponible (externe, LOT17-A/B). Unité Pa vérifiée (jamais convertie). Provenance
+    //    ET nature de pression conservées : la comparaison ne se contente PAS de l'unité.
+    var dispoBrut = dispoIn[type] || null;
+    var pressionDisponible = null;
+    if (dispoBrut && num(dispoBrut.valeur) != null) {
+      if (dispoBrut.unite && dispoBrut.unite !== 'Pa') { dm('pression_disponible_unite_non_Pa:' + type, 'comparaison'); pv({ type: 'unite', description: 'Pression disponible ' + type + ' fournie dans une unité ≠ Pa : comparaison refusée (aucune conversion).' }); }
+      else {
+        pressionDisponible = { valeur: num(dispoBrut.valeur), unite: 'Pa', nature: (dispoBrut.nature || dispoBrut.typePression || null), debitReference: num(dispoBrut.debitReference), source: (dispoBrut.source || null), version: (dispoBrut.version || null), provenance: (dispoBrut.provenance || null) };
+      }
+    } else { dm('pression_disponible_groupe:' + type, 'comparaison'); }
+
+    // 5. Convention de pression : la perte LOT32 est une perte de charge TOTALE (Δp Darcy-Weisbach).
+    //    La pression disponible doit déclarer une nature COMPATIBLE (ex. 'totale'). Nature inconnue
+    //    ou incompatible → comparaison NON applicable (jamais silencieuse, aucune conversion).
+    var conventionPertes = options.conventionPertes || 'totale';
+    var natureCompatible = null;
+    if (pressionDisponible != null) {
+      var natureDispo = pressionDisponible.nature;
+      if (natureDispo == null) { dm('nature_pression_non_declaree:' + type, 'comparaison'); pv({ type: 'convention', description: 'Nature de la pression disponible ' + type + ' non déclarée (statique/totale) : comparaison non applicable (aucune hypothèse).' }); }
+      else if (natureDispo !== conventionPertes) { natureCompatible = false; dm('nature_pression_incompatible:' + type, 'comparaison'); pv({ type: 'convention', description: 'Pression disponible ' + type + ' de nature « ' + natureDispo + ' » ≠ convention des pertes « ' + conventionPertes + ' » : comparaison refusée (aucune conversion).' }); }
+      else natureCompatible = true;
+    }
+
+    // 6. Compatibilité de débit : debitReference === débit projet réseau (jamais supposé).
+    var debitProjet = num(debitProjetIn[type]);
+    var debitCompatible = null;
+    if (pressionDisponible != null) {
+      if (debitProjet == null) { debitCompatible = null; dm('debit_projet_absent:' + type, 'comparaison'); pv({ type: 'donnee', description: 'Débit projet ' + type + ' non fourni : compatibilité de la pression disponible non vérifiable (non supposée).' }); }
+      else if (pressionDisponible.debitReference == null) { debitCompatible = null; dm('debit_reference_absent:' + type, 'comparaison'); }
+      else { debitCompatible = (pressionDisponible.debitReference === debitProjet); if (!debitCompatible) { dm('debit_reference_incompatible:' + type, 'comparaison'); pv({ type: 'technique', description: 'Pression disponible ' + type + ' documentée à un débit ≠ débit projet : comparaison non applicable (aucune interpolation).' }); } }
+    }
+
+    // 7. Régime d'écoulement : si déclaré des deux côtés, doit être compatible ; jamais corrigé.
+    var regimeEtude = (options.regimeEtude || {})[type] || null;
+    var regimeDispo = (dispoBrut && dispoBrut.regime) || null;
+    var regimeCompatible = null;
+    if (regimeEtude != null && regimeDispo != null) { regimeCompatible = (regimeEtude === regimeDispo); if (!regimeCompatible) { dm('regime_incompatible:' + type, 'comparaison'); pv({ type: 'technique', description: 'Régime de la pression disponible ' + type + ' ≠ régime de l\'étude : comparaison non applicable (aucune correction).' }); } }
+
+    // 8. Pertes nécessaires = perte réseau LOT32 (déjà TOTALE, non resommée) (+ terminal si résolu)
+    //    (+ composants centrale si exploitables). Aucun terme déjà inclus dans LOT32 n'est ré-ajouté :
+    //    perteMaximaleCalculee = conduits seuls ; terminal et composants sont EXTERNES au chemin.
+    var pertesNecessaires = null;
+    if (perteReseau != null) {
+      var total = perteReseau + (pTerminal != null ? pTerminal : 0) + (somComp != null && compComplet ? somComp : 0);
+      pertesNecessaires = { valeur: r2(total), unite: 'Pa', detail: { reseau: r2(perteReseau), terminal: (pTerminal != null ? r2(pTerminal) : null), composants: (somComp != null && compComplet ? r2(somComp) : null) } };
+    }
+    // Borne inférieure des pertes dès qu'un terme manque/ambigu ou que le maximum n'est pas certain.
+    var borneInferieure = (!termComplet) || (!compComplet) || (!maximumCertain);
+
+    // 9. Marge = disponible − nécessaire, SEULEMENT si les deux connues ET convention/débit/régime
+    //    compatibles. Toute incompatibilité (nature, débit, régime) → 'a_verifier', jamais silencieuse.
+    var margePa = null, statut, raison;
+    if (perteReseau == null || pressionDisponible == null) { statut = 'incomplet'; raison = 'Perte de chemin réel et/ou pression disponible manquante.'; }
+    else if (natureCompatible === false) { statut = 'a_verifier'; raison = 'Nature de pression disponible incompatible avec la convention des pertes (totale) : comparaison non applicable.'; }
+    else if (natureCompatible === null) { statut = 'a_verifier'; raison = 'Nature de la pression disponible non déclarée : comparaison non applicable (aucune hypothèse).'; }
+    else if (debitCompatible === false) { statut = 'a_verifier'; raison = 'Débit de référence de la pression disponible ≠ débit projet : comparaison non applicable telle quelle.'; }
+    else if (debitCompatible === null) { statut = 'a_verifier'; raison = 'Compatibilité de débit non vérifiable (débit projet ou débit de référence absent).'; }
+    else if (regimeCompatible === false) { statut = 'a_verifier'; raison = 'Régime d\'écoulement incompatible entre pression disponible et étude : comparaison non applicable.'; }
+    else {
+      margePa = r2(pressionDisponible.valeur - pertesNecessaires.valeur);
+      if (margePa < 0) { statut = 'pression_insuffisante'; raison = 'Marge négative : la pression disponible ne couvre pas la perte du chemin réel (perte = borne inférieure, marge réelle ≤ marge calculée).'; }
+      else if (borneInferieure) { statut = 'marge_non_garantie'; raison = 'Marge calculée ≥ 0 mais non garantie : ' + [(!maximumCertain ? 'chemin critique non certain' : null), (!termComplet ? 'terme terminal manquant/ambigu' : null), (!compComplet ? 'pertes composants non documentées' : null)].filter(Boolean).join(' ; ') + ' → la perte réelle peut être supérieure.'; }
+      else { statut = 'marge_calculee'; raison = 'Pression disponible et perte du chemin réel connues, débit compatible, tous les termes documentés.'; }
+    }
+
+    return {
+      type: type,
+      debitProjet: debitProjet,
+      uniteDebit: 'm3/h',
+      debitCompatible: debitCompatible,
+      natureCompatible: natureCompatible,
+      regimeCompatible: regimeCompatible,
+      pressionDisponible: pressionDisponible,
+      cheminCritique: (crit ? { terminal: crit.terminal, troncons: crit.troncons } : null),
+      chemins: (Array.isArray(rc.chemins) ? rc.chemins : []), // chemins LOT32 CONSERVÉS (dont incomplets), traçabilité
+      pertesNecessaires: pertesNecessaires,
+      margePa: margePa,
+      maximumCertain: maximumCertain,
+      ambiguiteTerminal: ambiguiteTerminal,
+      statut: statut,
+      raison: raison,
+      donneesManquantes: donneesManquantes,
+      pointsAVerifier: pointsAVerifier
+    };
+  });
+
+  // Synthèse SANS fusion des réseaux : agrégats descriptifs uniquement, jamais un total combiné.
+  var comparables = reseaux.filter(function (r) { return r.margePa != null; });
+  var plusContraignant = null;
+  comparables.forEach(function (r) { if (!plusContraignant || r.margePa < plusContraignant.margePa) plusContraignant = r; });
+  var dispoConnues = reseaux.map(function (r) { return r.pressionDisponible ? r.pressionDisponible.valeur : null; }).filter(function (v) { return v != null; });
+  var necConnues = reseaux.map(function (r) { return r.pertesNecessaires ? r.pertesNecessaires.valeur : null; }).filter(function (v) { return v != null; });
+  var synthese = {
+    parReseau: reseaux.map(function (r) { return { type: r.type, statut: r.statut, margePa: r.margePa, maximumCertain: r.maximumCertain }; }),
+    reseauLePlusContraignant: plusContraignant ? plusContraignant.type : null,
+    margeMinimaleConnue: comparables.length ? Math.min.apply(null, comparables.map(function (r) { return r.margePa; })) : null,
+    pressionDisponibleMaximaleConnue: dispoConnues.length ? Math.max.apply(null, dispoConnues) : null,
+    pertesNecessairesMaximaleCalculable: necConnues.length ? Math.max.apply(null, necConnues) : null
+  };
+
+  return {
+    disponible: true,
+    methode: 'marge_pression_chemin_reel',
+    reseaux: reseaux,                 // SF : extraction ; DF : extraction + insufflation — SÉPARÉS, jamais fusionnés
+    synthese: synthese,
+    note: 'Marge = pression disponible − perte du chemin réel (LOT32). Voie parallèle additive ; aucun repli LOT15-A ; jamais une validation, ni une sélection produit, ni un point de fonctionnement.',
+    limites: [
+      'Marge PONCTUELLE au débit étudié (pas de résolution courbe ventilateur × courbe réseau).',
+      'Convention de pression vérifiée (nature statique/totale + débit + régime), jamais sur l\'unité Pa seule ; incompatibilité → à vérifier, jamais comparée silencieusement.',
+      'Perte réseau = perte totale déjà calculée par LOT32 (non resommée). Composants centrale et perte terminale pris en compte uniquement si documentés (jamais 0 implicite) et jamais comptés deux fois.',
+      'Aucune sélection produit, aucun équilibrage, aucune acoustique, aucune conformité, aucun prix, aucun repli LOT15-A.'
+    ]
+  };
+}
+
+
+if (typeof module !== "undefined" && module.exports) module.exports = { getVmcPourPiece, _vmcRole, evaluationSupportVmc, controlesOublisVmc, verifierVMC, obligationsVmc, besoinVmc, debitsVmc, topologieVmc, preDimensionnementVmc, preCalculSectionVmc, pertesDeChargeVmc, preEtudeVmc, PROVENANCE_VMC, creerDonneesReseau, validerDonneesReseau, adapterDonneesReseauPourPertes, creerReferentielPertes, validerReferentielPertes, champsReleveVisite, analysePressionVmc, creerGroupeVmc, creerTerminalVmc, evaluerCourbeVmc, positionDebitPlage, adapterDonneesConstructeurPourPression, STATUT_VISITE, PROVENANCE_VISITE, ACCESSIBILITE_VISITE, NATURE_VISITE, ETAT_POSE_VISITE, creerDonneesPose, creerChampValeur, creerChampObserve, creerInstallationVisite, creerNoeudVisite, creerTronconVisite, creerReseauVisite, creerSingulariteVisite, creerTerminalVisite, creerCentraleVisite, creerInterfaceVisite, creerMesureVisite, creerHypotheseVisite, creerPhotoRef, creerDonneesVisite, normaliserVisiteVersReseau, validerDonneesVisite, nouvelleVisiteVmc, serialiserVisiteVmc, restaurerVisiteVmc, ajouterReseauVisite, ajouterNoeudVisite, ajouterTronconVisite, ajouterTerminalVisite, ajouterMesureVisiteA, ajouterHypotheseVisiteA, ajouterPhotoVisiteA, definirInstallationVisite, definirCentraleVisite, definirInterfaceVisite, resumeVisiteVmc, libelleStatutVisite, libelleProvenanceVisite, libelleTypeReseauVisite, construireVueVisite, etudierVisiteVmc, STATUT_REFERENTIEL, creerEntreeLineairePertes, creerEntreeSinguliere, creerReferentielProductionPertes, chargerReferentielPertesDepuisJSON, validerReferentielProduction, compilerReferentielPertes, traceReferentielPertes, creerEntreeRugosite, calculerPerteLineaireVmc, adaptateurReferentielPertesVmc, METHODE_PERTE_LINEAIRE_VMC, RE_LAMINAIRE_MAX, RE_TURBULENT_MIN, etudeDarcyVmc, comparerPerteLineaireVmc, deriverDebitsTronconsVmc, validerTopologieVmc, parcourirGrapheVmc, etudeSinguliereVmc, perteCheminDarcyVmc, margePressionCheminVmc };
