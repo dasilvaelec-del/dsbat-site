@@ -2612,4 +2612,172 @@ function etudeSinguliereVmc(donneesReseau, referentiel, options) {
 }
 
 
-if (typeof module !== "undefined" && module.exports) module.exports = { getVmcPourPiece, _vmcRole, evaluationSupportVmc, controlesOublisVmc, verifierVMC, obligationsVmc, besoinVmc, debitsVmc, topologieVmc, preDimensionnementVmc, preCalculSectionVmc, pertesDeChargeVmc, preEtudeVmc, PROVENANCE_VMC, creerDonneesReseau, validerDonneesReseau, adapterDonneesReseauPourPertes, creerReferentielPertes, validerReferentielPertes, champsReleveVisite, analysePressionVmc, creerGroupeVmc, creerTerminalVmc, evaluerCourbeVmc, positionDebitPlage, adapterDonneesConstructeurPourPression, STATUT_VISITE, PROVENANCE_VISITE, ACCESSIBILITE_VISITE, NATURE_VISITE, ETAT_POSE_VISITE, creerDonneesPose, creerChampValeur, creerChampObserve, creerInstallationVisite, creerNoeudVisite, creerTronconVisite, creerReseauVisite, creerSingulariteVisite, creerTerminalVisite, creerCentraleVisite, creerInterfaceVisite, creerMesureVisite, creerHypotheseVisite, creerPhotoRef, creerDonneesVisite, normaliserVisiteVersReseau, validerDonneesVisite, nouvelleVisiteVmc, serialiserVisiteVmc, restaurerVisiteVmc, ajouterReseauVisite, ajouterNoeudVisite, ajouterTronconVisite, ajouterTerminalVisite, ajouterMesureVisiteA, ajouterHypotheseVisiteA, ajouterPhotoVisiteA, definirInstallationVisite, definirCentraleVisite, definirInterfaceVisite, resumeVisiteVmc, libelleStatutVisite, libelleProvenanceVisite, libelleTypeReseauVisite, construireVueVisite, etudierVisiteVmc, STATUT_REFERENTIEL, creerEntreeLineairePertes, creerEntreeSinguliere, creerReferentielProductionPertes, chargerReferentielPertesDepuisJSON, validerReferentielProduction, compilerReferentielPertes, traceReferentielPertes, creerEntreeRugosite, calculerPerteLineaireVmc, adaptateurReferentielPertesVmc, METHODE_PERTE_LINEAIRE_VMC, RE_LAMINAIRE_MAX, RE_TURBULENT_MIN, etudeDarcyVmc, comparerPerteLineaireVmc, deriverDebitsTronconsVmc, validerTopologieVmc, parcourirGrapheVmc, etudeSinguliereVmc };
+// =====================================================================
+// M57 LOT32 — PERTE DE CHARGE PAR CHEMIN (agrégation physique sur le graphe LOT29)
+// =====================================================================
+// perteCheminDarcyVmc(donneesReseau, etudeDarcy, options?) agrège, PAR RÉSEAU et PAR CHEMIN
+// terminal→source, des pertes DÉJÀ calculées de la voie Darcy : linéaire (LOT27) + singulière
+// (LOT31) de chaque tronçon RÉELLEMENT traversé. But : exposer la perte du CHEMIN LE PLUS
+// DÉFAVORABLE CALCULÉ — terme physique pertinent, là où la somme de TOUS les tronçons (LOT27/31)
+// ne l'est pas (les branches parallèles ne s'additionnent pas).
+//  • Graphe LOT29 RÉEL obligatoire (orientation noeudAmont→noeudAval, connexité, absence de cycle,
+//    terminaux raccordés) ; sinon réseau 'indetermine'/'incomplet' + raison. AUCUN repli LOT15-A.
+//  • Parcours depuis chaque terminal vers la source selon l'orientation RÉELLE (extraction : suit
+//    amont→aval vers la centrale ; insufflation : remonte aval→amont vers la centrale).
+//  • perteChemin = Σ (perteLineaire + perteSinguliere) des tronçons du chemin. Un tronçon PARTAGÉ
+//    est compté une fois DANS CHAQUE chemin qui l'emprunte ; jamais d'addition de branches
+//    parallèles (on prend le MAXIMUM entre chemins, pas la somme).
+//  • Chemin 'calcule' seulement si TOUTES ses pertes de tronçon sont calculables ; sinon 'incomplet'
+//    (conservé et signalé, jamais 0 implicite).
+//  • perteTerminale ajoutée UNIQUEMENT si une valeur exploitable existe déjà sur le terminal ; sinon
+//    signalée manquante (jamais 0). Elle n'entre PAS dans la somme obligatoire des tronçons.
+//  • cheminCritiqueCalcule = chemin de perte MAX parmi les chemins CALCULÉS ; maximumCertain=false
+//    dès qu'un chemin pertinent reste incomplet (le vrai critique pourrait s'y trouver).
+//  • Cohérence des débits RELEVÉS aux nœuds vérifiée et signalée — jamais recalculée ni corrigée.
+//  • SF (extraction) et DF (extraction + insufflation) traités SÉPARÉMENT ; aucun mélange de réseaux.
+//  • Résultat = perte maximale CALCULÉE ; jamais une validation ni un engagement de résultat.
+function perteCheminDarcyVmc(donneesReseau, etudeDarcy, options) {
+  options = options || {};
+  var tol = (typeof options.toleranceDebit === 'number' && options.toleranceDebit >= 0) ? options.toleranceDebit : 1e-6;
+  if (!etudeDarcy || etudeDarcy.disponible !== true) return { disponible: false, raison: 'etude_darcy_absente', reseaux: [], donneesManquantes: [{ champ: 'etude_darcy', impact: 'chemin' }], pointsAVerifier: [] };
+  var reseauxIn = (donneesReseau && Array.isArray(donneesReseau.reseaux)) ? donneesReseau.reseaux : [];
+  var r3 = function (v) { return (v == null) ? null : Math.round(v * 1000) / 1000; };
+  var SEP = '';
+
+  // Index des pertes Darcy par (type de réseau → tronconId) : linéaire (LOT27) + singulière (LOT31).
+  // Aucune perte n'est recalculée ici : on lit UNIQUEMENT ce que LOT27/LOT31 ont déjà produit.
+  var perteParReseau = {};
+  (etudeDarcy.reseaux || []).forEach(function (rd) {
+    var m = {};
+    (rd.troncons || []).forEach(function (t) {
+      if (t.tronconId == null) return;
+      var e = m[t.tronconId] || (m[t.tronconId] = { lin: null, linOk: false, sing: null, singOk: false });
+      e.lin = (t.perteLineaire && typeof t.perteLineaire.valeur === 'number') ? t.perteLineaire.valeur : null;
+      e.linOk = (t.statut === 'calculable' || t.statut === 'debit_nul') && e.lin != null; // 0 calculé (débit nul) accepté ; 0 implicite jamais
+    });
+    var sg = (rd.singulier && Array.isArray(rd.singulier.troncons)) ? rd.singulier.troncons : [];
+    sg.forEach(function (t) {
+      if (t.tronconId == null) return;
+      var e = m[t.tronconId] || (m[t.tronconId] = { lin: null, linOk: false, sing: null, singOk: false });
+      e.sing = (t.perteSinguliere && typeof t.perteSinguliere.valeur === 'number') ? t.perteSinguliere.valeur : null;
+      e.singOk = (t.statut === 'calculable') && e.sing != null;
+    });
+    perteParReseau[rd.type] = m;
+  });
+
+  // Perte terminale : incluse seulement si RÉELLEMENT présente et exploitable (nombre fini ≥ 0).
+  var perteTerminaleExploitable = function (tm) {
+    var cand = (tm.perteTerminale != null) ? tm.perteTerminale : (tm.perteCharge != null ? tm.perteCharge : null);
+    if (typeof cand === 'number' && isFinite(cand) && cand >= 0) return cand;
+    if (cand && typeof cand.valeur === 'number' && isFinite(cand.valeur) && cand.valeur >= 0) return cand.valeur;
+    return null; // absente → signalée, jamais 0 implicite
+  };
+
+  var reseaux = reseauxIn.map(function (r) {
+    var type = r.type;
+    var out = { type: type, statut: 'indetermine', chemins: [], cheminCritiqueCalcule: null, maximumCertain: false, coherenceDebits: { statut: 'non_evaluee', incoherences: [] }, donneesManquantes: [], pointsAVerifier: [] };
+    var addDm = function (c) { if (c && !out.donneesManquantes.some(function (x) { return x.champ === c; })) out.donneesManquantes.push({ champ: c, impact: 'chemin' }); };
+    var pertes = perteParReseau[type] || {};
+
+    // 1. Graphe RÉEL obligatoire (LOT29). Cycle / référence cassée → indéterminé (aucun parcours).
+    var val = validerTopologieVmc({ reseaux: [r] }).reseaux[0];
+    if (!val) { addDm('topologie_absente'); return out; }
+    if (val.cycle) { addDm('cycle_topologique'); out.statut = 'indetermine'; return out; }
+    if (!val.valide) { (val.erreurs || []).forEach(function (e) { addDm((e.code || 'topologie_invalide') + (e.troncon ? ':' + e.troncon : (e.terminal ? ':' + e.terminal : ''))); }); out.statut = 'indetermine'; return out; }
+    // Incomplétude (tronçon sans nœuds, terminal non raccordé) : tolérée mais signalée ; jamais 'calcule' plein.
+    (val.incomplets || []).forEach(function (e) { addDm((e.code || 'topologie_incomplete') + ':' + (e.troncon || e.terminal || '?')); });
+
+    var G = parcourirGrapheVmc({ reseaux: [r] }).reseaux[0];
+    var edgeId = {};
+    G.edges.forEach(function (e) { edgeId[e.amont + SEP + e.aval] = e.id; });
+
+    // 2. Cohérence des débits RELEVÉS aux nœuds internes (≥1 tronçon entrant ET ≥1 sortant).
+    //    Signalée, JAMAIS corrigée. Ignorée si une valeur nécessaire n'est pas relevée (pas d'invention).
+    var num = function (v) { return (typeof v === 'number' && isFinite(v)) ? v : null; };
+    var incoh = [];
+    G.noeuds.forEach(function (n) {
+      var entr = (r.troncons || []).filter(function (t) { return t.noeudAval === n; });   // tronçons finissant en n
+      var sort = (r.troncons || []).filter(function (t) { return t.noeudAmont === n; });   // tronçons partant de n
+      if (entr.length === 0 || sort.length === 0) return; // nœud source/puits : conservation non vérifiable sans invention
+      var term = (r.terminaux || []).filter(function (tm) { return tm.noeudId === n; });
+      var debitsOk = entr.concat(sort).every(function (t) { return num(t.debit) != null; }) && term.every(function (tm) { return num(tm.debit) != null; });
+      if (!debitsOk) return; // une valeur non relevée → on ne vérifie pas (aucune valeur supposée)
+      var sEntr = entr.reduce(function (s, t) { return s + t.debit; }, 0);
+      var sSort = sort.reduce(function (s, t) { return s + t.debit; }, 0);
+      var sTerm = term.reduce(function (s, tm) { return s + tm.debit; }, 0);
+      // extraction : bouches = sources (entrent) ; insufflation : bouches = puits (sortent).
+      var gauche = (type === 'extraction') ? (sEntr + sTerm) : sEntr;
+      var droite = (type === 'extraction') ? sSort : (sSort + sTerm);
+      if (Math.abs(gauche - droite) > tol) incoh.push({ noeud: n, entrant: r3(gauche), sortant: r3(droite), ecart: r3(gauche - droite) });
+    });
+    out.coherenceDebits = { statut: incoh.length ? 'incoherences_signalees' : 'coherente', incoherences: incoh };
+    incoh.forEach(function (ic) { out.pointsAVerifier.push({ type: 'coherence', description: 'debit_incoherent_noeud:' + ic.noeud + ' (entrant ' + ic.entrant + ' ≠ sortant ' + ic.sortant + ') — signalé, non corrigé.' }); });
+
+    // 3. Parcours terminal→source selon l'orientation réelle ; agrégation par chemin.
+    var suivants = (type === 'extraction') ? G.avalDe : G.amontDe;
+    var chemins = (r.terminaux || []).map(function (tm) {
+      var tid = (tm.id || tm.pieceRef || 'terminal');
+      if (tm.noeudId == null) { addDm('terminal_non_raccorde:' + tid); return { terminal: tid, noeudTerminal: null, statut: 'incomplet', troncons: [], detailTroncons: [], perteChemin: null, perteTerminale: null, perteTerminaleManquante: true, raisons: ['terminal_non_raccorde'] }; }
+      var node = tm.noeudId, visited = {}, detail = [], raisons = [], somLin = 0, somSing = 0, ok = true, guard = 0;
+      while (true) {
+        if (visited[node]) { ok = false; raisons.push('cycle_chemin:' + node); break; }
+        visited[node] = true;
+        var suiv = suivants[node] || [];
+        if (suiv.length === 0) break;                      // source atteinte (centrale)
+        if (suiv.length > 1) { ok = false; raisons.push('chemin_ambigu:' + node); break; } // divergence → aucun choix silencieux
+        var nxt = suiv[0];
+        var eid = (type === 'extraction') ? edgeId[node + SEP + nxt] : edgeId[nxt + SEP + node];
+        if (eid == null) { ok = false; raisons.push('troncon_introuvable:' + node); break; }
+        var p = pertes[eid];
+        if (!p || !p.linOk || !p.singOk) {
+          ok = false; raisons.push('perte_troncon_incomplete:' + eid);
+          detail.push({ tronconId: eid, perteLineaire: (p ? p.lin : null), perteSinguliere: (p ? p.sing : null), statut: 'incomplet' });
+        } else {
+          somLin += p.lin; somSing += p.sing;
+          detail.push({ tronconId: eid, perteLineaire: p.lin, perteSinguliere: p.sing, statut: 'calculable' });
+        }
+        node = nxt;
+        if (++guard > 100000) { ok = false; raisons.push('parcours_trop_long'); break; }
+      }
+      var pterm = perteTerminaleExploitable(tm);
+      var chemin = {
+        terminal: tid, noeudTerminal: tm.noeudId,
+        troncons: detail.map(function (d) { return d.tronconId; }),
+        detailTroncons: detail,
+        statut: ok ? 'calcule' : 'incomplet',
+        perteChemin: ok ? { valeur: r3(somLin + somSing), unite: 'Pa', composantes: { lineaire: r3(somLin), singuliere: r3(somSing) } } : null,
+        perteTerminale: (pterm != null ? { valeur: r3(pterm), unite: 'Pa' } : null),
+        raisons: raisons
+      };
+      if (pterm == null) { chemin.perteTerminaleManquante = true; out.pointsAVerifier.push({ type: 'donnee', description: 'Perte terminale non fournie pour ' + tid + ' : non incluse (jamais supposée nulle).' }); }
+      if (!ok) raisons.forEach(function (x) { addDm(x + '@' + tid); });
+      return chemin;
+    });
+    out.chemins = chemins;
+
+    // 4. Chemin critique = MAX parmi les chemins CALCULÉS. Jamais un maximum certain si un chemin reste incomplet.
+    var calc = chemins.filter(function (c) { return c.statut === 'calcule'; });
+    var critique = null;
+    calc.forEach(function (c) { if (!critique || c.perteChemin.valeur > critique.perteChemin.valeur) critique = c; });
+    out.cheminCritiqueCalcule = critique ? { terminal: critique.terminal, troncons: critique.troncons, perteMaximaleCalculee: critique.perteChemin } : null;
+    out.maximumCertain = (critique != null) && (calc.length === chemins.length) && val.complet;
+
+    if (chemins.length === 0) out.statut = 'indetermine';
+    else if (calc.length === chemins.length && val.complet) out.statut = 'calcule';
+    else if (calc.length > 0) out.statut = 'partiel';
+    else out.statut = 'incomplet';
+    out.note = 'Perte du chemin le plus défavorable CALCULÉ (Σ linéaire+singulière des tronçons traversés) — terme physique de perte réseau, jamais une validation ni un engagement de résultat.';
+    return out;
+  });
+
+  return {
+    disponible: true,
+    methode: 'agregation_chemin_graphe_darcy',
+    reseaux: reseaux,                 // SF : extraction ; DF : extraction + insufflation — SÉPARÉS, jamais mélangés
+    note: 'Agrégation par chemin (graphe LOT29) de la voie Darcy (LOT27 linéaire + LOT31 singulière). Aucune addition de branches parallèles ; aucun repli LOT15-A ; aucune donnée inventée.',
+    limites: ['Perte de CHEMIN uniquement (réseau de conduits). Composants/centrale et pression disponible NON traités ici. Perte terminale incluse seulement si déjà fournie.']
+  };
+}
+
+
+if (typeof module !== "undefined" && module.exports) module.exports = { getVmcPourPiece, _vmcRole, evaluationSupportVmc, controlesOublisVmc, verifierVMC, obligationsVmc, besoinVmc, debitsVmc, topologieVmc, preDimensionnementVmc, preCalculSectionVmc, pertesDeChargeVmc, preEtudeVmc, PROVENANCE_VMC, creerDonneesReseau, validerDonneesReseau, adapterDonneesReseauPourPertes, creerReferentielPertes, validerReferentielPertes, champsReleveVisite, analysePressionVmc, creerGroupeVmc, creerTerminalVmc, evaluerCourbeVmc, positionDebitPlage, adapterDonneesConstructeurPourPression, STATUT_VISITE, PROVENANCE_VISITE, ACCESSIBILITE_VISITE, NATURE_VISITE, ETAT_POSE_VISITE, creerDonneesPose, creerChampValeur, creerChampObserve, creerInstallationVisite, creerNoeudVisite, creerTronconVisite, creerReseauVisite, creerSingulariteVisite, creerTerminalVisite, creerCentraleVisite, creerInterfaceVisite, creerMesureVisite, creerHypotheseVisite, creerPhotoRef, creerDonneesVisite, normaliserVisiteVersReseau, validerDonneesVisite, nouvelleVisiteVmc, serialiserVisiteVmc, restaurerVisiteVmc, ajouterReseauVisite, ajouterNoeudVisite, ajouterTronconVisite, ajouterTerminalVisite, ajouterMesureVisiteA, ajouterHypotheseVisiteA, ajouterPhotoVisiteA, definirInstallationVisite, definirCentraleVisite, definirInterfaceVisite, resumeVisiteVmc, libelleStatutVisite, libelleProvenanceVisite, libelleTypeReseauVisite, construireVueVisite, etudierVisiteVmc, STATUT_REFERENTIEL, creerEntreeLineairePertes, creerEntreeSinguliere, creerReferentielProductionPertes, chargerReferentielPertesDepuisJSON, validerReferentielProduction, compilerReferentielPertes, traceReferentielPertes, creerEntreeRugosite, calculerPerteLineaireVmc, adaptateurReferentielPertesVmc, METHODE_PERTE_LINEAIRE_VMC, RE_LAMINAIRE_MAX, RE_TURBULENT_MIN, etudeDarcyVmc, comparerPerteLineaireVmc, deriverDebitsTronconsVmc, validerTopologieVmc, parcourirGrapheVmc, etudeSinguliereVmc, perteCheminDarcyVmc };
