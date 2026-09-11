@@ -20,7 +20,7 @@ const A = (c, m) => { if (c) ok++; else { ko++; console.error('  ❌ ' + m); } }
 function chargerCoherence(avecVerifierVmc, metiers) {
   delete require.cache[require.resolve(path.join(RACINE, 'js', 'coherence.js'))];
   if (avecVerifierVmc) {
-    const VMC = require(path.join(RACINE, 'js', 'moteurs', 'vmc.js'));
+    const VMC = require(path.join(RACINE, 'js', 'moteurs', 'vmc-public.js'));
     globalThis.verifierVMC = VMC.verifierVMC;
     globalThis._vmcRole = VMC._vmcRole;
     globalThis.metiersActifs = metiers || ['vmc'];

@@ -21,7 +21,7 @@ const DEVIS = fs.readFileSync(path.join(RACINE, 'devis.html'), 'utf8');
 const CTX = fs.readFileSync(path.join(RACINE, 'js', 'contexte-projet.js'), 'utf8');
 const MOTEUR = fs.readFileSync(path.join(RACINE, 'js', 'moteur-devis.js'), 'utf8');
 const CONFIG = fs.readFileSync(path.join(RACINE, 'devis-configurateur.html'), 'utf8');
-const VMCJS = fs.readFileSync(path.join(RACINE, 'js', 'moteurs', 'vmc.js'), 'utf8');
+const VMCJS = fs.readFileSync(path.join(RACINE, 'js', 'moteurs', 'vmc-public.js'), 'utf8');
 const INTERP = fs.readFileSync(path.join(RACINE, 'js', 'interpretation-descriptif.js'), 'utf8');
 
 let ok = 0, ko = 0, skip = 0;
@@ -79,7 +79,7 @@ A(/piece\.config\.vmc\[code\] = qty/.test(CONFIG), 'configurateur : écriture pi
 
 // ---- 6. AUCUN impact calcul / DF -------------------------------------
 A(!/ventilationDeclaree/.test(MOTEUR), 'moteur-devis n\'utilise PAS ventilationDeclaree');
-['plomberie', 'vmc', 'electricite', 'carrelage', 'peinture', 'sols', 'isolation', 'menuiserie', 'chauffage'].forEach(m => {
+['plomberie', 'vmc-public', 'electricite', 'carrelage', 'peinture', 'sols', 'isolation', 'menuiserie', 'chauffage'].forEach(m => {
   const src = fs.readFileSync(path.join(RACINE, 'js', 'moteurs', m + '.js'), 'utf8');
   A(!/ventilationDeclaree/.test(src), 'moteur ' + m + ' n\'utilise PAS ventilationDeclaree');
 });

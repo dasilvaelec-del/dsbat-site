@@ -38,7 +38,7 @@ A(/typeVentilationExistante: ch\.typeVentilationExistante \|\| null/.test(CTX), 
 
 // ---- AUCUN impact calcul : le champ n'entre dans aucun moteur --------
 A(!/typeVentilationExistante/.test(MOTEUR), 'moteur-devis n\'utilise PAS typeVentilationExistante (aucun calcul)');
-['plomberie', 'vmc', 'electricite', 'carrelage', 'peinture', 'sols', 'isolation', 'menuiserie', 'chauffage'].forEach(m => {
+['plomberie', 'vmc-public', 'electricite', 'carrelage', 'peinture', 'sols', 'isolation', 'menuiserie', 'chauffage'].forEach(m => {
   const src = fs.readFileSync(path.join(RACINE, 'js', 'moteurs', m + '.js'), 'utf8');
   A(!/typeVentilationExistante/.test(src), 'moteur ' + m + ' n\'utilise PAS typeVentilationExistante');
 });

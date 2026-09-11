@@ -16,7 +16,7 @@
 const fs = require('fs');
 const path = require('path');
 const RACINE = path.join(__dirname, '..');
-const VMC = require(path.join(RACINE, 'js', 'moteurs', 'vmc.js'));
+const VMC = require(path.join(RACINE, 'js', 'moteurs', 'vmc-public.js'));
 
 let ok = 0, ko = 0, skip = 0;
 const A = (c, m) => { if (c) ok++; else { ko++; console.error('  ❌ ' + m); } };

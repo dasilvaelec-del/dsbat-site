@@ -53,7 +53,7 @@ A(/solutionVentilation: ch\.solutionVentilation \|\| null/.test(CTX), 'contexte-
 
 // ---- 5. AUCUN impact calcul : champ absent de tout moteur ------------
 A(!/solutionVentilation/.test(MOTEUR), 'moteur-devis n\'utilise PAS solutionVentilation');
-['plomberie', 'vmc', 'electricite', 'carrelage', 'peinture', 'sols', 'isolation', 'menuiserie', 'chauffage'].forEach(m => {
+['plomberie', 'vmc-public', 'electricite', 'carrelage', 'peinture', 'sols', 'isolation', 'menuiserie', 'chauffage'].forEach(m => {
   const src = fs.readFileSync(path.join(RACINE, 'js', 'moteurs', m + '.js'), 'utf8');
   A(!/solutionVentilation/.test(src), 'moteur ' + m + ' n\'utilise PAS solutionVentilation');
 });

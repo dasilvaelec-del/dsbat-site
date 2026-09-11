@@ -12,7 +12,7 @@
 const fs = require('fs');
 const path = require('path');
 const RACINE = path.join(__dirname, '..');
-const VMC = require(path.join(RACINE, 'js', 'moteurs', 'vmc.js'));
+const VMC = require(path.join(RACINE, 'js', 'moteurs', 'vmc-public.js'));
 
 let ok = 0, ko = 0, skip = 0;
 const A = (c, m) => { if (c) ok++; else { ko++; console.error('  ❌ ' + m); } };
@@ -115,7 +115,7 @@ A(eq(VMC.obligationsVmc('sdb', applicable({ metiersActifs: ['electricite'] })), 
 A(VMC.obligationsVmc('sdb', applicable({ metiersActifs: ['vmc', 'electricite'] })).SORTIE_AIR.statut === 'obligatoire', 'metiersActifs avec vmc → règle appliquée');
 
 // ---- 11. LOT7-A ne touche pas le money-path (statique) ----------------
-const SRC = fs.readFileSync(path.join(RACINE, 'js', 'moteurs', 'vmc.js'), 'utf8');
+const SRC = fs.readFileSync(path.join(RACINE, 'js', 'moteurs', 'vmc-public.js'), 'utf8');
 A(!/piece\.config|config\.vmc|VMC_BOUCHE\s*=|VMC_ENTREE_AIR\s*=/.test(SRC.slice(SRC.indexOf('function obligationsVmc'))),
   'obligationsVmc n\'écrit jamais dans piece.config / codes tarifaires');
 A(!/getMoyenPrixFor|dimensionnementVMC|prixTotal/.test(SRC.slice(SRC.indexOf('function obligationsVmc'))),

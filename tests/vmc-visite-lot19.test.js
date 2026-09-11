@@ -8,7 +8,7 @@
 const fs = require('fs');
 const path = require('path');
 const RACINE = path.join(__dirname, '..');
-const V = require(path.join(RACINE, 'js', 'moteurs', 'vmc.js'));
+const V = require(path.join(RACINE, 'js', 'moteurs', 'vmc-public.js'));
 
 let ok = 0, ko = 0;
 const A = (c, m) => { if (c) ok++; else { ko++; console.error('  ❌ ' + m); } };
@@ -149,7 +149,7 @@ A(typeof V.nouvelleVisiteVmc === 'function' && typeof V.ajouterReseauVisite === 
 }
 
 // ---- 33/34/35. Aucune écriture piece.config / Runtime / catalogue (statique) -----
-const SRC = fs.readFileSync(path.join(RACINE, 'js', 'moteurs', 'vmc.js'), 'utf8');
+const SRC = fs.readFileSync(path.join(RACINE, 'js', 'moteurs', 'vmc-public.js'), 'utf8');
 const BLOC = SRC.slice(SRC.indexOf('function nouvelleVisiteVmc('));
 A(!/getMoyenPrixFor|dimensionnementVMC|piece\.config|config\.vmc\s*=|VMC_BOUCHE|prixTotal|calculerPiece|moteur-devis|require\(|fetch\(|document\.|window\.|globalThis\./.test(BLOC), '33/34/35. couche LOT19 : aucun piece.config/Runtime/catalogue/prix/DOM');
 

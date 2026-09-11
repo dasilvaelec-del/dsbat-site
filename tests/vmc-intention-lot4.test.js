@@ -57,7 +57,7 @@ A(/intentionVentilation: ch\.intentionVentilation \|\| null/.test(CTX), 'context
 
 // ---- 4. AUCUN impact calcul : le champ n'entre dans aucun moteur -----
 A(!/intentionVentilation/.test(MOTEUR), 'moteur-devis n\'utilise PAS intentionVentilation (aucun calcul)');
-['plomberie', 'vmc', 'electricite', 'carrelage', 'peinture', 'sols', 'isolation', 'menuiserie', 'chauffage'].forEach(m => {
+['plomberie', 'vmc-public', 'electricite', 'carrelage', 'peinture', 'sols', 'isolation', 'menuiserie', 'chauffage'].forEach(m => {
   const src = fs.readFileSync(path.join(RACINE, 'js', 'moteurs', m + '.js'), 'utf8');
   A(!/intentionVentilation/.test(src), 'moteur ' + m + ' n\'utilise PAS intentionVentilation');
 });

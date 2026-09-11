@@ -10,7 +10,7 @@
 const fs = require('fs');
 const path = require('path');
 const RACINE = path.join(__dirname, '..');
-const VMC = require(path.join(RACINE, 'js', 'moteurs', 'vmc.js'));
+const VMC = require(path.join(RACINE, 'js', 'moteurs', 'vmc-public.js'));
 const CONFIG = fs.readFileSync(path.join(RACINE, 'devis-configurateur.html'), 'utf8');
 
 let ok = 0, ko = 0;

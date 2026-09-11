@@ -14,7 +14,7 @@
 const fs = require('fs');
 const path = require('path');
 const RACINE = path.join(__dirname, '..');
-const V = require(path.join(RACINE, 'js', 'moteurs', 'vmc.js'));
+const V = require(path.join(RACINE, 'js', 'moteurs', 'vmc-public.js'));
 
 let ok = 0, ko = 0;
 const A = (c, m) => { if (c) ok++; else { ko++; console.error('  ❌ ' + m); } };
@@ -163,8 +163,8 @@ A(typeof V.construireVueVisite === 'function' && typeof V.libelleStatutVisite ==
 // =====================================================================
 // STATIQUE — couche view-model LOT20 dans vmc.js (pure, hors money-path)
 // =====================================================================
-const SRC = fs.readFileSync(path.join(RACINE, 'js', 'moteurs', 'vmc.js'), 'utf8');
-const VM = SRC.slice(SRC.indexOf('var _LIBELLES_STATUT_VISITE'), SRC.indexOf('M57 LOT21')); // borné avant LOT21
+const SRC = fs.readFileSync(path.join(RACINE, 'js', 'moteurs', 'vmc-public.js'), 'utf8');
+const VM = SRC.slice(SRC.indexOf('var _LIBELLES_STATUT_VISITE'), SRC.indexOf('if (typeof module')); // borné avant LOT21
 A(VM.length > 0, '23. bloc view-model LOT20 localisé');
 A(!/getMoyenPrixFor|dimensionnementVMC|VMC_PARAMS|piece\.config|config\.vmc\s*=|VMC_BOUCHE|prixTotal|calculerPiece|moteur-devis|require\(|fetch\(|document\.|window\.|globalThis\./.test(VM),
   '24. view-model : aucun piece.config / Runtime / catalogue / prix / DOM');
