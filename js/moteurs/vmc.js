@@ -1720,16 +1720,35 @@ function creerEntreeLineairePertes(spec) {
     statut: _ouNull(spec.statut), _champsCommerciaux: _detecterChampsCommerciaux(spec)
   };
 }
+// M57 LOT35-A — familles de singularités dont la ζ dépend de la SECTION/vitesse de référence
+// (référence amont/aval non ambiguë obligatoire) et, parmi elles, celles INTRINSÈQUEMENT
+// dépendantes d'un rapport (sections/débits) : un scalaire n'y est admis que si la configuration
+// est PINNÉE (rapport fourni, ou sections amont+aval, ou conditionsApplication). Aucune table,
+// aucun moteur ζ=f(...) : on QUALIFIE et on VALIDE, on n'invente ni ne calcule rien.
+var _SINGULIER_SECTION_SENSIBLE = ['te', 'jonction', 'reduction', 'transition', 'elargissement', 'retrecissement', 'divergent', 'convergent', 'entree', 'sortie'];
+var _SINGULIER_RATIO_DEPENDANT = ['te', 'jonction', 'reduction', 'transition', 'elargissement', 'retrecissement', 'divergent', 'convergent'];
+
 // Entrée singulière CONDITIONNELLE : ζ (sans unité) pour une géométrie/config identifiable.
+// M57 LOT35-A : contrat enrichi (qualification géométrique/paramétrique) SANS rendre tous les
+// champs obligatoires. `type`/`geometrie`/`coefficient`/`unite` restent la clé consommée par
+// LOT31 et le compilateur (inchangés). `parametresRequis` (non vide) signale une dépendance à des
+// paramètres NON modélisés → non scalarisable, sans rien inventer.
 function creerEntreeSinguliere(spec) {
   spec = spec || {};
+  var type = _ouNull(spec.type != null ? spec.type : spec.typeSingularite);       // alias typeSingularite
+  var unite = (spec.unite != null ? spec.unite : (spec.uniteCoefficient != null ? spec.uniteCoefficient : '')); // ζ sans unité
   return {
-    id: _ouNull(spec.id), type: _ouNull(spec.type), geometrie: _ouNull(spec.geometrie),
-    angle: _nombreOuNull(spec.angle), diametre: _nombreOuNull(spec.diametre), section: _nombreOuNull(spec.section),
+    id: _ouNull(spec.id), type: type, typeSingularite: type, geometrie: _ouNull(spec.geometrie),
+    angle: _nombreOuNull(spec.angle), rayon: _nombreOuNull(spec.rayon),
+    diametre: _nombreOuNull(spec.diametre), section: _nombreOuNull(spec.section),
+    sectionReference: _ouNull(spec.sectionReference), // 'amont' | 'aval' (vitesse de référence de ζ)
+    diametreOuSectionAmont: _nombreOuNull(spec.diametreOuSectionAmont), diametreOuSectionAval: _nombreOuNull(spec.diametreOuSectionAval),
     typeConduit: _ouNull(spec.typeConduit), sensFlux: _ouNull(spec.sensFlux),
     rapportDebits: _nombreOuNull(spec.rapportDebits), rapportSections: _nombreOuNull(spec.rapportSections),
-    coefficient: _nombreOuNull(spec.coefficient), unite: (spec.unite != null ? spec.unite : ''),
-    domaine: _ouNull(spec.domaine), methode: _ouNull(spec.methode), source: _ouNull(spec.source),
+    coefficient: _nombreOuNull(spec.coefficient), unite: unite, uniteCoefficient: unite,
+    domaine: _ouNull(spec.domaine), conditionsApplication: _ouNull(spec.conditionsApplication),
+    parametresRequis: (Array.isArray(spec.parametresRequis) ? spec.parametresRequis.slice() : []),
+    methode: _ouNull(spec.methode), source: _ouNull(spec.source),
     referenceExacte: _ouNull(spec.referenceExacte), versionSource: _ouNull(spec.versionSource),
     datePublication: _ouNull(spec.datePublication), statut: _ouNull(spec.statut), _champsCommerciaux: _detecterChampsCommerciaux(spec)
   };
@@ -1813,13 +1832,35 @@ function validerReferentielProduction(ref) {
     if (e.diametre == null && e.section == null) erreurs.push('lineaire:' + (e.id || '?') + ':diametre_ou_section_absent');
     Array.prototype.push.apply(erreurs, entreeErr(e, 'lineaire'));
   });
+  // M57 LOT35-A : validation renforcée + qualification par entrée. Obligations MINIMALES selon le
+  // type (coude : géométrie+domaine suffisent ; familles section-sensibles : référence amont/aval ;
+  // familles ratio-dépendantes : configuration pinnée). Aucun champ rendu obligatoire sans raison.
+  var qualiteSinguliers = [], _vuSingulier = {};
   singuliers.forEach(function (e) {
-    if (e.unite !== '') erreurs.push('singulier:' + (e.id || '?') + ':unite_invalide');
-    if (!(typeof e.coefficient === 'number' && isFinite(e.coefficient))) erreurs.push('singulier:' + (e.id || '?') + ':coefficient_non_fini');
-    else if (e.coefficient < 0) erreurs.push('singulier:' + (e.id || '?') + ':coefficient_negatif');
-    if (e.type == null) erreurs.push('singulier:' + (e.id || '?') + ':type_absent');
-    if (e.geometrie == null) erreurs.push('singulier:' + (e.id || '?') + ':geometrie_absente');
-    Array.prototype.push.apply(erreurs, entreeErr(e, 'singulier'));
+    var id = e.id || '?', eb = [];
+    if (e.unite !== '') eb.push('unite_invalide');                                  // ζ dimensionless (uniteCoefficient normalisée)
+    if (!(typeof e.coefficient === 'number' && isFinite(e.coefficient))) eb.push('coefficient_non_fini');
+    else if (e.coefficient < 0) eb.push('coefficient_negatif');
+    if (e.type == null) eb.push('type_absent');
+    if (e.geometrie == null) eb.push('geometrie_absente');
+    var t = e.type;
+    // Section/vitesse de référence non ambiguë lorsque la famille l'exige.
+    if (t != null && _SINGULIER_SECTION_SENSIBLE.indexOf(t) !== -1 && e.sectionReference !== 'amont' && e.sectionReference !== 'aval') eb.push('section_reference_ambigue');
+    // Dépendance déclarée à des paramètres NON modélisés → non scalarisable (signalé, jamais calculé).
+    var parametrique = Array.isArray(e.parametresRequis) && e.parametresRequis.length > 0;
+    if (parametrique) eb.push('parametrique_non_scalarise');
+    // Famille intrinsèquement ratio-dépendante : un scalaire n'est admis que si la config est PINNÉE.
+    if (t != null && _SINGULIER_RATIO_DEPENDANT.indexOf(t) !== -1 && !parametrique) {
+      var pinne = (e.conditionsApplication != null) || (e.rapportSections != null) || (e.diametreOuSectionAmont != null && e.diametreOuSectionAval != null);
+      if (!pinne) eb.push('parametrage_non_precise');
+    }
+    // Doublon silencieux sur une même définition (type|géométrie|référence|sensFlux).
+    var cle = [t || '?', e.geometrie || '?', e.sectionReference || '', e.sensFlux || ''].join('|');
+    if (_vuSingulier[cle]) eb.push('doublon:' + cle); else _vuSingulier[cle] = true;
+    var ec = entreeErr(e, 'singulier'); // source/référence/domaine/statut/commercial (déjà préfixés)
+    eb.forEach(function (p) { erreurs.push('singulier:' + id + ':' + p); });
+    Array.prototype.push.apply(erreurs, ec);
+    qualiteSinguliers.push({ id: id, type: t, geometrie: e.geometrie, sectionReference: e.sectionReference, scalarisable: (eb.length === 0 && ec.length === 0), parametrique: parametrique, raisons: eb });
   });
   // M57 LOT25 (additif) : rugosités ε (validées seulement si présentes → V1 vide reste valide).
   var rugosites = (ref && Array.isArray(ref.rugosites)) ? ref.rugosites : [];
@@ -1838,6 +1879,7 @@ function validerReferentielProduction(ref) {
     erreurs: erreurs,
     utilisableEnProduction: valide && estProduction,
     familles: { lineaires: lineaires.length, singuliers: singuliers.length, rugosites: rugosites.length },
+    qualiteSinguliers: qualiteSinguliers, // M57 LOT35-A : qualification par entrée (scalarisable / paramétrique / raisons)
     utilisablePourCalcul: valide && estProduction && (lineaires.length > 0 || singuliers.length > 0), // voie LOT15-A (table R/ζ) : vide = honnêtement non calculable
     // M57 LOT26 (additif) : voie LOT25 (Darcy-Weisbach) — calculable si ε(famille) + ρ + μ présents.
     utilisablePourCalculDarcy: valide && estProduction && rugosites.length > 0 && !!(ref && ref.masseVolumiqueAir && typeof ref.masseVolumiqueAir.valeur === 'number' && ref.viscositeDynamiqueAir && typeof ref.viscositeDynamiqueAir.valeur === 'number')
