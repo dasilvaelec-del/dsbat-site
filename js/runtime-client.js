@@ -60,12 +60,48 @@
         }).catch(function (e) { if (minuteur) clearTimeout(minuteur); throw e; });
     }
 
+    // M3 — ÉTUDE VMC : { pieces, contexte, visite, options? } -> synthèse/résultats (sanitaires).
+    //   Le RÉFÉRENTIEL est chargé/injecté CÔTÉ RUNTIME : le client n'en envoie JAMAIS. Par
+    //   sécurité, on retire toute clé de référentiel qui serait présente dans options (défense
+    //   en profondeur ; l'endpoint la refuserait de toute façon). Renvoie UNIQUEMENT corps.vmc
+    //   (aucune formule/coefficient/table). Erreurs : message générique (jamais de détail interne).
+    function etudeVmc(payload) {
+      if (typeof fetchImpl !== 'function') return Promise.reject(new Error('fetch indisponible'));
+      payload = payload || {};
+      // Copie défensive : ne jamais transmettre de référentiel ni de résultat calculé.
+      var opts = {};
+      if (payload.options && typeof payload.options === 'object') {
+        Object.keys(payload.options).forEach(function (k) {
+          if (k === 'referentielProduction' || k === 'referentielPertes' || k === 'referentiel') return;
+          opts[k] = payload.options[k];
+        });
+      }
+      var envoi = { pieces: payload.pieces, contexte: payload.contexte, visite: payload.visite, options: opts };
+      var ctrl = (typeof AbortController === 'function') ? new AbortController() : null;
+      var minuteur = ctrl ? setTimeout(function () { ctrl.abort(); }, delaiMs) : null;
+      return fetchImpl(base + '/v1/vmc/etude', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(envoi), signal: ctrl ? ctrl.signal : undefined
+      }).then(function (rep) {
+        if (minuteur) clearTimeout(minuteur);
+        return rep.json().then(function (corps) { return { http: rep.status, corps: corps }; },
+          function () { return { http: rep.status, corps: null }; });
+      }).then(function (r) {
+        var corps = r.corps;
+        if (!corps || corps.statut === 'erreur' || !corps.vmc) {
+          var code = (corps && corps.erreur && corps.erreur.code) || ('http_' + r.http);
+          var e = new Error('Runtime VMC : ' + code); e.code = code; e.http = r.http; throw e;
+        }
+        return corps.vmc; // charge sanitaire uniquement (statuts + résultats en Pa)
+      }).catch(function (e) { if (minuteur) clearTimeout(minuteur); throw e; });
+    }
+
     function sante() {
       if (typeof fetchImpl !== 'function') return Promise.reject(new Error('fetch indisponible'));
       return fetchImpl(base + '/v1/sante').then(function (r) { return r.json(); });
     }
 
-    return { calculer: calculer, calculerPiece: calculerPiece, sante: sante, base: base };
+    return { calculer: calculer, calculerPiece: calculerPiece, etudeVmc: etudeVmc, sante: sante, base: base };
   }
 
   var API = { creerClientRuntime: creerClientRuntime };

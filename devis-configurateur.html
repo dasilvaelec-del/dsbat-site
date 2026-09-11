@@ -87,7 +87,7 @@ window.axeptioSettings = {
 <script src="js/moteurs/carrelage.js"></script>
 <script src="js/moteurs/isolation.js"></script>
 <script src="js/moteurs/chauffage.js"></script>
-<script src="js/moteurs/vmc.js"></script>
+<script src="js/moteurs/vmc-public.js"></script>
 <script src="js/moteurs/menuiserie.js"></script>
 <script src="js/coherence.js"></script>
 <!-- Runtime DSBAT (R03) — modules INERTES au chargement : le mode Shadow ne s'active
@@ -4858,13 +4858,38 @@ async function genererPDFConfig() {
   }
   window.__visiteRenderVmc = render; // exposé pour un rendu externe éventuel
 
-  // ---- M57 LOT21 : lancer l'étude technique depuis la visite (délégation pure) ----
-  // N'exécute AUCUN calcul ici : appelle etudierVisiteVmc (vmc.js) qui délègue aux moteurs
-  // LOT16/LOT15-A/LOT17-A. Aucun prix, aucune projection tarifaire, aucune écriture config.
+  // ---- M3 : étude technique DÉLÉGUÉE au Runtime privé (POST /v1/vmc/etude) ----
+  // Le NAVIGATEUR ne calcule AUCUNE physique : il construit le payload M1
+  // { pieces, contexte, visite, options:{contexteEtude} } (SANS référentiel) et affiche la
+  // synthèse renvoyée par le Runtime (statuts + résultats en Pa). Aucun repli vers vmc.js,
+  // aucun ancien résultat local présenté comme actuel. Les incohérences de FORME sont dérivées
+  // côté public (normaliserVisiteVersReseau, vmc-public.js — aucune physique).
+  var _LB_ETUDE = {
+    calcule_certain: 'Étude calculée (certaine)', calcule_incertain: 'Étude calculée (incertaine)',
+    incomplet: 'Étude incomplète', indetermine: 'Étude indéterminée', hors_domaine: 'Étude hors domaine'
+  };
+  var _liVmc = function (arr, f) { return (arr || []).length ? '<ul style="margin:4px 0 0;">' + arr.map(f).join('') + '</ul>' : '<div style="color:#64748b;font-size:0.85rem;">—</div>'; };
+  function _cadreVmc(inner) { return '<div style="background:#fff;border:1px solid var(--border,#cbd5e1);border-radius:12px;padding:14px;">' + inner + '</div>'; }
+  function _clientVmc() {
+    try {
+      if (typeof RuntimeClientDSBAT === 'undefined') return null;
+      var base = (typeof CONFIG !== 'undefined' && CONFIG.runtime && CONFIG.runtime.base) ? String(CONFIG.runtime.base).replace(/\/+$/, '') : '';
+      if (!base) return null;
+      if (!window.__rtClientVmc) window.__rtClientVmc = RuntimeClientDSBAT.creerClientRuntime({ base: base });
+      return window.__rtClientVmc;
+    } catch (e) { return null; }
+  }
+  // Incohérences de FORME (données déclarées) — dérivées publiquement, AUCUNE physique.
+  function _incoherencesForme(dv) {
+    try { if (typeof normaliserVisiteVersReseau === 'function') return (normaliserVisiteVersReseau(dv).incoherences || []); } catch (e) {}
+    return [];
+  }
+
   window.visiteAnalyser = function () {
     var host = $('visiteEtudeResultat'); if (!host) return;
-    if (typeof etudierVisiteVmc !== 'function') { host.innerHTML = 'Moteur d\'étude indisponible.'; return; }
-    if (!donneesVisiteVmc) { host.innerHTML = '<div style="color:#64748b;">Aucune visite à analyser.</div>'; return; }
+    if (!donneesVisiteVmc) { host.innerHTML = '<div style="color:#64748b;">Aucune visite à analyser.</div>'; return; } // état : NON CALCULÉE
+    var client = _clientVmc();
+    if (!client) { host.innerHTML = _cadreVmc('<div style="font-weight:700;color:#b45309;">Service d\'étude indisponible</div><div style="margin-top:6px;color:#64748b;font-size:0.9rem;">Étude non calculée. Votre saisie est conservée.</div>'); return; }
     var pieces = [];
     try { pieces = (piecesSelectionnees || []).slice(); } catch (e) { pieces = []; }
     var ctx = {};
@@ -4872,19 +4897,41 @@ async function genererPDFConfig() {
     try { ctx.nbPiecesPrincipales = (typeof chantier !== 'undefined' && chantier && chantier.pieces) || ctx.nbPiecesPrincipales; } catch (e) {}
     // Contexte d'étude EXPLICITE choisi par l'utilisateur (réel par défaut, jamais silencieux).
     var ce = 'existant'; var selCe = $('vi_contexteEtude'); if (selCe) ce = selCe.value || 'existant';
-    // Pas de référentiel de pertes de production (hors périmètre LOT21) → étude honnêtement partielle.
-    var res = etudierVisiteVmc(pieces, ctx, donneesVisiteVmc, { contexteEtude: ce });
-    var LB = { etude_calculable: 'Étude calculable', etude_sous_hypotheses: 'Étude sous hypothèses', etude_partielle: 'Étude partielle', etude_indeterminee: 'Étude indéterminée' };
-    var li = function (arr, f) { return (arr || []).length ? '<ul style="margin:4px 0 0;">' + arr.map(f).join('') + '</ul>' : '<div style="color:#64748b;font-size:0.85rem;">—</div>'; };
-    host.innerHTML = '<div style="background:#fff;border:1px solid var(--border,#cbd5e1);border-radius:12px;padding:14px;">'
-      + '<h3 style="margin:0 0 8px;">Analyse technique (contexte : ' + esc(res.contexteEtude) + ')</h3>'
-      + '<div style="font-weight:700;color:#0f766e;">' + esc(LB[res.statut] || res.statut) + '</div>'
-      + '<div style="margin-top:10px;">Données manquantes :' + li(res.donneesManquantes, function (d) { return '<li>' + esc(d.champ) + (d.impact ? ' <span style="color:#94a3b8;">(' + esc(d.impact) + ')</span>' : '') + '</li>'; }) + '</div>'
-      + '<div style="margin-top:10px;">Incohérences non arbitrées :' + li(res.normalisation.incoherences, function (i) { return '<li>' + esc(i.champ || i.type) + '</li>'; }) + '</div>'
-      + '<div style="margin-top:10px;">Points à vérifier :' + li(res.pointsAVerifier, function (p) { return '<li>' + esc(p.description || p.type) + '</li>'; }) + '</div>'
-      + '<div style="margin-top:10px;font-size:0.85rem;color:#64748b;">Perte de charge max calculable : ' + esc(res.etude && res.etude.synthese && res.etude.synthese.perteMaxCalculable != null ? res.etude.synthese.perteMaxCalculable + ' Pa' : 'non calculable') + ' · Pression : ' + esc(res.pression ? res.pression.statut : '—') + '</div>'
-      + '<div style="margin-top:8px;font-size:0.78rem;color:#94a3b8;">Aucune conformité, aucun dimensionnement, aucun tarif — collecte et étude technique uniquement.</div>'
-      + '</div>';
+    // Payload M1 EXACT — aucun référentiel, aucun coefficient, aucun résultat calculé côté client.
+    var payload = { pieces: pieces, contexte: ctx, visite: donneesVisiteVmc, options: { contexteEtude: ce } };
+
+    host.innerHTML = _cadreVmc('<div style="color:#0f766e;font-weight:600;">Calcul en cours…</div>'); // état : CALCUL EN COURS
+    var jeton = (window.__visiteAnalyseJeton = (window.__visiteAnalyseJeton || 0) + 1);
+
+    client.etudeVmc(payload).then(function (vmc) {
+      if (jeton !== window.__visiteAnalyseJeton) return; // une analyse plus récente a pris la main
+      // état : CALCUL RUNTIME RÉUSSI (statutEtude 'incomplet/indetermine/hors_domaine' = étude honnête, pas une erreur)
+      var incoh = _incoherencesForme(donneesVisiteVmc);
+      var reseaux = (vmc.synthese && vmc.synthese.reseaux) || [];
+      var pa = function (v) { return (v && typeof v.valeur === 'number') ? (v.valeur + ' Pa') : '—'; };
+      var ligneReseau = function (r) {
+        var pc = (r.perteChemin && r.perteChemin.perteMaximaleCalculee) || null;
+        var mp = (r.margePression && typeof r.margePression.margePa === 'number') ? (r.margePression.margePa + ' Pa') : '—';
+        return '<li><b>' + esc(r.type) + '</b> — ' + esc(_LB_ETUDE[r.statut] || r.statut)
+          + ' · perte de chemin max : ' + esc(pc ? pa(pc) : '—') + ' · marge : ' + esc(mp) + '</li>';
+      };
+      host.innerHTML = _cadreVmc(
+        '<h3 style="margin:0 0 8px;">Analyse technique (contexte : ' + esc(vmc.contexteEtude) + ')</h3>'
+        + '<div style="font-weight:700;color:#0f766e;">' + esc(_LB_ETUDE[vmc.statutEtude] || vmc.statutEtude) + '</div>'
+        + '<div style="margin-top:10px;">Réseaux :' + _liVmc(reseaux, ligneReseau) + '</div>'
+        + '<div style="margin-top:10px;">Données manquantes :' + _liVmc(vmc.donneesManquantes, function (d) { return '<li>' + esc(d.champ) + (d.impact ? ' <span style="color:#94a3b8;">(' + esc(d.impact) + ')</span>' : '') + '</li>'; }) + '</div>'
+        + '<div style="margin-top:10px;">Incohérences non arbitrées :' + _liVmc(incoh, function (i) { return '<li>' + esc(i.champ || i.type) + '</li>'; }) + '</div>'
+        + '<div style="margin-top:10px;">Points à vérifier :' + _liVmc(vmc.pointsAVerifier, function (p) { return '<li>' + esc(p.description || p.type) + '</li>'; }) + '</div>'
+        + '<div style="margin-top:8px;font-size:0.78rem;color:#94a3b8;">Étude physique calculée par le Runtime (référentiel v' + esc(vmc.referentielVersion || '?') + '). Aucune conformité, aucun dimensionnement, aucun tarif.</div>'
+      );
+    }).catch(function (e) {
+      if (jeton !== window.__visiteAnalyseJeton) return;
+      if (e && (e.http === 400 || e.code === 'PAYLOAD_INVALIDE')) { // état : ERREUR DE DONNÉES
+        host.innerHTML = _cadreVmc('<div style="font-weight:700;color:#b45309;">Données de visite incomplètes ou invalides</div><div style="margin-top:6px;color:#64748b;font-size:0.9rem;">L\'étude n\'a pas pu être lancée. Complétez la visite puis relancez.</div>');
+      } else { // état : ERREUR RÉSEAU / SERVICE INDISPONIBLE — AUCUN repli physique local
+        host.innerHTML = _cadreVmc('<div style="font-weight:700;color:#b45309;">Service d\'étude indisponible</div><div style="margin-top:6px;color:#64748b;font-size:0.9rem;">Étude non calculée (réseau ou service). Votre saisie est conservée — réessayez plus tard.</div>');
+      }
+    });
   };
 })();
 </script>

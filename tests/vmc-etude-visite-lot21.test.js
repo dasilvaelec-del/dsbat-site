@@ -222,7 +222,7 @@ const CONF = fs.readFileSync(path.join(RACINE, 'devis-configurateur.html'), 'utf
 A(/onclick="visiteAnalyser\(\)"/.test(CONF), '30. UI : bouton « Analyser la visite » présent');
 const iUI = CONF.indexOf('M57 LOT20 — UI VISITE VMC');
 const UI = CONF.slice(CONF.indexOf('<script>', iUI), CONF.indexOf('</script>', CONF.indexOf('<script>', iUI)));
-A(/etudierVisiteVmc\(/.test(UI), '30b. UI délègue à etudierVisiteVmc');
+A(/\.etudeVmc\(/.test(UI) && !/etudierVisiteVmc\(/.test(UI), '30b. UI délègue au Runtime (etudeVmc) et n\'appelle plus etudierVisiteVmc (M3)');
 A(!/piece\.config|getMoyenPrixFor|prixTotal|projeterVmcVersConfig|calculerPiece/.test(UI), '30c. UI d\'analyse : aucun money-path / projection tarifaire');
 
 const total = ok + ko;
