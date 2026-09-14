@@ -84,6 +84,7 @@
     var chantier = clone(donnees.chantier) || {};
     var pieces = clone(donnees.pieces) || [];
     var metiers = clone(donnees.metiers) || [];
+    var deposes = clone(donnees.deposes) || [];
 
     var projet = {
       $contrat: 'dsbat.projet',
@@ -102,6 +103,7 @@
       chantier: chantier,
       metiers: metiers,
       pieces: pieces,
+      deposes: deposes,
       decisions: clone(donnees.decisions) || null,
       resultats: clone(donnees.resultats) || null,
       journaux: clone(donnees.journaux) || [],

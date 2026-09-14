@@ -146,6 +146,45 @@
       }
     },
 
+    "deposes": {
+      "type": "array",
+      "description": "Demandes et propositions de dépose transversales au projet. Ne contient ni prix ni code catalogue retenu.",
+      "items": {
+        "type": "object",
+        "required": ["id", "objetType", "action", "origineMetier", "statut", "provenance"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string" },
+          "objetType": { "type": "string" },
+          "objetRef": { "type": ["string", "null"] },
+          "pieceRefs": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "zoneRef": { "type": ["string", "null"] },
+          "action": { "type": "string" },
+          "origineMetier": { "type": "string" },
+          "classification": { "type": ["string", "null"] },
+          "quantite": { "type": ["number", "null"] },
+          "unite": { "type": ["string", "null"] },
+          "motif": { "type": ["string", "null"] },
+          "statut": { "type": "string" },
+          "provenance": {
+            "type": "object",
+            "required": ["source"],
+            "additionalProperties": true,
+            "properties": {
+              "source": { "type": "string" }
+            }
+          },
+          "pointsAVerifier": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        }
+      }
+    },
+
     "decisions": {
       "type": ["object", "null"],
       "description": "Choix explicites tracés au-delà des config : recommandations acceptées / refusées, options retenues.",
