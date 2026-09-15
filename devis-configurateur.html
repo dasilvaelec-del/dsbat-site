@@ -2125,6 +2125,7 @@ function validerPieces(apres) {
           numero: i,
           dims: Object.assign({ l: 0, la: 0, h: 2.5, fenetres: 1, portes: 1 }, dimsParPiece[dimKey(p.id, i)] || {}),
           config: {},
+          chauffageFonctions: null,
           elecMethode: poseParDefaut(chantier),
           elecGamme: gammeElecParDefaut(chantier),
           ploGamme: gammePloParDefaut(chantier)
