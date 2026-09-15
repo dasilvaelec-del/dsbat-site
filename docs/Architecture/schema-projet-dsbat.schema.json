@@ -134,6 +134,41 @@
           "solType": { "type": ["string", "null"] },
           "solSousCouche": { "type": ["string", "null"] },
           "solPose": { "type": ["string", "null"] },
+          "chauffageFonctions": {
+            "type": ["object", "null"],
+            "description": "Déclaratif chauffage de la pièce : existant, intention, solution et état local. Aucun prix, code catalogue, calcul thermique ou résultat moteur.",
+            "additionalProperties": false,
+            "properties": {
+              "existant": {
+                "type": ["object", "null"],
+                "additionalProperties": false,
+                "properties": {
+                  "present": { "type": ["boolean", "null"] },
+                  "type": { "type": ["string", "null"] },
+                  "energie": { "type": ["string", "null"] },
+                  "etat": { "type": ["string", "null"] }
+      }
+    },
+    "intention": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "action": { "type": ["string", "null"] },
+        "objectif": { "type": ["string", "null"] }
+      }
+    },
+    "solution": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "technologie": { "type": ["string", "null"] },
+        "systeme": { "type": ["string", "null"] },
+        "statut": { "type": ["string", "null"] }
+      }
+    },
+    "etatLocal": { "type": ["string", "null"] }
+  }
+},
           "config": {
             "type": ["object", "null"],
             "description": "Décisions de l'utilisateur par métier : { metier: { CODE_PRESTATION: quantite } }. C'est l'entrée principale du calcul par pièce.",
