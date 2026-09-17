@@ -43,7 +43,10 @@ A(/onchange="majContexteVmcProjet\(/.test(INTENT_SELECT), 'intention : onchange 
 A(/id="vmc_intention_projet"/.test(CONFIG), 'intention : select au NIVEAU PROJET (id vmc_intention_projet)');
 A(!/questionsVmcHtml\(pieceIndex\)/.test(CONFIG), 'intention : PLUS de question intention dans la config par pièce');
 // M58bis : la question n'est PLUS en Partie 2 (devis.html)
-A(!/<select id="intentionVentilation"/.test(DEVIS), 'intention : retirée de la Partie 2 (devis.html)');
+// M59bis : select intention présenté à l'étape « Travaux » (devis.html), révélé au clic VMC (m_vmc).
+A(/<select id="intentionVentilation"/.test(DEVIS), 'intention : select présent à l\'étape Travaux (devis.html)');
+A(/id="vmcProjetBloc"[^>]*display:none/.test(DEVIS), 'intention : bloc VMC caché par défaut (révélé au clic VMC)');
+A(/id="m_vmc"[^>]*onchange="majBlocVmcTravaux\(\)"/.test(DEVIS), 'intention : handler branché sur la case VMC (m_vmc)');
 
 // ---- 2. Valeurs interdites ABSENTES (reparer désormais valide en M58bis) -----
 ['adapter', 'deposer', 'condamner'].forEach(v =>

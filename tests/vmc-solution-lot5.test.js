@@ -45,7 +45,9 @@ A(SEL.length > 0, 'solution : select présent dans le bloc VMC (Partie 3)');
 A(/onchange="majContexteVmcProjet\(/.test(SEL), 'solution : onchange majContexteVmcProjet branché (niveau projet)');
 A(/id="vmc_solution_projet"/.test(CONFIG), 'solution : select au NIVEAU PROJET (id vmc_solution_projet)');
 A(!/questionsVmcHtml\(pieceIndex\)/.test(CONFIG), 'solution : PLUS de question solution dans la config par pièce');
-A(!/<select id="solutionVentilation"/.test(DEVIS), 'solution : retirée de la Partie 2 (devis.html)');
+// M59bis : select solution présenté à l'étape « Travaux » (devis.html), révélé au clic VMC (m_vmc).
+A(/<select id="solutionVentilation"/.test(DEVIS), 'solution : select présent à l\'étape Travaux (devis.html)');
+A(/id="vmcProjetBloc"[^>]*display:none/.test(DEVIS), 'solution : bloc VMC caché par défaut (révélé au clic VMC)');
 ['simple_flux', 'hygro', 'double_flux', 'inconnue'].forEach(v =>
   A(new RegExp('<option value="' + v + '"').test(SEL), 'solutionVentilation : valeur « ' + v + ' » présente'));
 A(/solutionVentilation\)\s*\|\|\s*'inconnue'/.test(CONFIG), 'défaut solution = inconnue quand aucune donnée (bloc VMC)');
