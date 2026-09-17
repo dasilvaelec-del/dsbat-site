@@ -31,13 +31,22 @@ function selectBloc(id) {
   const e = DEVIS.indexOf('</select>', s);
   return e < 0 ? '' : DEVIS.slice(s, e + 9);
 }
-const SEL = selectBloc('solutionVentilation');
+const CONFIG = fs.readFileSync(path.join(RACINE, 'devis-configurateur.html'), 'utf8');
+function selectBlocIn(src, id) {
+  const s = src.indexOf('<select id="' + id);
+  if (s < 0) return '';
+  const e = src.indexOf('</select>', s);
+  return e < 0 ? '' : src.slice(s, e + 9);
+}
+const SEL = selectBlocIn(CONFIG, 'vmc_solution_');
 
 // ---- 1. Nouvelle donnée : select + 4 valeurs EXACTES -----------------
-A(SEL.length > 0, 'select#solutionVentilation présent');
+A(SEL.length > 0, 'solution : select présent dans le bloc VMC (Partie 3)');
+A(/onchange="majContexteVmc\(/.test(SEL), 'solution : onchange majContexteVmc branché (alimente les règles)');
+A(!/<select id="solutionVentilation"/.test(DEVIS), 'solution : retirée de la Partie 2 (devis.html)');
 ['simple_flux', 'hygro', 'double_flux', 'inconnue'].forEach(v =>
   A(new RegExp('<option value="' + v + '"').test(SEL), 'solutionVentilation : valeur « ' + v + ' » présente'));
-A(/<option value="inconnue" selected>/.test(SEL), 'défaut UI = inconnue (« Je ne sais pas encore »)');
+A(/solutionVentilation\)\s*\|\|\s*'inconnue'/.test(CONFIG), 'défaut solution = inconnue quand aucune donnée (bloc VMC)');
 A((SEL.match(/<option /g) || []).length === 4, 'solutionVentilation : exactement 4 options');
 
 // ---- 2. Valeurs hors périmètre ABSENTES ------------------------------

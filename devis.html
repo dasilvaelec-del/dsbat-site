@@ -884,30 +884,10 @@ window.axeptioSettings = {
             <option value="vmc_motorisee">VMC motorisée</option>
           </select>
         </div>
-        <!-- M57 LOT4 : intention PRINCIPALE de travaux VMC (donnée DÉCLARÉE, purement UX).
-             Distincte de l'existant (`typeVentilationExistante`) et du champ historique `vmc`.
-             N'est consommée par AUCUN moteur (ni b.vmc, ni dimensionnement, ni prix, ni Runtime). -->
-        <div class="form-group">
-          <label>Que souhaitez-vous faire concernant votre ventilation ?</label>
-          <select id="intentionVentilation">
-            <option value="conserver">Conserver l'installation existante</option>
-            <option value="remplacer">Remplacer l'installation</option>
-            <option value="creer">Créer une solution de ventilation</option>
-            <option value="inconnu" selected>Je ne sais pas encore</option>
-          </select>
-        </div>
-        <!-- M57 LOT5 : solution de ventilation ENVISAGÉE par le client (donnée DÉCLARÉE, purement UX).
-             C'est une piste souhaitée, PAS une solution validée / recommandée / configurée / chiffrée.
-             N'est consommée par AUCUN moteur (ni dimensionnement, ni doubleFlux, ni prix, ni Runtime). -->
-        <div class="form-group">
-          <label>Avez-vous déjà une solution de ventilation en tête ?</label>
-          <select id="solutionVentilation" onchange="majVentilationDF()">
-            <option value="simple_flux">VMC simple flux</option>
-            <option value="hygro">VMC simple flux hygroréglable</option>
-            <option value="double_flux">VMC double flux</option>
-            <option value="inconnue" selected>Je ne sais pas encore</option>
-          </select>
-        </div>
+        <!-- M58bis : « Que souhaitez-vous faire… » (intention) et « Avez-vous une solution en tête… »
+             (solution) ne sont PLUS en Partie 2. Elles appartiennent au bloc métier VMC de la Partie 3
+             (devis-configurateur.html) et écrivent les mêmes champs chantier intentionVentilation /
+             solutionVentilation. La Partie 2 ne garde que l'EXISTANT (vmc + typeVentilationExistante). -->
         <!-- M57 LOT6 : configuration GÉNÉRALE de ventilation ENVISAGÉE (déclaratif, préparation double flux).
              Visible uniquement quand la solution envisagée est « double flux ». Purement déclaratif : n'alimente
              NI le calcul, NI dimensionnementVMC, NI le catalogue, NI le Runtime. Sans effet sur les prix.

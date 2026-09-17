@@ -25,25 +25,26 @@ const INTERP = fs.readFileSync(path.join(RACINE, 'js', 'interpretation-descripti
 let ok = 0, ko = 0, skip = 0;
 const A = (c, m) => { if (c) ok++; else { ko++; console.error('  ❌ ' + m); } };
 
-// Extrait le bloc <select id="intentionVentilation"> ... </select>
-function selectBloc(id) {
-  const s = DEVIS.indexOf('<select id="' + id + '"');
+// M58bis : le select intention est désormais dans le bloc métier VMC (Partie 3, questionsVmcHtml).
+const CONFIG = fs.readFileSync(path.join(RACINE, 'devis-configurateur.html'), 'utf8');
+function selectBlocIn(src, id) {
+  const s = src.indexOf('<select id="' + id);
   if (s < 0) return '';
-  const e = DEVIS.indexOf('</select>', s);
-  return e < 0 ? '' : DEVIS.slice(s, e + 9);
+  const e = src.indexOf('</select>', s);
+  return e < 0 ? '' : src.slice(s, e + 9);
 }
-const INTENT_SELECT = selectBloc('intentionVentilation');
+const INTENT_SELECT = selectBlocIn(CONFIG, 'vmc_intention_');
 
-// ---- 1. Nouvelle donnée : select présent + 4 valeurs EXACTES ---------
-A(INTENT_SELECT.length > 0, 'select#intentionVentilation présent');
+// ---- 1. Question intention dans le bloc VMC (Partie 3) + valeurs métier ------
+A(INTENT_SELECT.length > 0, 'intention : select présent dans le bloc VMC (Partie 3)');
 ['conserver', 'remplacer', 'creer', 'inconnu'].forEach(v =>
   A(new RegExp('<option value="' + v + '"').test(INTENT_SELECT), 'intentionVentilation : valeur « ' + v + ' » présente'));
-A(/<option value="inconnu" selected>/.test(INTENT_SELECT), 'défaut UI = inconnu (« Je ne sais pas encore »)');
-// exactement 4 options, pas plus
-A((INTENT_SELECT.match(/<option /g) || []).length === 4, 'intentionVentilation : exactement 4 options');
+A(/onchange="majContexteVmc\(/.test(INTENT_SELECT), 'intention : onchange majContexteVmc branché (alimente les règles)');
+// M58bis : la question n'est PLUS en Partie 2 (devis.html)
+A(!/<select id="intentionVentilation"/.test(DEVIS), 'intention : retirée de la Partie 2 (devis.html)');
 
-// ---- 2. Valeurs interdites ABSENTES ----------------------------------
-['reparer', 'adapter', 'deposer', 'condamner'].forEach(v =>
+// ---- 2. Valeurs interdites ABSENTES (reparer désormais valide en M58bis) -----
+['adapter', 'deposer', 'condamner'].forEach(v =>
   A(!new RegExp('value="' + v + '"').test(INTENT_SELECT), 'intentionVentilation : valeur écartée « ' + v + ' » absente'));
 // concepts hors périmètre absents du projet (aucun champ créé)
 ['objectifVentilation', 'etatSysteme', 'porteeIntention'].forEach(c => {

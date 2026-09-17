@@ -1640,6 +1640,71 @@ function orchestrerVmcPiece(piece) {
   projeterVmcVersConfig(piece);
 }
 
+// =====================================================================
+// M58bis — VMC : vrai metier du configurateur (questions -> config auto -> quantites -> devis)
+// =====================================================================
+// Les questions intention/solution vivent dans le BLOC VMC de la config par piece (pas en
+// partie 2). Elles ecrivent les champs chantier EXISTANTS intentionVentilation /
+// solutionVentilation (aucune representation concurrente), alimentent _contexteVmc -> regles
+// existantes -> fonctions retenues -> projection tarifaire. Aucune regle nouvelle.
+function questionsVmcHtml(pieceIndex) {
+  var intention = (typeof chantier !== 'undefined' && chantier && chantier.intentionVentilation) || 'inconnu';
+  var solution  = (typeof chantier !== 'undefined' && chantier && chantier.solutionVentilation)  || 'inconnue';
+  const si = (v) => (intention === v ? ' selected' : '');
+  const ss = (v) => (solution === v ? ' selected' : '');
+  return `
+    <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:12px;">
+      <div style="font-weight:700;margin-bottom:8px;">💨 Votre projet de ventilation</div>
+      <label style="display:block;font-weight:600;font-size:0.85rem;margin-bottom:6px;">Que souhaitez-vous faire concernant votre ventilation ?</label>
+      <select id="vmc_intention_${pieceIndex}" onchange="majContexteVmc(${pieceIndex})" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);">
+        <option value="conserver"${si('conserver')}>Conserver</option>
+        <option value="reparer"${si('reparer')}>Réparer</option>
+        <option value="remplacer"${si('remplacer')}>Remplacer</option>
+        <option value="creer"${si('creer')}>Créer</option>
+        <option value="analyser"${si('analyser')}>Analyser / diagnostiquer</option>
+        <option value="inconnu"${si('inconnu')}>Je ne sais pas encore</option>
+      </select>
+      <label style="display:block;font-weight:600;font-size:0.85rem;margin:12px 0 6px;">Avez-vous déjà une solution de ventilation en tête ?</label>
+      <select id="vmc_solution_${pieceIndex}" onchange="majContexteVmc(${pieceIndex})" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);">
+        <option value="simple_flux"${ss('simple_flux')}>VMC simple flux</option>
+        <option value="hygro"${ss('hygro')}>VMC simple flux hygroréglable</option>
+        <option value="double_flux"${ss('double_flux')}>VMC double flux</option>
+        <option value="inconnue"${ss('inconnue')}>Je ne sais pas encore</option>
+      </select>
+      <div style="font-size:0.72rem;color:var(--text-light);margin-top:8px;">DSBAT détermine automatiquement les fonctions et prestations nécessaires à partir de vos réponses.</div>
+    </div>`;
+}
+
+// Ecrit intention/solution dans les champs chantier EXISTANTS, persiste, re-orchestre, recalcule.
+// Intention/solution sont globales (projet) : toutes les pieces sont re-projetees et rafraichies.
+function majContexteVmc(pieceIndex) {
+  var iEl = document.getElementById('vmc_intention_' + pieceIndex);
+  var sEl = document.getElementById('vmc_solution_' + pieceIndex);
+  if (typeof chantier === 'undefined' || !chantier) { chantier = {}; }
+  if (iEl) chantier.intentionVentilation = iEl.value;
+  if (sEl) chantier.solutionVentilation = sEl.value;
+  try { sessionStorage.setItem('chantier', JSON.stringify(chantier)); } catch (e) {}
+  if (typeof projeterVmcToutesPieces === 'function') projeterVmcToutesPieces();
+  (piecesSelectionnees || []).forEach(function (p, i) { recalcPiece(i); });
+}
+
+// Rafraichit l'affichage VMC (quantites projetees -> DOM), miroir exact de syncElecDOM.
+function syncVmcDOM(index) {
+  const piece = piecesSelectionnees[index];
+  if (!piece) return;
+  const cfg = (piece.config && piece.config.vmc) || {};
+  (typeof getVmcPourPiece === 'function' ? getVmcPourPiece(piece.id) : []).forEach(pr => {
+    const qty = cfg[pr.code] || 0;
+    const qs = document.getElementById(`qty_${index}_${pr.code}`);
+    if (qs) qs.textContent = qty;
+    const prix = getPrixPrestFor(pr.code, piece);
+    const lab = document.getElementById(`pprix_${index}_${pr.code}`);
+    if (lab && prix) lab.textContent = `${prix.min}–${prix.max} €/${pr.unite}`;
+    const pt = document.getElementById(`ptotal_${index}_${pr.code}`);
+    if (pt) pt.textContent = formatEuro(getMoyenPrixFor(pr.code, piece) * qty);
+  });
+}
+
 // ===== CONTRÔLE FINAL DU MOTEUR VMC (MISSION 040) =====
 
 // ===== ÉTAT GLOBAL =====
@@ -3120,6 +3185,7 @@ function renderMetierSection(section, pieceIndex) {
         ${section.metier === 'carrelage' ? `<div id="reco_support_carr_${pieceIndex}"></div>` : ''}
         ${section.metier === 'isolation' ? `<div id="reco_support_iso_${pieceIndex}"></div>` : ''}
         ${section.metier === 'menuiserie' ? `<div id="reco_support_men_${pieceIndex}"></div>` : ''}
+        ${section.metier === 'vmc' ? questionsVmcHtml(pieceIndex) : ''}
         ${section.metier === 'vmc' ? `<div id="reco_support_vmc_${pieceIndex}"></div>` : ''}
         ${section.metier === 'vmc' ? `<div id="fonctions_vmc_${pieceIndex}"></div>` : ''}
         ${section.prests.map(p => renderPrestRow(p, pieceIndex, section.metier)).join('')}
@@ -3722,6 +3788,10 @@ function recalcPiece(index) {
 
   // Électricité : appliquer la norme (minimums verrouillés) puis synchroniser l'affichage
   if (metiersActifs.includes('electricite')) { appliquerNorme(index); syncElecDOM(index); }
+
+  // VMC : orchestration (matérialise la couche fonctionnelle + projette les obligations) puis affichage.
+  // Point de cycle réel : recalcPiece est appelé au rendu (2751) et à chaque changement -> quantités jamais à 0.
+  if (metiersActifs.includes('vmc')) { if (typeof orchestrerVmcPiece === 'function') orchestrerVmcPiece(piece); syncVmcDOM(index); }
 
   // 1) RÉCUPÉRER les choix de l'interface et les mémoriser sur la pièce (persistance)
   if (metiersActifs.includes('peinture')) {
