@@ -42,7 +42,9 @@ const SEL = selectBlocIn(CONFIG, 'vmc_solution_');
 
 // ---- 1. Nouvelle donnée : select + 4 valeurs EXACTES -----------------
 A(SEL.length > 0, 'solution : select présent dans le bloc VMC (Partie 3)');
-A(/onchange="majContexteVmc\(/.test(SEL), 'solution : onchange majContexteVmc branché (alimente les règles)');
+A(/onchange="majContexteVmcProjet\(/.test(SEL), 'solution : onchange majContexteVmcProjet branché (niveau projet)');
+A(/id="vmc_solution_projet"/.test(CONFIG), 'solution : select au NIVEAU PROJET (id vmc_solution_projet)');
+A(!/questionsVmcHtml\(pieceIndex\)/.test(CONFIG), 'solution : PLUS de question solution dans la config par pièce');
 A(!/<select id="solutionVentilation"/.test(DEVIS), 'solution : retirée de la Partie 2 (devis.html)');
 ['simple_flux', 'hygro', 'double_flux', 'inconnue'].forEach(v =>
   A(new RegExp('<option value="' + v + '"').test(SEL), 'solutionVentilation : valeur « ' + v + ' » présente'));

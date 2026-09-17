@@ -25,7 +25,7 @@ const INTERP = fs.readFileSync(path.join(RACINE, 'js', 'interpretation-descripti
 let ok = 0, ko = 0, skip = 0;
 const A = (c, m) => { if (c) ok++; else { ko++; console.error('  ❌ ' + m); } };
 
-// M58bis : le select intention est désormais dans le bloc métier VMC (Partie 3, questionsVmcHtml).
+// M59 : le select intention est au niveau PROJET (Partie 3, questionsVmcProjetHtml), pas par pièce.
 const CONFIG = fs.readFileSync(path.join(RACINE, 'devis-configurateur.html'), 'utf8');
 function selectBlocIn(src, id) {
   const s = src.indexOf('<select id="' + id);
@@ -39,7 +39,9 @@ const INTENT_SELECT = selectBlocIn(CONFIG, 'vmc_intention_');
 A(INTENT_SELECT.length > 0, 'intention : select présent dans le bloc VMC (Partie 3)');
 ['conserver', 'remplacer', 'creer', 'inconnu'].forEach(v =>
   A(new RegExp('<option value="' + v + '"').test(INTENT_SELECT), 'intentionVentilation : valeur « ' + v + ' » présente'));
-A(/onchange="majContexteVmc\(/.test(INTENT_SELECT), 'intention : onchange majContexteVmc branché (alimente les règles)');
+A(/onchange="majContexteVmcProjet\(/.test(INTENT_SELECT), 'intention : onchange majContexteVmcProjet branché (niveau projet)');
+A(/id="vmc_intention_projet"/.test(CONFIG), 'intention : select au NIVEAU PROJET (id vmc_intention_projet)');
+A(!/questionsVmcHtml\(pieceIndex\)/.test(CONFIG), 'intention : PLUS de question intention dans la config par pièce');
 // M58bis : la question n'est PLUS en Partie 2 (devis.html)
 A(!/<select id="intentionVentilation"/.test(DEVIS), 'intention : retirée de la Partie 2 (devis.html)');
 

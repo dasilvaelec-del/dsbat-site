@@ -826,6 +826,8 @@ window.axeptioSettings = {
 
   <!-- ===== PHASE 2 — CONFIGURATION PIÈCE PAR PIÈCE ===== -->
   <div id="phase2" style="display:none;">
+    <!-- M59 : questions VMC au niveau PROJET (une seule fois, au-dessus des pieces) -->
+    <div id="vmcProjetBloc"></div>
     <div class="pieces-tabs" id="piecesTabs"></div>
     <div id="piecesConfigs"></div>
 
@@ -1614,6 +1616,7 @@ function projeterVmcVersConfig(piece) {
 // (transition vers la phase 3), jamais dans un render ni dans le calcul.
 function projeterVmcToutesPieces() {
   (piecesSelectionnees || []).forEach(function (piece) { orchestrerVmcPiece(piece); });
+  projeterGroupeVmc();  // M59 : groupe/moteur unique apres projection des bouches
 }
 
 // =====================================================================
@@ -1641,22 +1644,24 @@ function orchestrerVmcPiece(piece) {
 }
 
 // =====================================================================
-// M58bis — VMC : vrai metier du configurateur (questions -> config auto -> quantites -> devis)
+// M59 — VMC : questions au niveau PROJET (Partie 3) + groupe/moteur
 // =====================================================================
-// Les questions intention/solution vivent dans le BLOC VMC de la config par piece (pas en
-// partie 2). Elles ecrivent les champs chantier EXISTANTS intentionVentilation /
-// solutionVentilation (aucune representation concurrente), alimentent _contexteVmc -> regles
-// existantes -> fonctions retenues -> projection tarifaire. Aucune regle nouvelle.
-function questionsVmcHtml(pieceIndex) {
-  var intention = (typeof chantier !== 'undefined' && chantier && chantier.intentionVentilation) || 'inconnu';
-  var solution  = (typeof chantier !== 'undefined' && chantier && chantier.solutionVentilation)  || 'inconnue';
+// Les deux questions intention/solution vivent au niveau PROJET (une seule fois,
+// au-dessus des pieces), et NON PLUS dans la config par piece. Elles ecrivent les
+// champs chantier EXISTANTS intentionVentilation / solutionVentilation, alimentent
+// _contexteVmc -> regles existantes -> fonctions retenues -> projection des bouches,
+// PUIS la projection du GROUPE/MOTEUR VMC (caisson). Aucune regle nouvelle.
+function questionsVmcProjetHtml() {
+  if (typeof metiersActifs === 'undefined' || !metiersActifs.includes('vmc')) return '';
+  const intention = (typeof chantier !== 'undefined' && chantier && chantier.intentionVentilation) || 'inconnu';
+  const solution  = (typeof chantier !== 'undefined' && chantier && chantier.solutionVentilation)  || 'inconnue';
   const si = (v) => (intention === v ? ' selected' : '');
   const ss = (v) => (solution === v ? ' selected' : '');
   return `
-    <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:12px;">
-      <div style="font-weight:700;margin-bottom:8px;">💨 Votre projet de ventilation</div>
+    <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">
+      <div style="font-weight:700;margin-bottom:8px;">\u{1F4A8} Votre projet de ventilation (VMC)</div>
       <label style="display:block;font-weight:600;font-size:0.85rem;margin-bottom:6px;">Que souhaitez-vous faire concernant votre ventilation ?</label>
-      <select id="vmc_intention_${pieceIndex}" onchange="majContexteVmc(${pieceIndex})" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);">
+      <select id="vmc_intention_projet" onchange="majContexteVmcProjet()" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);">
         <option value="conserver"${si('conserver')}>Conserver</option>
         <option value="reparer"${si('reparer')}>Réparer</option>
         <option value="remplacer"${si('remplacer')}>Remplacer</option>
@@ -1665,27 +1670,92 @@ function questionsVmcHtml(pieceIndex) {
         <option value="inconnu"${si('inconnu')}>Je ne sais pas encore</option>
       </select>
       <label style="display:block;font-weight:600;font-size:0.85rem;margin:12px 0 6px;">Avez-vous déjà une solution de ventilation en tête ?</label>
-      <select id="vmc_solution_${pieceIndex}" onchange="majContexteVmc(${pieceIndex})" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);">
+      <select id="vmc_solution_projet" onchange="majContexteVmcProjet()" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);">
         <option value="simple_flux"${ss('simple_flux')}>VMC simple flux</option>
         <option value="hygro"${ss('hygro')}>VMC simple flux hygroréglable</option>
         <option value="double_flux"${ss('double_flux')}>VMC double flux</option>
         <option value="inconnue"${ss('inconnue')}>Je ne sais pas encore</option>
       </select>
-      <div style="font-size:0.72rem;color:var(--text-light);margin-top:8px;">DSBAT détermine automatiquement les fonctions et prestations nécessaires à partir de vos réponses.</div>
+      ${_vmcGroupeInfoHtml(intention, solution)}
+      <div style="font-size:0.72rem;color:var(--text-light);margin-top:8px;">Ces réponses concernent tout le logement. DSBAT en déduit automatiquement le groupe VMC et les bouches nécessaires ; rien à ajouter manuellement.</div>
     </div>`;
 }
 
-// Ecrit intention/solution dans les champs chantier EXISTANTS, persiste, re-orchestre, recalcule.
-// Intention/solution sont globales (projet) : toutes les pieces sont re-projetees et rafraichies.
-function majContexteVmc(pieceIndex) {
-  var iEl = document.getElementById('vmc_intention_' + pieceIndex);
-  var sEl = document.getElementById('vmc_solution_' + pieceIndex);
+// Ligne informative (lecture seule) : groupe/moteur inclus automatiquement selon la solution.
+function _vmcGroupeInfoHtml(intention, solution) {
+  const code = _vmcCodeCaisson(solution);
+  const retenue = _vmcInstallationRetenue();
+  if (retenue && code) {
+    const lbl = (typeof findPrestLabel === 'function' && findPrestLabel(code)) || code;
+    return `<div style="margin-top:10px;background:rgba(16,185,129,0.08);border:1px solid #10b981;border-radius:8px;padding:10px;font-size:0.8rem;color:#065f46;">✅ Groupe VMC inclus automatiquement : <strong>${lbl}</strong> <span style="opacity:.7;">(${code})</span></div>`;
+  }
+  if ((intention === 'creer' || intention === 'remplacer') && !code) {
+    return `<div style="margin-top:10px;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:10px;font-size:0.8rem;color:var(--text-light);">Indiquez la solution de ventilation pour inclure automatiquement le groupe VMC adapté.</div>`;
+  }
+  return `<div style="margin-top:10px;font-size:0.76rem;color:var(--text-light);">Aucun nouveau groupe VMC ne sera ajouté pour cette intention.</div>`;
+}
+
+// Ecrit intention/solution (champs chantier EXISTANTS), persiste, orchestre TOUTES les
+// pieces (bouches + groupe/moteur) et recalcule. Intention/solution sont GLOBALES (projet).
+function majContexteVmcProjet() {
+  const iEl = document.getElementById('vmc_intention_projet');
+  const sEl = document.getElementById('vmc_solution_projet');
   if (typeof chantier === 'undefined' || !chantier) { chantier = {}; }
   if (iEl) chantier.intentionVentilation = iEl.value;
   if (sEl) chantier.solutionVentilation = sEl.value;
   try { sessionStorage.setItem('chantier', JSON.stringify(chantier)); } catch (e) {}
   if (typeof projeterVmcToutesPieces === 'function') projeterVmcToutesPieces();
   (piecesSelectionnees || []).forEach(function (p, i) { recalcPiece(i); });
+  renderVmcProjetBloc();
+}
+
+// (Re)rend le bloc projet VMC dans son conteneur dedie (idempotent).
+function renderVmcProjetBloc() {
+  const el = (typeof document !== 'undefined') ? document.getElementById('vmcProjetBloc') : null;
+  if (el) el.innerHTML = questionsVmcProjetHtml();
+}
+
+// Code catalogue REEL du groupe/moteur (js/vue-tarifaire-data.js) :
+//   simple_flux / hygro -> VMC_CAISSON_SF (meme famille caisson) ; double_flux -> VMC_CAISSON_DF.
+//   inconnue -> null (aucun groupe, pas d'invention).
+function _vmcCodeCaisson(solution) {
+  if (solution === 'simple_flux' || solution === 'hygro') return 'VMC_CAISSON_SF';
+  if (solution === 'double_flux') return 'VMC_CAISSON_DF';
+  return null;
+}
+
+// Installation VMC (re)construite ? Reutilise obligationsVmc (AUCUNE regle nouvelle) :
+// vrai ssi >=1 piece a une fonction VMC OBLIGATOIRE (=> intention creer|remplacer, en
+// scope, perimetre complet|partiel). conserver / reparer / analyser / inconnu -> faux.
+function _vmcInstallationRetenue() {
+  if (typeof metiersActifs === 'undefined' || !metiersActifs.includes('vmc')) return false;
+  if (typeof obligationsVmc !== 'function') return false;
+  return (piecesSelectionnees || []).some(function (p) {
+    const obl = obligationsVmc(p.id, _contexteVmc(p)) || {};
+    return Object.keys(obl).some(function (k) { return obl[k] && obl[k].statut === 'obligatoire'; });
+  });
+}
+
+// Projette le GROUPE/MOTEUR VMC unique (1 par installation) dans UNE piece hote, pour un
+// chiffrage EXACTEMENT unique (calculerPieceComplet somme tout config.vmc). Idempotent :
+// purge tout caisson avant reprojection (changement de solution propre). conserver/reparer
+// -> aucun groupe ; solution inconnue -> aucun groupe (pas d'invention de code ni de prix).
+function projeterGroupeVmc() {
+  const pieces = piecesSelectionnees || [];
+  pieces.forEach(function (p) {
+    if (p.config && p.config.vmc) { delete p.config.vmc.VMC_CAISSON_SF; delete p.config.vmc.VMC_CAISSON_DF; }
+  });
+  if (!_vmcInstallationRetenue()) return;
+  const solution = (typeof chantier !== 'undefined' && chantier && chantier.solutionVentilation) || 'inconnue';
+  const code = _vmcCodeCaisson(solution);
+  if (!code) return;
+  const hote = pieces.filter(function (p) { return p.config && p.config.vmc && p.config.vmc.VMC_BOUCHE > 0; })[0]
+            || pieces.filter(function (p) { return Object.keys(obligationsVmc(p.id, _contexteVmc(p)) || {}).length; })[0]
+            || pieces[0];
+  if (!hote) return;
+  if (!hote.config) hote.config = {};
+  if (!hote.config.vmc) hote.config.vmc = {};
+  hote.config.vmc[code] = 1;
 }
 
 // Rafraichit l'affichage VMC (quantites projetees -> DOM), miroir exact de syncElecDOM.
@@ -2814,6 +2884,9 @@ function renderPhase2() {
   configsContainer.innerHTML = piecesSelectionnees.map((p, i) => renderPieceConfig(p, i)).join('');
 
   piecesSelectionnees.forEach((p, i) => recalcPiece(i));
+  // M59 : projeter le groupe/moteur VMC (une seule pièce hôte) puis re-chiffrer, et rendre le bloc projet.
+  if (typeof projeterVmcToutesPieces === 'function') { projeterVmcToutesPieces(); piecesSelectionnees.forEach((p, i) => recalcPiece(i)); }
+  renderVmcProjetBloc();
 
 }
 
@@ -3185,7 +3258,6 @@ function renderMetierSection(section, pieceIndex) {
         ${section.metier === 'carrelage' ? `<div id="reco_support_carr_${pieceIndex}"></div>` : ''}
         ${section.metier === 'isolation' ? `<div id="reco_support_iso_${pieceIndex}"></div>` : ''}
         ${section.metier === 'menuiserie' ? `<div id="reco_support_men_${pieceIndex}"></div>` : ''}
-        ${section.metier === 'vmc' ? questionsVmcHtml(pieceIndex) : ''}
         ${section.metier === 'vmc' ? `<div id="reco_support_vmc_${pieceIndex}"></div>` : ''}
         ${section.metier === 'vmc' ? `<div id="fonctions_vmc_${pieceIndex}"></div>` : ''}
         ${section.prests.map(p => renderPrestRow(p, pieceIndex, section.metier)).join('')}

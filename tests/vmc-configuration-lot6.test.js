@@ -56,10 +56,10 @@ A(/<option value="oui">/.test(selectBloc('vdfInsufflation')) && /<option value="
 A(/ventilationDeclaree: ch\.ventilationDeclaree \|\| null/.test(CTX), 'contexte-projet : écho déclaré ventilationDeclaree');
 
 // ---- 4. Gating : visible UNIQUEMENT si solution=double_flux ----------
-// M58bis : la question « solution » a migré vers le bloc métier VMC (Partie 3, questionsVmcHtml).
+// M59 : la question « solution » est au niveau PROJET (Partie 3, questionsVmcProjetHtml).
 // Le bloc de configuration générale DF (déclaratif) et sa fonction restent conservés en Partie 2.
 A(/function majVentilationDF\(\)/.test(DEVIS), 'majVentilationDF conservée (bloc config générale DF déclaratif préservé)');
-A(/id="vmc_solution_/.test(CONFIG) && /onchange="majContexteVmc\(/.test(CONFIG), 'solution : désormais dans le bloc VMC (Partie 3)');
+A(/id="vmc_solution_projet"/.test(CONFIG) && /onchange="majContexteVmcProjet\(/.test(CONFIG), 'solution : au NIVEAU PROJET (Partie 3)');
 const SRC = extraire(DEVIS, 'function majVentilationDF()');
 function runGating(sol) {
   const els = {
