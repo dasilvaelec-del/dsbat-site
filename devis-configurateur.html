@@ -980,6 +980,14 @@ function getPrestationsPourPiece(pieceId, metiersActifs) {
     const prests = getElecPourPiece(pieceId);
     if (prests.length > 0) sections.push({ metier:'electricite', icon:'⚡', label:'Électricité', prests });
   }
+    if (metiersActifs.includes('chauffage')) {
+    sections.push({
+      metier: 'chauffage',
+      icon: '🔥',
+      label: 'Chauffage',
+      prests: []
+    });
+  }
   if (metiersActifs.includes('plomberie')) {
     const prests = getPlombPourPiece(pieceId);
     if (prests.length > 0) sections.push({ metier:'plomberie', icon:'🚿', label:'Plomberie', prests });
@@ -1754,7 +1762,6 @@ window.addEventListener('DOMContentLoaded', () => {
   }
 
   try { chantier = JSON.parse(chantierData) || {}; } catch(e) { chantier = {}; }
-
   renderPiecesSelection();
   // La typologie ne s'applique que si aucun état n'a été restauré
   // (sinon on écraserait les ajustements déjà faits par le client)
@@ -2770,7 +2777,281 @@ function renderPieceConfig(piece, index) {
     </div>
   `;
 }
+function syncChauffageDOM(pieceIndex) {
+  const piece = piecesSelectionnees[pieceIndex];
+  if (!piece) return;
 
+  if (!piece.chauffageFonctions) {
+    piece.chauffageFonctions = {
+      existant: {
+        present: null,
+        type: null,
+        energie: null,
+        etat: null
+      },
+      intention: {
+        action: null,
+        objectif: null
+      },
+      solution: {
+        technologie: null,
+        systeme: null,
+        statut: null
+      },
+      etatLocal: null
+    };
+  }
+
+  const presentEl = document.getElementById(`chauffage_present_${pieceIndex}`);
+  const typeEl = document.getElementById(`chauffage_type_${pieceIndex}`);
+  const energieEl = document.getElementById(`chauffage_energie_${pieceIndex}`);
+  const etatEl = document.getElementById(`chauffage_etat_${pieceIndex}`);
+  const actionEl = document.getElementById(`chauffage_action_${pieceIndex}`);
+  const objectifEl = document.getElementById(`chauffage_objectif_${pieceIndex}`);
+  const technologieEl = document.getElementById(`chauffage_technologie_${pieceIndex}`);
+  const systemeEl = document.getElementById(`chauffage_systeme_${pieceIndex}`);
+  const statutEl = document.getElementById(`chauffage_statut_${pieceIndex}`);
+
+  if (presentEl) {
+    piece.chauffageFonctions.existant.present =
+      presentEl.value === 'oui' ? true :
+      presentEl.value === 'non' ? false :
+      null;
+  }
+
+  if (typeEl) piece.chauffageFonctions.existant.type = typeEl.value || null;
+  if (energieEl) piece.chauffageFonctions.existant.energie = energieEl.value || null;
+  if (etatEl) piece.chauffageFonctions.existant.etat = etatEl.value || null;
+
+  if (actionEl) piece.chauffageFonctions.intention.action = actionEl.value || null;
+  if (objectifEl) piece.chauffageFonctions.intention.objectif = objectifEl.value || null;
+
+  if (technologieEl) piece.chauffageFonctions.solution.technologie = technologieEl.value || null;
+  if (systemeEl) piece.chauffageFonctions.solution.systeme = systemeEl.value.trim() || null;
+  if (statutEl) piece.chauffageFonctions.solution.statut = statutEl.value || null;
+
+  // État produit par l'interface : on ne prétend pas encore avoir
+  // qualifié techniquement la pièce.
+  const f = piece.chauffageFonctions;
+
+  if (f.existant.present === null && !f.intention.action) {
+    f.etatLocal = 'non_qualifie';
+  } else if (f.existant.present === true && !f.existant.type) {
+    f.etatLocal = 'partiel';
+  } else if (!f.intention.action) {
+    f.etatLocal = 'partiel';
+  } else {
+    f.etatLocal = 'qualifie';
+  }
+
+  const existingBlock = document.getElementById(`chauffage_existant_${pieceIndex}`);
+  if (existingBlock) {
+    existingBlock.style.display = f.existant.present === true ? '' : 'none';
+  }
+
+  const etatLocalEl = document.getElementById(`chauffage_etat_local_${pieceIndex}`);
+  if (etatLocalEl) {
+    const labels = {
+      non_qualifie: 'À qualifier',
+      partiel: 'Qualification partielle',
+      qualifie: 'Qualification renseignée'
+    };
+
+    etatLocalEl.innerHTML =
+      '<div style="font-size:0.78rem;color:var(--text-light);">' +
+      'État de qualification : <strong>' +
+      (labels[f.etatLocal] || f.etatLocal || 'À préciser') +
+      '</strong></div>';
+  }
+
+  saveEtat();
+}
+
+function renderChauffageConfig(pieceIndex) {
+  const piece = piecesSelectionnees[pieceIndex];
+  const ch = piece.chauffageFonctions || {
+    existant: {
+      present: null,
+      type: null,
+      energie: null,
+      etat: null
+    },
+    intention: {
+      action: null,
+      objectif: null
+    },
+    solution: {
+      technologie: null,
+      systeme: null,
+      statut: null
+    },
+    etatLocal: null
+  };
+
+  const ex = ch.existant || {};
+  const intention = ch.intention || {};
+  const solution = ch.solution || {};
+
+  return `
+    <div class="chauffage-config" id="chauffage_config_${pieceIndex}">
+
+      <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:14px;">
+        <div style="font-weight:700;margin-bottom:6px;">🔥 Situation actuelle</div>
+        <div style="font-size:0.82rem;color:var(--text-light);margin-bottom:12px;">
+          Décrivez uniquement ce que vous savez du chauffage de cette pièce.
+        </div>
+
+        <label style="display:block;font-weight:600;font-size:0.85rem;margin-bottom:6px;">
+          Y a-t-il actuellement un chauffage dans cette pièce ?
+        </label>
+
+        <select id="chauffage_present_${pieceIndex}"
+                onchange="syncChauffageDOM(${pieceIndex})"
+                style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);">
+          <option value="" ${ex.present === null ? 'selected' : ''}>Je ne sais pas</option>
+          <option value="oui" ${ex.present === true ? 'selected' : ''}>Oui</option>
+          <option value="non" ${ex.present === false ? 'selected' : ''}>Non</option>
+        </select>
+
+        <div id="chauffage_existant_${pieceIndex}" style="margin-top:12px;${ex.present === true ? '' : 'display:none;'}">
+
+          <label style="display:block;font-weight:600;font-size:0.85rem;margin-bottom:6px;">
+            Type de chauffage existant
+          </label>
+
+          <select id="chauffage_type_${pieceIndex}"
+                  onchange="syncChauffageDOM(${pieceIndex})"
+                  style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);">
+            <option value="">À préciser</option>
+            <option value="radiateur" ${ex.type === 'radiateur' ? 'selected' : ''}>Radiateur</option>
+            <option value="plancher_chauffant" ${ex.type === 'plancher_chauffant' ? 'selected' : ''}>Plancher chauffant</option>
+            <option value="convecteur" ${ex.type === 'convecteur' ? 'selected' : ''}>Convecteur</option>
+            <option value="chaudiere" ${ex.type === 'chaudiere' ? 'selected' : ''}>Chaudière</option>
+            <option value="pompe_a_chaleur" ${ex.type === 'pompe_a_chaleur' ? 'selected' : ''}>Pompe à chaleur</option>
+            <option value="autre" ${ex.type === 'autre' ? 'selected' : ''}>Autre</option>
+          </select>
+
+          <label style="display:block;font-weight:600;font-size:0.85rem;margin:12px 0 6px;">
+            Énergie connue
+          </label>
+
+          <select id="chauffage_energie_${pieceIndex}"
+                  onchange="syncChauffageDOM(${pieceIndex})"
+                  style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);">
+            <option value="">Je ne sais pas</option>
+            <option value="electrique" ${ex.energie === 'electrique' ? 'selected' : ''}>Électrique</option>
+            <option value="gaz" ${ex.energie === 'gaz' ? 'selected' : ''}>Gaz</option>
+            <option value="fioul" ${ex.energie === 'fioul' ? 'selected' : ''}>Fioul</option>
+            <option value="bois" ${ex.energie === 'bois' ? 'selected' : ''}>Bois</option>
+            <option value="autre" ${ex.energie === 'autre' ? 'selected' : ''}>Autre</option>
+          </select>
+
+          <label style="display:block;font-weight:600;font-size:0.85rem;margin:12px 0 6px;">
+            État connu
+          </label>
+
+          <select id="chauffage_etat_${pieceIndex}"
+                  onchange="syncChauffageDOM(${pieceIndex})"
+                  style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);">
+            <option value="">À préciser</option>
+            <option value="fonctionnel" ${ex.etat === 'fonctionnel' ? 'selected' : ''}>Fonctionnel</option>
+            <option value="defaillant" ${ex.etat === 'defaillant' ? 'selected' : ''}>Défaillant</option>
+            <option value="a_remplacer" ${ex.etat === 'a_remplacer' ? 'selected' : ''}>À remplacer</option>
+            <option value="inconnu" ${ex.etat === 'inconnu' ? 'selected' : ''}>Inconnu</option>
+          </select>
+
+        </div>
+      </div>
+
+      <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:14px;">
+        <div style="font-weight:700;margin-bottom:6px;">🎯 Votre intention</div>
+        <div style="font-size:0.82rem;color:var(--text-light);margin-bottom:12px;">
+          Cette réponse exprime votre besoin. Elle ne constitue pas encore un choix technique.
+        </div>
+
+        <label style="display:block;font-weight:600;font-size:0.85rem;margin-bottom:6px;">
+          Que souhaitez-vous faire ?
+        </label>
+
+        <select id="chauffage_action_${pieceIndex}"
+                onchange="syncChauffageDOM(${pieceIndex})"
+                style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);">
+          <option value="">À préciser</option>
+          <option value="installer" ${intention.action === 'installer' ? 'selected' : ''}>Installer</option>
+          <option value="remplacer" ${intention.action === 'remplacer' ? 'selected' : ''}>Remplacer</option>
+          <option value="conserver" ${intention.action === 'conserver' ? 'selected' : ''}>Conserver</option>
+          <option value="ajouter" ${intention.action === 'ajouter' ? 'selected' : ''}>Ajouter</option>
+          <option value="supprimer" ${intention.action === 'supprimer' ? 'selected' : ''}>Supprimer</option>
+          <option value="aucun" ${intention.action === 'aucun' ? 'selected' : ''}>Aucun travaux de chauffage</option>
+        </select>
+
+        <label style="display:block;font-weight:600;font-size:0.85rem;margin:12px 0 6px;">
+          Objectif
+        </label>
+
+        <select id="chauffage_objectif_${pieceIndex}"
+                onchange="syncChauffageDOM(${pieceIndex})"
+                style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);">
+          <option value="">À préciser</option>
+          <option value="confort" ${intention.objectif === 'confort' ? 'selected' : ''}>Améliorer le confort</option>
+          <option value="remplacement" ${intention.objectif === 'remplacement' ? 'selected' : ''}>Remplacer l'existant</option>
+          <option value="extension" ${intention.objectif === 'extension' ? 'selected' : ''}>Ajouter / étendre le chauffage</option>
+          <option value="suppression" ${intention.objectif === 'suppression' ? 'selected' : ''}>Supprimer le chauffage</option>
+          <option value="autre" ${intention.objectif === 'autre' ? 'selected' : ''}>Autre</option>
+        </select>
+      </div>
+
+      <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:12px;padding:16px;">
+        <div style="font-weight:700;margin-bottom:6px;">⚙️ Solution déjà connue</div>
+        <div style="font-size:0.82rem;color:var(--text-light);margin-bottom:12px;">
+          Ne renseignez cette partie que si vous avez déjà choisi ou demandé une solution.
+        </div>
+
+        <label style="display:block;font-weight:600;font-size:0.85rem;margin-bottom:6px;">
+          Technologie souhaitée
+        </label>
+
+        <select id="chauffage_technologie_${pieceIndex}"
+                onchange="syncChauffageDOM(${pieceIndex})"
+                style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);">
+          <option value="">Aucune solution choisie</option>
+          <option value="radiateur_electrique" ${solution.technologie === 'radiateur_electrique' ? 'selected' : ''}>Radiateur électrique</option>
+          <option value="convecteur" ${solution.technologie === 'convecteur' ? 'selected' : ''}>Convecteur</option>
+          <option value="plancher_chauffant" ${solution.technologie === 'plancher_chauffant' ? 'selected' : ''}>Plancher chauffant</option>
+          <option value="chaudiere" ${solution.technologie === 'chaudiere' ? 'selected' : ''}>Chaudière</option>
+          <option value="pompe_a_chaleur" ${solution.technologie === 'pompe_a_chaleur' ? 'selected' : ''}>Pompe à chaleur</option>
+          <option value="autre" ${solution.technologie === 'autre' ? 'selected' : ''}>Autre</option>
+        </select>
+
+        <label style="display:block;font-weight:600;font-size:0.85rem;margin:12px 0 6px;">
+          Système / précision connue
+        </label>
+
+        <input id="chauffage_systeme_${pieceIndex}"
+               type="text"
+               value="${solution.systeme || ''}"
+               placeholder="Ex. radiateurs à inertie, PAC air/eau..."
+               onchange="syncChauffageDOM(${pieceIndex})"
+               style="width:100%;box-sizing:border-box;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);">
+
+        <label style="display:block;font-weight:600;font-size:0.85rem;margin:12px 0 6px;">
+          Statut
+        </label>
+
+        <select id="chauffage_statut_${pieceIndex}"
+                onchange="syncChauffageDOM(${pieceIndex})"
+                style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);">
+          <option value="">Non défini</option>
+          <option value="a_etudier" ${solution.statut === 'a_etudier' ? 'selected' : ''}>À étudier</option>
+          <option value="deja_choisi" ${solution.statut === 'deja_choisi' ? 'selected' : ''}>Déjà choisi</option>
+          <option value="devis_existant" ${solution.statut === 'devis_existant' ? 'selected' : ''}>Devis / solution existante</option>
+        </select>
+      </div>
+
+      <div id="chauffage_etat_local_${pieceIndex}" style="margin-top:12px;"></div>
+    </div>
+  `;
+}
 function renderMetierSection(section, pieceIndex) {
   const sid = `sec_${pieceIndex}_${section.metier}`;
 
@@ -2804,6 +3085,7 @@ function renderMetierSection(section, pieceIndex) {
         <span class="chevron">▼</span>
       </div>
       <div class="metier-section-body">
+        ${section.metier === 'chauffage' ? renderChauffageConfig(pieceIndex) : ''}
         ${section.metier === 'electricite' ? bandeauNorme() + explicationsPieceHtml(pieceIndex) + selecteursElec(pieceIndex) : ''}
         ${section.metier === 'plomberie' ? selecteursPlomberie(pieceIndex) + `<div id="reco_support_plo_${pieceIndex}"></div>` : ''}
         ${section.metier === 'carrelage' ? `<div id="reco_support_carr_${pieceIndex}"></div>` : ''}
@@ -3404,6 +3686,10 @@ function changerQty(pieceIndex, code, metier, delta) {
 // ===== RECALCUL PIÈCE =====
 function recalcPiece(index) {
   const piece = piecesSelectionnees[index];
+
+    if (metiersActifs.includes('chauffage')) {
+    syncChauffageDOM(index);
+  }
 
   // Électricité : appliquer la norme (minimums verrouillés) puis synchroniser l'affichage
   if (metiersActifs.includes('electricite')) { appliquerNorme(index); syncElecDOM(index); }

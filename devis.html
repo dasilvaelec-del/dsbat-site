@@ -1010,6 +1010,16 @@ window.axeptioSettings = {
         </label>
 
         <label class="metier-card">
+          <input type="checkbox" name="metier" value="chauffage" id="m_chauffage">
+          <div class="metier-label">
+            <span class="metier-icon">🔥</span>
+            <span>Chauffage</span>
+            <span class="metier-desc">Radiateurs, chauffage, remplacement et installation</span>
+          </div>
+          <div class="checkmark">✓</div>
+        </label>
+
+        <label class="metier-card">
           <input type="checkbox" name="metier" value="plomberie" id="m_plomb">
           <div class="metier-label">
             <span class="metier-icon">🚿</span>
@@ -1337,7 +1347,7 @@ const LABELS = {
   chauffage: { electrique:'Électrique', gaz:'Gaz', fioul:'Fioul', pompe:'Pompe à chaleur', autre:'Autre' },
   vmc: { oui:'Fonctionnelle', defaillante:'Défaillante', non:'Absente' },
   hauteurPlafond: { standard:'Standard', haut:'Haut', tres_haut:'Très haut' },
-  metier: { electricite:'⚡ Électricité', plomberie:'🚿 Plomberie', vmc:'💨 VMC', isolation:'🧱 Isolation', peinture:'🎨 Peinture', menuiserie:'🚪 Menuiserie', sols:'🪵 Sols', carrelage:'🔲 Carrelage' }
+  metier: { electricite:'⚡ Électricité', chauffage:'🔥 Chauffage', plomberie:'🚿 Plomberie', vmc:'💨 VMC', isolation:'🧱 Isolation', peinture:'🎨 Peinture', menuiserie:'🚪 Menuiserie', sols:'🪵 Sols', carrelage:'🔲 Carrelage' }
 };
 
 function getLabel(key, val) {
@@ -1646,6 +1656,7 @@ setTimeout(() => {
   if (data.metiers.length === 1) {
     const routes = {
       electricite: 'devis-electricite.html',
+      chauffage: 'devis-configurateur.html',
       plomberie: 'devis-plomberie.html',
       vmc: 'devis-vmc.html',
       isolation: 'devis-isolation.html',
