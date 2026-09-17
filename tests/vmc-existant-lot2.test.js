@@ -4,7 +4,8 @@
 // Vérifie l'ajout de `typeVentilationExistante` (donnée DÉCLARÉE, distincte de `vmc`)
 // SANS toucher le champ historique `vmc` ni le calcul électrique (b.vmc) ni aucun prix.
 // Règles clés : « vmc=non » NE devient PAS « aucune » (défaut = inconnu) ;
-// vmc=oui/defaillante → vmc_motorisee ; le nouveau champ n'entre dans AUCUN moteur.
+// M58 : question du type existant AFFICHÉE si une VMC existe (oui/defaillante), MASQUÉE si non ;
+// vmc_motorisee n'est JAMAIS forcé ; le nouveau champ n'entre dans AUCUN moteur.
 // =====================================================================
 const fs = require('fs');
 const path = require('path');
@@ -55,19 +56,23 @@ function run(vmcVal, selInit) {
   new Function('document', SRC + ';majTypeVentilation();')(document);
   return { display: bloc.style.display, value: sel.value };
 }
-// vmc=oui / defaillante → bloc masqué, valeur vmc_motorisee
-A(run('oui').display === 'none' && run('oui').value === 'vmc_motorisee', 'vmc=oui → masqué, typeVentilationExistante=vmc_motorisee');
-A(run('defaillante').value === 'vmc_motorisee', 'vmc=defaillante → typeVentilationExistante=vmc_motorisee');
-// vmc=non → bloc visible, défaut inconnu (JAMAIS aucune), sans écraser un choix explicite
+// M58 — vmc=oui / defaillante → bloc VISIBLE, aucun forçage de vmc_motorisee
+A(run('oui').display === '', 'vmc=oui → question du type existant visible');
+A(run('defaillante').display === '', 'vmc=defaillante → question du type existant visible');
+A(run('oui', 'inconnu').value === 'inconnu' && run('defaillante', 'inconnu').value === 'inconnu', 'oui/defaillante → aucun forçage silencieux de vmc_motorisee');
+A(run('oui', 'ventilation_naturelle').value === 'ventilation_naturelle', 'vmc=oui → choix existant conservé (non écrasé)');
+// M58 — vmc=non → bloc MASQUÉ, vmc_motorisee jamais retenu, choix explicites conservés
 {
   const r = run('non', 'vmc_motorisee');
-  A(r.display === '' && r.value === 'inconnu', 'vmc=non → visible + défaut inconnu (pas aucune)');
+  A(r.display === 'none' && r.value === 'inconnu', 'vmc=non → masqué + vmc_motorisee réinitialisé en inconnu');
   A(run('non', 'ventilation_naturelle').value === 'ventilation_naturelle', 'vmc=non → choix « ventilation_naturelle » conservé');
   A(run('non', 'aerateur').value === 'aerateur', 'vmc=non → choix « aerateur » conservé');
   A(run('non', 'aucune').value === 'aucune', 'vmc=non → choix explicite « aucune » conservé');
 }
 // aucune n'est jamais produit automatiquement à partir de non
 A(run('non', 'vmc_motorisee').value !== 'aucune' && run('non').value !== 'aucune', 'non → n\'est jamais transformé automatiquement en aucune');
+// vmc_motorisee n'est jamais forcé, quel que soit le cas
+A(run('oui').value !== 'vmc_motorisee' && run('defaillante').value !== 'vmc_motorisee' && run('non').value !== 'vmc_motorisee', 'aucun forçage silencieux de vmc_motorisee (tous cas)');
 
 const total = ok + ko;
 if (ko === 0) console.log('✅ Existant VMC (M57 LOT2) : ' + ok + '/' + total + ' — vmc historique intact, typeVentilationExistante déclaré, aucun impact calcul');

@@ -1486,12 +1486,14 @@ function majTypeVentilation() {
   var sel = document.getElementById('typeVentilationExistante');
   if (!bloc || !sel) return;
   var vmc = (document.getElementById('vmc') || {}).value || '';
+  // M58 : la question du type existant caractérise une VMC PRESENTE.
+  // vmc=non  -> pas de VMC : question masquee, vmc_motorisee jamais force.
+  // vmc=oui|defaillante -> une VMC existe : afficher la question (aucun forcage silencieux).
   if (vmc === 'non') {
-    bloc.style.display = '';
+    bloc.style.display = 'none';
     if (sel.value === 'vmc_motorisee') sel.value = 'inconnu';
   } else {
-    bloc.style.display = 'none';
-    sel.value = 'vmc_motorisee';
+    bloc.style.display = '';
   }
 }
 window.addEventListener('DOMContentLoaded', function () { if (document.getElementById('vmc')) majTypeVentilation(); });

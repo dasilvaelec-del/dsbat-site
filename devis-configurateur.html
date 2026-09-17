@@ -1523,22 +1523,27 @@ function fonctionsVmcHtml(index) {
   keys.forEach(key => {
     const fn = MAP[key]; if (!fn) return;
     const e = eff[fn];
-    let control = '', badge = '';
+    let control = '', badge = '', expl = '';
     if (e.statut === 'obligatoire') {
       control = `<input type="checkbox" checked disabled aria-label="obligatoire">`;
-      badge = `<span style="background:#fef3c7;color:#92400e;border:1px solid #f59e0b;border-radius:20px;padding:1px 8px;font-size:0.68rem;font-weight:700;white-space:nowrap;">🔒 Obligatoire</span>`;
+      badge = `<span style="background:#fef3c7;color:#92400e;border:1px solid #f59e0b;border-radius:20px;padding:1px 8px;font-size:0.68rem;font-weight:700;white-space:nowrap;">🔒 Nécessaire</span>`;
+      expl = 'Cette fonction est nécessaire pour la configuration de ventilation retenue pour votre projet.';
     } else if (e.statut === 'recommande') {
       control = `<input type="checkbox" ${e.present ? 'checked' : ''} onchange="toggleFonctionVmc(${index},'${fn}')">`;
-      badge = `<span style="background:rgba(30,58,138,0.08);color:var(--primary);border:1px solid var(--primary-light);border-radius:20px;padding:1px 8px;font-size:0.68rem;font-weight:700;white-space:nowrap;">💡 Conseil DS.BAT</span>`;
+      badge = `<span style="background:rgba(30,58,138,0.08);color:var(--primary);border:1px solid var(--primary-light);border-radius:20px;padding:1px 8px;font-size:0.68rem;font-weight:700;white-space:nowrap;">💡 Recommandé</span>`;
+      expl = 'DSBAT vous propose cette fonction en fonction des caractéristiques de votre projet. Vous pouvez la retirer si vous retenez une autre solution.';
     } else if (e.statut === 'a_verifier') {
       control = `<span style="width:16px;display:inline-block;"></span>`;
-      badge = `<span style="background:var(--surface-2);color:var(--text-light);border:1px solid var(--border);border-radius:20px;padding:1px 8px;font-size:0.68rem;font-weight:600;white-space:nowrap;">À vérifier lors de la visite</span>`;
+      badge = `<span style="background:var(--surface-2);color:var(--text-light);border:1px solid var(--border);border-radius:20px;padding:1px 8px;font-size:0.68rem;font-weight:600;white-space:nowrap;">⚠ À vérifier</span>`;
+      expl = 'Les informations disponibles ne permettent pas encore de déterminer cette fonction ou sa configuration. Aucune quantité n\'a été inventée.';
     } else {
       control = `<input type="checkbox" ${e.present ? 'checked' : ''} onchange="toggleFonctionVmc(${index},'${fn}')">`;
-      badge = '';
+      badge = `<span style="background:var(--surface-2);color:var(--text-light);border:1px solid var(--border);border-radius:20px;padding:1px 8px;font-size:0.68rem;font-weight:600;white-space:nowrap;">Option</span>`;
+      expl = 'Cette fonction est laissée à votre choix.';
     }
-    rows += `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px dashed var(--border);">
-      ${control}<span style="flex:1;font-size:0.86rem;color:var(--text);">${LBL[fn]}</span>${badge}</div>`;
+    rows += `<div style="padding:6px 0;border-bottom:1px dashed var(--border);">
+      <div style="display:flex;align-items:center;gap:8px;">${control}<span style="flex:1;font-size:0.86rem;color:var(--text);">${LBL[fn]}</span>${badge}</div>
+      <div style="font-size:0.72rem;color:var(--text-light);margin:2px 0 0 24px;">${expl}</div></div>`;
   });
   return `<div style="margin:10px 0;background:#f8fafc;border:1px solid var(--border);border-radius:12px;padding:12px;">
     <strong style="font-size:0.84rem;color:var(--text);">💨 Fonctions de ventilation requises</strong>
@@ -1608,7 +1613,31 @@ function projeterVmcVersConfig(piece) {
 // Projection de toutes les pièces — appelée à un point EXPLICITE de préparation du devis
 // (transition vers la phase 3), jamais dans un render ni dans le calcul.
 function projeterVmcToutesPieces() {
-  (piecesSelectionnees || []).forEach(function (piece) { projeterVmcVersConfig(piece); });
+  (piecesSelectionnees || []).forEach(function (piece) { orchestrerVmcPiece(piece); });
+}
+
+// =====================================================================
+// M58 — Orchestrateur VMC : questionnaire -> couche fonctionnelle -> projection
+// =====================================================================
+// Couche d'ORCHESTRATION uniquement (aucune regle reglementaire/metier nouvelle).
+// Reutilise obligationsVmc() + fonctionsVmcRetenues() (regles) et projeterVmcVersConfig()
+// (projection LOT8). Role : materialiser piece.ventilationFonctions pour les pieces a role
+// VMC en perimetre AVANT l'ouverture de la configuration par piece, afin que la projection
+// tarifaire existante ne reste pas a 0. Deterministe, idempotent, non destructif (aucun
+// choix client ecrase), sans doublon. Aucune quantite inventee : toutes les quantites
+// proviennent de projeterVmcVersConfig (Math.max, SF/hygro ; DF/inconnue exclus).
+function orchestrerVmcPiece(piece) {
+  if (!piece) return;
+  if (typeof metiersActifs === 'undefined' || !metiersActifs.includes('vmc')) return; // gate metier vmc
+  if (typeof obligationsVmc !== 'function' || typeof fonctionsVmcRetenues !== 'function') return;
+  var obl = obligationsVmc(piece.id, _contexteVmc(piece));
+  if (!obl || !Object.keys(obl).length) return;                    // piece sans role VMC -> rien a materialiser
+  // Materialiser la couche fonctionnelle SANS ecraser une decision client deja stockee
+  // (obligatoire = re-derive, jamais stocke ; recommande/libre = choix conserve).
+  if (!piece.ventilationFonctions) piece.ventilationFonctions = {};
+  // Projection tarifaire : garde-fous SF/hygro, DF/inconnue exclus, INSUFFLATION jamais
+  // projetee -- internes a projeterVmcVersConfig (aucune regle dupliquee ici).
+  projeterVmcVersConfig(piece);
 }
 
 // ===== CONTRÔLE FINAL DU MOTEUR VMC (MISSION 040) =====
