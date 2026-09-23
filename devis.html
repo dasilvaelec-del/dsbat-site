@@ -792,7 +792,7 @@ window.axeptioSettings = {
             <option value="tres_haut">Très haut (+ de 3,2 m)</option>
           </select>
         </div>
-        <div class="form-group">
+        <div class="form-group" id="fgAgeBati">
           <label>Âge du bâtiment</label>
           <select id="ageBati">
             <option value="recent">Récent (- de 10 ans)</option>
@@ -801,12 +801,12 @@ window.axeptioSettings = {
             <option value="tres_ancien">Très ancien (+ de 50 ans)</option>
           </select>
         </div>
-        <div class="form-group">
+        <div class="form-group" id="fgAnneeConstruction">
           <label>Connaissez-vous l'année de construction ? <span style="font-weight:400;color:var(--text-light);font-size:0.85rem;">(facultatif)</span></label>
           <input type="number" id="anneeConstruction" inputmode="numeric" min="1700" max="2100" placeholder="Ex : 1985 — laissez vide si vous ne savez pas" oninput="majAgeDepuisAnnee()">
           <span style="display:block;margin-top:6px;font-size:0.8rem;color:var(--text-light);">Si renseignée, l'âge du bâtiment ci-dessus est déterminé automatiquement.</span>
         </div>
-        <div class="form-group">
+        <div class="form-group" id="fgEtatLieux">
           <label>État général des lieux</label>
           <select id="etatLieux">
             <option value="bon">Bon état</option>
@@ -817,7 +817,67 @@ window.axeptioSettings = {
       </div>
     </div>
 
-    <div class="form-section">
+    <!-- M61 : PROGRAMME du logement neuf (déclaratif). Remplace le relevé d'existant en neuf.
+         Visible uniquement en NEUF (piloté par majContexteTypePrestation). Aucune quantité/prix/référence.
+         Non encore consommé par compositionTypologie (prépare la génération d'une prochaine mission). -->
+    <div class="form-section" id="sectionProgrammeNeuf" style="display:none;">
+      <h3>🏘️ Votre programme (logement neuf)</h3>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Nombre de chambres</label>
+          <select id="nbChambres">
+            <option value="0">Aucune (studio)</option>
+            <option value="1">1</option>
+            <option value="2" selected>2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+            <option value="5">5 et +</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Nombre de niveaux</label>
+          <select id="nbNiveaux">
+            <option value="1" selected>Plain-pied (RDC)</option>
+            <option value="2">R+1</option>
+            <option value="3">R+2 et +</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Nombre de salles de bain / d'eau</label>
+          <select id="nbSallesEau">
+            <option value="1" selected>1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4">4 et +</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Nombre de WC séparés</label>
+          <select id="nbWc">
+            <option value="0">Aucun (dans la salle de bain)</option>
+            <option value="1" selected>1</option>
+            <option value="2">2</option>
+            <option value="3">3 et +</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Garage</label>
+          <select id="garage">
+            <option value="non" selected>Non</option>
+            <option value="oui">Oui</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Cellier / buanderie</label>
+          <select id="cellier">
+            <option value="non" selected>Non</option>
+            <option value="oui">Oui</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-section" id="sectionAccessibilite">
       <h3>🚐 Accessibilité du chantier</h3>
       <div class="form-grid">
         <div class="form-group">
@@ -851,6 +911,34 @@ window.axeptioSettings = {
       </div>
     </div>
 
+    <!-- M61 : ÉNERGIE — chauffage + ECS NE SONT PAS de l'existant ; ils alimentent réellement les moteurs
+         (fil pilote, dimensionnementChauffage, ballon/tableau). Section distincte, visible en neuf ET rénovation.
+         Champs et enums INCHANGÉS (mêmes id chauffage / eauChaude, mêmes valeurs). -->
+    <div class="form-section" id="sectionEnergie">
+      <h3>⚡ Énergie</h3>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Type de chauffage / énergie</label>
+          <select id="chauffage">
+            <option value="electrique">Électrique</option>
+            <option value="gaz">Gaz</option>
+            <option value="fioul">Fioul</option>
+            <option value="pompe">Pompe à chaleur</option>
+            <option value="autre">Autre</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Eau chaude sanitaire</label>
+          <select id="eauChaude">
+            <option value="chaudiere">Chaudière centrale</option>
+            <option value="ballon">Ballon électrique</option>
+            <option value="instantane">Chauffe-eau instantané</option>
+            <option value="autre">Autre</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
     <div class="form-section" id="sectionExistant">
       <h3>🔧 Installations existantes</h3>
       <div class="form-grid">
@@ -861,16 +949,6 @@ window.axeptioSettings = {
             <option value="ancien">Ancien (fusibles)</option>
             <option value="inexistant">Inexistant / À créer</option>
             <option value="inconnu">Je ne sais pas</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label>Type de chauffage</label>
-          <select id="chauffage">
-            <option value="electrique">Électrique</option>
-            <option value="gaz">Gaz</option>
-            <option value="fioul">Fioul</option>
-            <option value="pompe">Pompe à chaleur</option>
-            <option value="autre">Autre</option>
           </select>
         </div>
         <div class="form-group">
@@ -923,15 +1001,6 @@ window.axeptioSettings = {
             <option value="inconnu" selected>Je ne sais pas encore</option>
             <option value="oui">Oui</option>
             <option value="non">Non</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label>Eau chaude sanitaire</label>
-          <select id="eauChaude">
-            <option value="chaudiere">Chaudière centrale</option>
-            <option value="ballon">Ballon électrique</option>
-            <option value="instantane">Chauffe-eau instantané</option>
-            <option value="autre">Autre</option>
           </select>
         </div>
       </div>
@@ -1493,18 +1562,32 @@ function choisirPrestation(kind) {
 //            (tableauExistant='inexistant', vmc='non') ; VMC : intention structurelle 'creer'.
 //   renov -> conserver les questions d'existant (comportement actuel).
 function majContexteTypePrestation(kind) {
-  var sect = document.getElementById('sectionExistant');
   var echo = document.getElementById('typeProjetEcho');
   var LBL = { neuf: 'Construction neuve', renov: 'Rénovation', depannage: 'Dépannage' };
   if (echo) echo.textContent = LBL[kind] || '—';
-  if (kind === 'neuf') {
-    var tableau = document.getElementById('tableauExistant'); if (tableau) tableau.value = 'inexistant';
-    var vmc = document.getElementById('vmc'); if (vmc) vmc.value = 'non';
-    if (typeof majTypeVentilation === 'function') majTypeVentilation();  // masque le sous-bloc VMC existant
-    if (sect) sect.style.display = 'none';
-    var iv = document.getElementById('intentionVentilation'); if (iv) iv.value = 'creer'; // VMC : neuf => créer (aucune installation existante)
-  } else if (kind === 'renov') {
-    if (sect) sect.style.display = '';
+  var neuf = (kind === 'neuf');
+  // M61 : champs hérités de l'EXISTANT — masqués en NEUF, visibles (inchangés) en RÉNOVATION.
+  //  fgAgeBati / fgAnneeConstruction / fgEtatLieux : questions d'existant dans « Dimensions »
+  //  sectionAccessibilite : accès + occupation d'un logement existant
+  //  sectionExistant : tableau + VMC existants (chauffage/ECS en ont été SORTIS -> section Énergie)
+  var showExistant = neuf ? 'none' : '';
+  ['fgAgeBati', 'fgAnneeConstruction', 'fgEtatLieux', 'sectionAccessibilite', 'sectionExistant'].forEach(function (id) {
+    var el = document.getElementById(id); if (el) el.style.display = showExistant;
+  });
+  // M61 : programme du logement neuf — visible en NEUF uniquement.
+  var prog = document.getElementById('sectionProgrammeNeuf'); if (prog) prog.style.display = neuf ? '' : 'none';
+  if (neuf) {
+    // Neutraliser l'existant avec des valeurs SÛRES existantes (aucun nouvel enum ; aucune propriété supprimée).
+    var set = function (id, v) { var el = document.getElementById(id); if (el) el.value = v; };
+    set('ageBati', 'recent');            // neuf ⇒ jamais « ancien »
+    set('anneeConstruction', '');        // neutre / non renseignée
+    set('etatLieux', 'bon');             // valeur sûre existante (pas de sur-préparation)
+    set('accessibilite', 'facile');      // défaut sûr existant (aucun forfait d'accès involontaire)
+    set('accessSup', 'aucune');          // jamais « occupé » en chantier neuf
+    set('tableauExistant', 'inexistant');// tableau à créer (débloque le dimensionnement)
+    set('vmc', 'non');                   // aucune VMC existante
+    if (typeof majTypeVentilation === 'function') majTypeVentilation();
+    var iv = document.getElementById('intentionVentilation'); if (iv) iv.value = 'creer'; // VMC : neuf ⇒ créer
   }
   // depannage : Partie 2 non atteinte (redirection) — rien à conditionner ici.
 }
@@ -1640,6 +1723,13 @@ function collecterDonnees() {
       ascenseur: document.getElementById('ascenseur').value,
       surface: document.getElementById('surface').value,
       pieces: document.getElementById('pieces').value,
+      // M61 : programme du logement neuf (déclaratif ; non lu par les moteurs actuels — prépare la génération).
+      nbChambres: (document.getElementById('nbChambres') ? document.getElementById('nbChambres').value : ''),
+      nbNiveaux: (document.getElementById('nbNiveaux') ? document.getElementById('nbNiveaux').value : ''),
+      nbSallesEau: (document.getElementById('nbSallesEau') ? document.getElementById('nbSallesEau').value : ''),
+      nbWc: (document.getElementById('nbWc') ? document.getElementById('nbWc').value : ''),
+      garage: (document.getElementById('garage') ? document.getElementById('garage').value : ''),
+      cellier: (document.getElementById('cellier') ? document.getElementById('cellier').value : ''),
       ageBati: document.getElementById('ageBati').value,
       etatLieux: document.getElementById('etatLieux').value,
       typeProjet: document.getElementById('typeProjet').value,
