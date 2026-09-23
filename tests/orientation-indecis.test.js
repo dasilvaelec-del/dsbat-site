@@ -38,6 +38,7 @@ const SRC = [
 
 function fabrique() {
   const els = {
+    typePrestation: { value: 'renov' }, // M60 : une prestation est choisie en amont (précondition Partie 1)
     typeDemande: { value: 'travaux' },
     perimetreTravaux: { value: 'complet' },
     perimetreBloc: { style: {} },

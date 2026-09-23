@@ -630,23 +630,35 @@ window.axeptioSettings = {
     </div>
 
     <div class="form-section">
-      <h3>🛠️ Votre demande</h3>
-      <p style="color:var(--text-light);font-size:0.9rem;margin:0 0 14px;">Que souhaitez-vous faire ?</p>
-      <!-- Valeur canonique conservée (lue par etape1Suivant/collecte). Pilotée par les cartes ci-dessous. -->
+      <h3>🛠️ Quel type de prestation recherchez-vous ?</h3>
+      <p style="color:var(--text-light);font-size:0.9rem;margin:0 0 14px;">Ce choix oriente tout le questionnaire. Il est obligatoire pour continuer.</p>
+      <!-- M60 : champs canoniques CONSERVÉS (lus par etape1Suivant / collecte / configurateur), pilotés par les cartes. -->
       <select id="typeDemande" style="display:none;">
         <option value="travaux" selected>travaux</option>
         <option value="depannage">depannage</option>
       </select>
+      <!-- typeProjet canonique (renov/neuf/extension) — désormais choisi en Partie 1. Valeur « extension » conservée techniquement. -->
+      <select id="typeProjet" style="display:none;">
+        <option value="renov" selected>Rénovation</option>
+        <option value="neuf">Construction neuve</option>
+        <option value="extension">Extension / Agrandissement</option>
+      </select>
+      <input type="hidden" id="typePrestation" value="">
       <div id="demandeCards" style="display:grid;grid-template-columns:1fr;gap:12px;">
-        <div class="dmd-card" data-type="travaux" onclick="choisirDemande('travaux')" style="border:2px solid var(--border);border-radius:12px;padding:14px 16px;cursor:pointer;background:var(--surface);display:flex;flex-direction:column;gap:4px;">
-          <strong style="color:var(--text);">🏗️ Réaliser des travaux</strong>
-          <span style="font-size:0.85rem;color:var(--text-light);">Rénovation, installation ou amélioration de votre logement.</span>
+        <div class="dmd-card" data-type="travaux" data-prestation="neuf" onclick="choisirPrestation('neuf')" style="border:2px solid var(--border);border-radius:12px;padding:14px 16px;cursor:pointer;background:var(--surface);display:flex;flex-direction:column;gap:4px;">
+          <strong style="color:var(--text);">🏗️ Construction neuve</strong>
+          <span style="font-size:0.85rem;color:var(--text-light);">Bâtir une installation complète dans un logement neuf.</span>
         </div>
-        <div class="dmd-card" data-type="depannage" onclick="choisirDemande('depannage')" style="border:2px solid var(--border);border-radius:12px;padding:14px 16px;cursor:pointer;background:var(--surface);display:flex;flex-direction:column;gap:4px;">
-          <strong style="color:var(--text);">🛠️ Signaler une panne / demander un dépannage</strong>
-          <span style="font-size:0.85rem;color:var(--text-light);">Un équipement ou une installation ne fonctionne plus ou nécessite une intervention.</span>
+        <div class="dmd-card" data-type="travaux" data-prestation="renov" onclick="choisirPrestation('renov')" style="border:2px solid var(--border);border-radius:12px;padding:14px 16px;cursor:pointer;background:var(--surface);display:flex;flex-direction:column;gap:4px;">
+          <strong style="color:var(--text);">🔨 Rénovation</strong>
+          <span style="font-size:0.85rem;color:var(--text-light);">Rénover, remplacer ou améliorer une installation existante.</span>
+        </div>
+        <div class="dmd-card" data-type="depannage" data-prestation="depannage" onclick="choisirPrestation('depannage')" style="border:2px solid var(--border);border-radius:12px;padding:14px 16px;cursor:pointer;background:var(--surface);display:flex;flex-direction:column;gap:4px;">
+          <strong style="color:var(--text);">🛠️ Dépannage</strong>
+          <span style="font-size:0.85rem;color:var(--text-light);">Un équipement ne fonctionne plus / intervention ponctuelle.</span>
         </div>
       </div>
+      <p id="erreur-prestation" style="color:#ef4444;font-size:0.88rem;margin-top:12px;display:none;">⚠️ Merci de choisir un type de prestation pour continuer.</p>
 
       <!-- Périmètre — affiché uniquement pour « Réaliser des travaux » -->
       <div id="perimetreBloc" style="margin-top:18px;display:none;">
@@ -711,12 +723,9 @@ window.axeptioSettings = {
       <h3>🏗️ Votre projet</h3>
       <div class="form-grid">
         <div class="form-group">
-          <label>Type de projet *</label>
-          <select id="typeProjet">
-            <option value="renov" selected>Rénovation</option>
-            <option value="neuf">Construction neuve</option>
-            <option value="extension">Extension / Agrandissement</option>
-          </select>
+          <label>Type de projet</label>
+          <div id="typeProjetEcho" style="padding:10px 0;font-weight:700;color:var(--text);">—</div>
+          <span style="font-size:0.78rem;color:var(--text-light);">Choisi à l'étape précédente.</span>
         </div>
         <div class="form-group">
           <label>Type de bien *</label>
@@ -842,7 +851,7 @@ window.axeptioSettings = {
       </div>
     </div>
 
-    <div class="form-section">
+    <div class="form-section" id="sectionExistant">
       <h3>🔧 Installations existantes</h3>
       <div class="form-grid">
         <div class="form-group">
@@ -1461,6 +1470,44 @@ function choisirDemande(type) {
   document.querySelectorAll('#demandeCards .dmd-card').forEach(c => marquerCarte(c, c.dataset.type === type));
   const bloc = document.getElementById('perimetreBloc'); if (bloc) bloc.style.display = (type === 'travaux') ? 'block' : 'none';
 }
+// M60 : choix du TYPE DE PRESTATION en Partie 1 (contexte directeur). Réutilise le routeur
+// existant (choisirDemande + typeDemande) et pilote la valeur canonique typeProjet.
+//   Construction neuve -> typeDemande='travaux', typeProjet='neuf'
+//   Rénovation         -> typeDemande='travaux', typeProjet='renov'
+//   Dépannage          -> typeDemande='depannage' (routage existant vers depannage.html)
+function choisirPrestation(kind) {
+  var hp = document.getElementById('typePrestation'); if (hp) hp.value = kind;
+  var err = document.getElementById('erreur-prestation'); if (err) err.style.display = 'none';
+  if (kind === 'depannage') {
+    choisirDemande('depannage');                        // routeur existant (masque le périmètre)
+  } else {
+    var tp = document.getElementById('typeProjet'); if (tp) tp.value = (kind === 'neuf') ? 'neuf' : 'renov';
+    choisirDemande('travaux');                          // routeur existant (affiche le périmètre)
+  }
+  // Marquage de la carte choisie (après choisirDemande qui marque par data-type).
+  document.querySelectorAll('#demandeCards .dmd-card').forEach(function (c) { marquerCarte(c, c.dataset.prestation === kind); });
+  majContexteTypePrestation(kind);
+}
+// M60 : conditionne la Partie 2 selon le contexte, SANS supprimer aucune propriété du modèle.
+//   neuf  -> ne pas demander l'existant ; neutraliser avec des valeurs sûres
+//            (tableauExistant='inexistant', vmc='non') ; VMC : intention structurelle 'creer'.
+//   renov -> conserver les questions d'existant (comportement actuel).
+function majContexteTypePrestation(kind) {
+  var sect = document.getElementById('sectionExistant');
+  var echo = document.getElementById('typeProjetEcho');
+  var LBL = { neuf: 'Construction neuve', renov: 'Rénovation', depannage: 'Dépannage' };
+  if (echo) echo.textContent = LBL[kind] || '—';
+  if (kind === 'neuf') {
+    var tableau = document.getElementById('tableauExistant'); if (tableau) tableau.value = 'inexistant';
+    var vmc = document.getElementById('vmc'); if (vmc) vmc.value = 'non';
+    if (typeof majTypeVentilation === 'function') majTypeVentilation();  // masque le sous-bloc VMC existant
+    if (sect) sect.style.display = 'none';
+    var iv = document.getElementById('intentionVentilation'); if (iv) iv.value = 'creer'; // VMC : neuf => créer (aucune installation existante)
+  } else if (kind === 'renov') {
+    if (sect) sect.style.display = '';
+  }
+  // depannage : Partie 2 non atteinte (redirection) — rien à conditionner ici.
+}
 function choisirPerimetre(p) {
   const h = document.getElementById('perimetreTravaux'); if (h) h.value = p;
   document.querySelectorAll('#perimetreBloc .prm-card').forEach(c => marquerCarte(c, c.dataset.prm === p));
@@ -1534,10 +1581,16 @@ function majBlocVmcTravaux() {
 window.addEventListener('DOMContentLoaded', function () { if (document.getElementById('m_vmc')) majBlocVmcTravaux(); });
 // Pré-sélection par défaut : Travaux + Tout le logement (comportement historique).
 window.addEventListener('DOMContentLoaded', function () {
-  if (document.getElementById('demandeCards')) { choisirDemande('travaux'); choisirPerimetre('complet'); }
+  if (document.getElementById('demandeCards')) { choisirPerimetre('complet'); } // M60 : choix prestation obligatoire (aucune présélection)
 });
 
 function etape1Suivant() {
+  // M60 : le type de prestation est OBLIGATOIRE avant de poursuivre.
+  const prest = (document.getElementById('typePrestation') || {}).value || '';
+  if (!prest) {
+    const err = document.getElementById('erreur-prestation'); if (err) err.style.display = 'block';
+    return;
+  }
   const type = (document.getElementById('typeDemande') || {}).value || 'travaux';
   if (type === 'depannage') {
     try { sessionStorage.setItem('depannageCP', (document.getElementById('clientCP') || {}).value || ''); } catch (e) {}
@@ -1549,6 +1602,8 @@ function etape1Suivant() {
     const prm = (document.getElementById('perimetreTravaux') || {}).value || 'complet';
     sessionStorage.setItem('perimetreTravaux', prm);
   } catch (e) {}
+  // M60 : (re)conditionne la Partie 2 selon le contexte choisi avant d'y entrer.
+  if (typeof majContexteTypePrestation === 'function') majContexteTypePrestation(prest);
   allerEtape(2);
 }
 
