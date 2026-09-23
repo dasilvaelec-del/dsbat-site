@@ -2031,7 +2031,7 @@ function renderDimBlocks(id) {
 // il peut ajouter / retirer / ajuster chaque pièce via les compteurs.
 // Les DIMENSIONS restent volontairement vides : c'est le client qui saisit
 // les cotes réelles — aucune surface approximative n'entre dans les calculs.
-function compositionTypologie(nbPieces, surface) {
+function compositionTypologie(nbPieces, surface, programme) {
   const map = {
     '1': { salon:1, cuisine:1, sdb:1, wc:1, entree:1 },
     '2': { salon:1, chambre:1, cuisine:1, sdb:1, wc:1, entree:1 },
@@ -2062,12 +2062,43 @@ function compositionTypologie(nbPieces, surface) {
     raisons.push('2e WC suggéré : usage courant au-delà de 120 m²');
   }
 
+  // ===== M62 : programme « Maison neuve » (facultatif) =====
+  // Rétrocompat STRICTE : sans `programme`, la sortie est identique à l'historique.
+  // Les valeurs EXPLICITES du programme priment sur les enrichissements de surface ci-dessus
+  // (ce bloc s'exécute après). Aucun nouvel identifiant de pièce : on réutilise chambre / sdb /
+  // sde / wc / garage / cave (cellier) / escalier (niveaux), déjà connus des moteurs.
+  if (programme && typeof programme === 'object') {
+    var _int = function (v) { var x = parseInt(v, 10); return isNaN(x) ? null : x; };
+    var pCh = _int(programme.nbChambres), pSdE = _int(programme.nbSallesEau), pWc = _int(programme.nbWc), pNiv = _int(programme.nbNiveaux);
+    if (pCh !== null && pCh >= 0) {                          // chambres pilotées par le programme
+      if (pCh > 0) compo.chambre = pCh; else delete compo.chambre;
+      raisons.push('Programme : ' + pCh + ' chambre(s)');
+    }
+    if (pSdE !== null && pSdE >= 1) {                        // pièces d'eau : SDB puis SDE
+      compo.sdb = 1;
+      if (pSdE >= 2) compo.sde = pSdE - 1; else delete compo.sde;
+      raisons.push('Programme : ' + pSdE + ' pièce(s) d\'eau' + (pSdE >= 2 ? ' (salle de bain + ' + (pSdE - 1) + ' salle(s) d\'eau)' : ''));
+    }
+    if (pWc !== null && pWc >= 0) {                          // WC séparés
+      if (pWc > 0) compo.wc = pWc; else delete compo.wc;
+      raisons.push('Programme : ' + pWc + ' WC séparé(s)');
+    }
+    if (programme.garage === 'oui') { compo.garage = 1; raisons.push('Programme : garage inclus'); }
+    if (programme.cellier === 'oui') { compo.cave = 1; raisons.push('Programme : cellier / buanderie (type « cave »)'); } // mapping existant
+    if (pNiv !== null && pNiv >= 2) { compo.escalier = 1; raisons.push('Programme : ' + pNiv + ' niveaux -> escalier'); } // modèle existant (pas de modèle de niveaux complet)
+  }
+
   return { compo, raisons };
 }
 
 function appliquerTypologie() {
   const surface = parseFloat(chantier && chantier.surface) || 0;
-  const res = compositionTypologie(chantier && chantier.pieces, surface);
+  // M62 : en NEUF uniquement, transmettre le programme M61 (sinon comportement rénovation inchangé).
+  const programme = (chantier && chantier.typeProjet === 'neuf') ? {
+    nbChambres: chantier.nbChambres, nbSallesEau: chantier.nbSallesEau, nbWc: chantier.nbWc,
+    garage: chantier.garage, cellier: chantier.cellier, nbNiveaux: chantier.nbNiveaux
+  } : undefined;
+  const res = compositionTypologie(chantier && chantier.pieces, surface, programme);
   if (!res) return;
 
   Object.keys(res.compo).forEach(id => {

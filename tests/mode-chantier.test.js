@@ -28,12 +28,12 @@ function extraire(src, sig) {
 A(/if \(!etatRestaure\)/.test(HTML) && /if \(modeChantier === 'complet'\) appliquerTypologie\(\);/.test(HTML), 'init : typologie auto gatée sur modeChantier===complet (dans le bloc !etatRestaure)');
 A(/mode: modeChantier/.test(HTML), 'saveEtat persiste le mode');
 A(/if \(etat\.mode\) modeChantier = etat\.mode;/.test(HTML), 'restaurerEtat restaure le mode (non destructif)');
-const SRC_COMPO = extraire(HTML, 'function compositionTypologie(nbPieces, surface)');
+const SRC_COMPO = extraire(HTML, 'function compositionTypologie(');
 A(!/modeChantier/.test(SRC_COMPO), 'compositionTypologie NON modifiée (aucune référence à modeChantier)');
 
 // ---- Exécution réelle ----------------------------------------------
 const SRC =
-  extraire(HTML, 'function compositionTypologie(nbPieces, surface)') + '\n' +
+  extraire(HTML, 'function compositionTypologie(') + '\n' +
   extraire(HTML, 'function appliquerTypologie()') + '\n' +
   extraire(HTML, 'function majModeChantierUI()') + '\n' +
   extraire(HTML, 'function setModeChantier(mode)');

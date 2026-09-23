@@ -26,7 +26,7 @@ A(/data-ori="complet"/.test(DEVIS) && /data-ori="partiel"/.test(DEVIS) && /data-
 A(/Votre projet concerne-t-il une rénovation générale du logement \?/.test(DEVIS), 'devis.html : question d\'orientation validée');
 A(/const cible = \(kind === 'complet'\) \? 'complet' : 'partiel';/.test(DEVIS), 'choisirOrientation : résout vers complet OU partiel (jamais un 3e modèle)');
 A(/if \(piecesSelectionnees\.length === 0\)/.test(CONF), 'configurateur : sélection vide bloque la validation (Test 4)');
-A(!/perimetreTravaux/.test(extraire(CONF, 'function compositionTypologie(nbPieces, surface)')), 'F1..F6 (compositionTypologie) non touchées par M54');
+A(!/perimetreTravaux/.test(extraire(CONF, 'function compositionTypologie(')), 'F1..F6 (compositionTypologie) non touchées par M54');
 
 // ---- Exécution réelle ----------------------------------------------
 const SRC = [
