@@ -975,6 +975,24 @@ function formatEuro(n) {
   return val.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 }) + ' €';
 }
 
+// =====================================================================
+// M62-UI : affichage VMC par RÔLE fonctionnel de pièce (présentation seule)
+// =====================================================================
+// SOURCE DE VÉRITÉ = _vmcRole (moteur VMC, INCHANGÉ) : extraction -> bouche ;
+// balayage -> entrée d'air ; sans rôle -> aucune ligne. On FILTRE la liste AFFICHÉE
+// (getVmcPourPiece reste le contrat métier figé, parité vmc.js). N'affecte NI la
+// projection config.vmc NI le calcul/prix : seule la présentation par pièce change.
+function getVmcPourPieceUI(pieceId) {
+  if (typeof getVmcPourPiece !== 'function') return [];
+  var base = getVmcPourPiece(pieceId) || [];
+  var role = (typeof _vmcRole === 'function') ? _vmcRole(pieceId) : null;
+  var codeApplicable = (role === 'extraction') ? 'VMC_BOUCHE'
+                     : (role === 'balayage')   ? 'VMC_ENTREE_AIR'
+                     : null;
+  if (!codeApplicable) return [];
+  return base.filter(function (pr) { return pr.code === codeApplicable; });
+}
+
 function getPrestationsPourPiece(pieceId, metiersActifs) {
   const sections = [];
 
@@ -1012,7 +1030,7 @@ function getPrestationsPourPiece(pieceId, metiersActifs) {
     if (prests.length > 0) sections.push({ metier:'menuiserie', icon:'🚪', label:'Menuiserie', prests });
   }
   if (metiersActifs.includes('vmc')) {
-    const prests = getVmcPourPiece(pieceId);
+    const prests = getVmcPourPieceUI(pieceId); // M62-UI : uniquement la prestation applicable au rôle
     if (prests.length > 0) sections.push({ metier:'vmc', icon:'💨', label:'VMC', prests });
   }
 
@@ -1763,7 +1781,7 @@ function syncVmcDOM(index) {
   const piece = piecesSelectionnees[index];
   if (!piece) return;
   const cfg = (piece.config && piece.config.vmc) || {};
-  (typeof getVmcPourPiece === 'function' ? getVmcPourPiece(piece.id) : []).forEach(pr => {
+  getVmcPourPieceUI(piece.id).forEach(pr => { // M62-UI : DOM synchronisé sur la prestation applicable au rôle
     const qty = cfg[pr.code] || 0;
     const qs = document.getElementById(`qty_${index}_${pr.code}`);
     if (qs) qs.textContent = qty;

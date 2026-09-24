@@ -49,6 +49,7 @@ function makeApi(doc, chantier, metiersActifs, piecesSelectionnees, sessionStora
     extraire('function syncVmcDOM(') + '\n' +
     extraire('function renderPrestRow(') + '\n' +
     extraire('function renderMetierSection(') + '\n' +
+    extraire('function getVmcPourPieceUI(') + '\n' +
     // recalcPiece : reproduit EXACTEMENT la branche VMC de la production (orchestration + affichage).
     'function recalcPiece(index){ var piece=piecesSelectionnees[index]; if(!piece)return;' +
     ' if(metiersActifs.includes("vmc")){ if(typeof orchestrerVmcPiece==="function") orchestrerVmcPiece(piece); syncVmcDOM(index); } }\n' +
@@ -59,10 +60,10 @@ function makeApi(doc, chantier, metiersActifs, piecesSelectionnees, sessionStora
   const findPrestLabel = (code) => (code === 'VMC_CAISSON_SF' ? 'Caisson VMC simple flux' : code === 'VMC_CAISSON_DF' ? 'Caisson VMC double flux' : code);
   const objectifProjet = 'standard';
   const modeChantier = 'complet';
-  return new Function('document', 'obligationsVmc', 'getVmcPourPiece', 'chantier', 'metiersActifs',
+  return new Function('document', 'obligationsVmc', 'getVmcPourPiece', '_vmcRole', 'chantier', 'metiersActifs',
     'piecesSelectionnees', 'sessionStorage', 'modeChantier', 'getPrixPrestFor', 'getMoyenPrixFor',
     'formatEuro', 'findPrestLabel', 'objectifProjet', src)(
-    doc, VMC.obligationsVmc, VMC.getVmcPourPiece, chantier, metiersActifs, piecesSelectionnees,
+    doc, VMC.obligationsVmc, VMC.getVmcPourPiece, VMC._vmcRole, chantier, metiersActifs, piecesSelectionnees,
     sessionStorage, modeChantier, getPrixPrestFor, getMoyenPrixFor, formatEuro, findPrestLabel, objectifProjet);
 }
 function sessionStub() { const m = {}; return { getItem: k => (k in m ? m[k] : null), setItem: (k, v) => { m[k] = v; } }; }
