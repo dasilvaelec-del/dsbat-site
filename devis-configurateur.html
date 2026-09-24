@@ -2363,8 +2363,12 @@ function validerPieces(apres) {
   }
   document.getElementById('erreur-pieces').style.display = 'none';
 
-  // Moteur de cohérence : non bloquant, mais on montre les doutes AVANT de configurer
-  const alertes = verifierCoherenceGlobale(piecesSelectionnees, chantier);
+  // Moteur de cohérence : non bloquant. M64 — à ce stade la composition est validée mais les
+  // pièces ne sont PAS encore configurées : n'afficher que les contrôles de PORTÉE LOGEMENT
+  // (surface globale/écart, dimensions, typologie). Les contrôles de portée pièce/prestation
+  // (points d'eau, menuiseries, VMC détaillée…) sont différés au récapitulatif, quand les
+  // données de configuration existent réellement. Même moteur, même calcul (filtre de présentation).
+  const alertes = verifierCoherenceGlobale(piecesSelectionnees, chantier).filter(a => a.portee !== 'piece');
   if (alertes.length > 0 && !__coherenceAcquittee) {
     afficherCoherence(alertes);
     return false;
