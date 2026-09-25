@@ -59,7 +59,7 @@ A(/ventilationDeclaree: ch\.ventilationDeclaree \|\| null/.test(CTX), 'contexte-
 // M59 : la question « solution » est au niveau PROJET (Partie 3, questionsVmcProjetHtml).
 // Le bloc de configuration générale DF (déclaratif) et sa fonction restent conservés en Partie 2.
 A(/function majVentilationDF\(\)/.test(DEVIS), 'majVentilationDF conservée (bloc config générale DF déclaratif préservé)');
-A(/id="vmc_solution_projet"/.test(CONFIG) && /onchange="majContexteVmcProjet\(/.test(CONFIG), 'solution : au NIVEAU PROJET (Partie 3)');
+A(!/<select id="vmc_solution_projet"/.test(CONFIG), 'solution : Configuration = rappel lecture seule (besoin VMC défini au questionnaire, plus de select éditable)');
 const SRC = extraire(DEVIS, 'function majVentilationDF()');
 function runGating(sol) {
   const els = {

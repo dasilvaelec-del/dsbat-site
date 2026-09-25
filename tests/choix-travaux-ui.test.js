@@ -1,103 +1,98 @@
 // =====================================================================
-// tests/choix-travaux-ui.test.js — Câblage UI du questionnaire de choix de travaux
+// tests/choix-travaux-ui.test.js — Câblage UI v2 du questionnaire de choix de travaux
 // =====================================================================
-// Exécute les VRAIES fonctions extraites de devis-configurateur.html
-// (ouvrirChoixTravaux / renderChoixTravaux / setters / validerChoixTravaux)
-// sur un shim DOM minimal. Vérifie : affichage dynamique selon métiers actifs,
-// VMC exclue, persistance dans sessionStorage('chantier'), NON-duplication des
-// sources canoniques (domotique/borneVE/pv restent des clés chantier), et
-// conformité source unique via ChoixTravauxDSBAT.verifierSourceUnique.
+// Exécute les VRAIES fonctions extraites de devis-configurateur.html sur un shim DOM.
+// Vérifie : rendu dynamique v2, VMC dans le questionnaire (neuf: pas de "conserver"),
+// rappel chantier éditable (écrit chantier, pas de copie), validerChoixTravaux ->
+// adaptateur (sources canoniques) + setObjectif/projeterVmc + allerPhase(2),
+// et NON-double VMC (plus de #intentionVentilation dans le funnel).
 // =====================================================================
-const fs = require('fs');
-const path = require('path');
+const fs = require('fs'), path = require('path');
 const CT = require(path.join(__dirname, '..', 'js', 'choix-travaux.js'));
+const AD = require(path.join(__dirname, '..', 'js', 'choix-travaux-adapt.js'));
 const HTML = fs.readFileSync(path.join(__dirname, '..', 'devis-configurateur.html'), 'utf8');
+const FUNNEL = fs.readFileSync(path.join(__dirname, '..', 'devis.html'), 'utf8');
 
 let ok = 0, ko = 0;
 const A = (c, m) => { if (c) ok++; else { ko++; console.error('  ❌ ' + m); } };
 
-// ---- extraire le bloc câblé (entre marqueurs) ----
 const D = HTML.indexOf('// ===== QUESTIONNAIRE DE CHOIX DE TRAVAUX (entre');
 const F = HTML.indexOf('// ===== FIN QUESTIONNAIRE DE CHOIX DE TRAVAUX =====');
-if (D < 0 || F < 0) { console.error('bloc câblé introuvable'); process.exit(1); }
 const bloc = HTML.slice(D, F);
 
-// ---- shim DOM minimal ----
-const elements = {};
-function el(id){ if(!elements[id]) elements[id]={ id:id, style:{}, _html:'', get innerHTML(){return this._html;}, set innerHTML(v){this._html=v;} }; return elements[id]; }
+// shim DOM
+const els = {};
+function el(id){ if(!els[id]) els[id]={ id, style:{}, _h:'', get innerHTML(){return this._h;}, set innerHTML(v){this._h=v;} }; return els[id]; }
 ['phase1','phase2','phase3','phaseConfirmation','phaseProposition','phasePrestation','phaseChoixTravaux'].forEach(el);
-global.document = { getElementById: (id)=> el(id) };
+global.document = { getElementById: id => el(id) };
 const store = {};
-global.sessionStorage = { getItem:(k)=> (k in store? store[k]: null), setItem:(k,v)=>{store[k]=String(v);}, removeItem:(k)=>{delete store[k];} };
+global.sessionStorage = { getItem: k => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); }, removeItem: k => { delete store[k]; } };
 global.window = { scrollTo(){} };
-global.ChoixTravauxDSBAT = CT;
+global.ChoixTravauxDSBAT = CT; global.ChoixTravauxAdaptDSBAT = AD;
 global.phaseActuelle = null;
-let allerPhaseCalls = [];
-global.allerPhase = (n)=>{ allerPhaseCalls.push(n); };
+let calls = { allerPhase: [], setObjectif: [], projeterVmc: 0, recalc: 0 };
+global.allerPhase = n => { calls.allerPhase.push(n); };
+global.setObjectif = m => { calls.setObjectif.push(m); };
+global.projeterVmcToutesPieces = () => { calls.projeterVmc++; };
+global.recalcPiece = () => { calls.recalc++; };
+global.saveEtat = () => {};
+global.solMateriauxDispo = () => [{ val: 'carrelage', label: 'Carrelage' }, { val: 'parq_flot', label: 'Parquet flottant' }, { val: 'stratifie', label: 'Stratifié' }, { val: 'pvc', label: 'PVC' }];
+global.faienceModesDispo = id => [{ val: 'non', label: 'Aucune' }, { val: 'zone', label: 'Zone douche' }, { val: 'murs', label: 'Murs' }];
 
-// contexte projet (globals lus par le bloc)
-global.chantier = { domotique:'complet', borneVE:'oui', pv:'non', typeProjet:'neuf' };
+global.chantier = { typeProjet: 'neuf', domotique: 'non', borneVE: 'non', pv: 'non' };
 global.piecesSelectionnees = [
-  { id:'salon', numero:1, nom:'Salon' },
-  { id:'chambre', numero:1, nom:'Chambre 1' },
-  { id:'cuisine', numero:1, nom:'Cuisine' },
-  { id:'sdb', numero:1, nom:'Salle de bain' }
+  { id: 'salon', numero: 1, nom: 'Salon', config: {} },
+  { id: 'cuisine', numero: 1, nom: 'Cuisine', config: {} },
+  { id: 'sdb', numero: 1, nom: 'Salle de bain', config: {} },
+  { id: 'wc', numero: 1, nom: 'WC', config: {} }
 ];
-global.metiersActifs = ['electricite','plomberie','chauffage','carrelage','sols','peinture','menuiserie','isolation','vmc'];
+global.metiersActifs = ['electricite', 'plomberie', 'chauffage', 'vmc', 'sols', 'carrelage', 'menuiserie'];
 
-// ---- construire les fonctions câblées (portée globale, free vars -> global) ----
-const factory = new Function(bloc + '\n;return { ouvrirChoixTravaux, renderChoixTravaux, validerChoixTravaux, retourChoixTravaux, sauverChoixTravaux, __ctSetTransverse, __ctSetMetier, __ctSetPiece };');
-const W = factory();
+const W = new Function(bloc + '\n;return { ouvrirChoixTravaux, renderChoixTravaux, validerChoixTravaux, retourChoixTravaux, __ctPath, __ctEquip, __ctSetChantier, __ctUniforme };')();
 
-// ---- (1) ouverture + affichage + VMC exclue ----
+// (1) ouverture + rendu v2
 W.ouvrirChoixTravaux();
-const zone = el('phaseChoixTravaux');
-A(zone.style.display === 'block', '(1) zone questionnaire affichée');
-A(el('phase1').style.display === 'none' && el('phase2').style.display === 'none', '(1b) phases masquées');
-A(global.phaseActuelle === 'choixTravaux', '(1c) phaseActuelle = choixTravaux');
-A(/Électricité/.test(zone.innerHTML) && /Plomberie/.test(zone.innerHTML), '(1d) sections métiers rendues');
-A(!/VMC|ventilation/i.test(zone.innerHTML), '(1e) VMC absente du questionnaire');
-A(zone.innerHTML.indexOf('\ud83d\udd25 Chauffage') === -1, '(1e2) section chauffage absente du questionnaire V1 (source canonique = chauffageFonctions)');
-A(/Déjà indiqué/.test(zone.innerHTML) && /complet/.test(zone.innerHTML), '(1f) transverses référencés rappelés (domotique=complet)');
-A(/Chauffage au sol/.test(zone.innerHTML) && /Volets roulants motorisés/.test(zone.innerHTML), '(1g) transverses nouveaux présents');
+const z = el('phaseChoixTravaux');
+A(z.style.display === 'block' && global.phaseActuelle === 'choixTravaux', '(1) zone affichée');
+A(/Déjà indiqué/.test(z.innerHTML), '(1b) rappel chantier présent');
+A(/Ventilation \(VMC\)/.test(z.innerHTML), '(1c) section VMC dans le questionnaire');
+A(/Salle de bain/.test(z.innerHTML) && /Douche à l/.test(z.innerHTML), '(1d) plomberie SDB rendue (multi-choix)');
+A(!/Conserver l/.test(z.innerHTML), '(1e) neuf : pas de "conserver" en VMC');
 
-// ---- (2) affichage dynamique selon métiers actifs ----
-global.metiersActifs = ['electricite'];
-W.ouvrirChoixTravaux();
-A(/Électricité/.test(zone.innerHTML) && !/Plomberie/.test(zone.innerHTML) && !/Isolation/.test(zone.innerHTML), '(2) un seul métier actif => une seule section');
-// rétablir le contexte complet
-global.metiersActifs = ['electricite','plomberie','chauffage','carrelage','sols','peinture','menuiserie','isolation','vmc'];
-W.ouvrirChoixTravaux();
+// (2) neuf seed VMC = creer
+A(store['chantier'] && JSON.parse(store['chantier']).choixTravaux.vmc.intention === 'creer', '(2) neuf : intention VMC pré-réglée à creer');
 
-// ---- (3) persistance transverse ----
-W.__ctSetTransverse('chauffageAuSol','complet');
+// (3) rappel éditable écrit chantier (pas de copie dans choixTravaux)
+W.__ctSetChantier('domotique', 'complet');
 let saved = JSON.parse(store['chantier']);
-A(saved.choixTravaux.transverse.chauffageAuSol === 'complet', '(3) chauffageAuSol persisté dans sessionStorage(chantier)');
+A(saved.domotique === 'complet', '(3) rappel domotique -> chantier.domotique');
+A(!('domotique' in (saved.choixTravaux || {})), '(3b) pas de copie domotique dans choixTravaux');
 
-// ---- (4) persistance par pièce (plomberie / douche italienne) ----
-W.__ctSetPiece('plomberie','parPiece','sdb#1','doucheItalienne','oui');
+// (4) équipements multi + persistance
+W.__ctEquip('sdb#1', 'douche_ital', true);
+W.__ctEquip('sdb#1', 'baignoire', true);
 saved = JSON.parse(store['chantier']);
-A(saved.choixTravaux.parMetier.plomberie.parPiece['sdb#1'].doucheItalienne === 'oui', '(4) douche italienne persistée par pièce');
+A(saved.choixTravaux.plomberie.sdb['sdb#1'].equipements.indexOf('douche_ital') !== -1 && saved.choixTravaux.plomberie.sdb['sdb#1'].equipements.indexOf('baignoire') !== -1, '(4) équipements SDB multi persistés');
+W.__ctPath(['plomberie', 'wc', 'wc#1', 'type'], 'suspendu');
+W.__ctPath(['electricite', 'niveau'], 'confort');
 
-// ---- (5) NON-duplication des sources canoniques ----
-A(saved.domotique === 'complet' && saved.borneVE === 'oui' && saved.pv === 'non', '(5a) clés canoniques chantier intactes');
-const tk = Object.keys(saved.choixTravaux.transverse);
-A(tk.indexOf('domotique') === -1 && tk.indexOf('irve') === -1 && tk.indexOf('borneVE') === -1 && tk.indexOf('pv') === -1, '(5b) aucune source canonique dupliquée dans choixTravaux');
-
-// ---- (6) conformité source unique ----
-A(CT.verifierSourceUnique(saved).length === 0, '(6) verifierSourceUnique => conforme');
-
-// ---- (7) validation -> allerPhase(2) + persistance ----
-allerPhaseCalls = [];
+// (5) validation -> adaptateur (canonique) + hooks + phase 2
 W.validerChoixTravaux();
-A(allerPhaseCalls.length === 1 && allerPhaseCalls[0] === 2, '(7) validerChoixTravaux -> allerPhase(2)');
-A(el('phaseChoixTravaux').style.display === 'none', '(7b) zone masquée après validation');
+A(global.piecesSelectionnees.find(p => p.id === 'sdb').config.plomberie.PLO_DOUCHE_ITAL === 1, '(5) adaptateur : douche italienne projetée en config canonique');
+A(global.piecesSelectionnees.find(p => p.id === 'wc').config.plomberie.PLO_WC_SUSP === 1, '(5b) adaptateur : WC suspendu projeté');
+A(calls.setObjectif.indexOf('confort') !== -1, '(5c) niveau confort -> setObjectif(confort)');
+A(calls.projeterVmc >= 1, '(5d) VMC -> projeterVmcToutesPieces appelé');
+A(calls.recalc >= 1, '(5e) recalcPiece appelé (prestations matérialisées)');
+A(calls.allerPhase[calls.allerPhase.length - 1] === 2, '(5f) -> allerPhase(2)');
 
-// ---- (8) reprise : réouverture préserve les réponses ----
-W.ouvrirChoixTravaux();
-saved = JSON.parse(store['chantier']);
-A(saved.choixTravaux.parMetier.plomberie.parPiece['sdb#1'].doucheItalienne === 'oui', '(8) réponses préservées à la réouverture');
+// (6) idempotence : re-valider ne double pas
+W.validerChoixTravaux();
+A(global.piecesSelectionnees.find(p => p.id === 'sdb').config.plomberie.PLO_DOUCHE_ITAL === 1, '(6) idempotent après 2e validation');
+
+// (7) NON-double VMC : le funnel n'a plus les questions intention/solution
+A(FUNNEL.indexOf('id="intentionVentilation"') === -1 && FUNNEL.indexOf('id="solutionVentilation"') === -1, '(7) funnel : plus de question VMC (pas de double)');
+A(/Ventilation \(VMC\)/.test(z.innerHTML), '(7b) VMC désormais rendue dans le questionnaire du configurateur');
 
 const total = ok + ko;
-if (ko === 0) console.log('✅ Câblage UI questionnaire choix de travaux : ' + ok + '/' + total);
-else { console.error('❌ Câblage UI questionnaire : ' + ok + '/' + total); process.exit(1); }
+if (ko === 0) console.log('✅ Câblage UI v2 questionnaire : ' + ok + '/' + total);
+else { console.error('❌ Câblage UI v2 : ' + ok + '/' + total); process.exit(1); }

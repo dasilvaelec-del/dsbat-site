@@ -1,350 +1,278 @@
 // =====================================================================
-// js/choix-travaux.js — QUESTIONNAIRE DE CHOIX DE TRAVAUX (moteur, non branché)
+// js/choix-travaux.js — QUESTIONNAIRE DE CHOIX DE TRAVAUX v2 (moteur, non branché)
 // =====================================================================
-// RÔLE : capturer les CHOIX / BESOINS du client entre « Mes pièces » et
-//   « Configuration », dans une structure unique chantier.choixTravaux (v1).
-//   Étape « déclaré/choisi » du parcours ; la « configuration » (compteurs
-//   de prestations, gammes) et le calcul restent en aval, inchangés.
-//
-// INTERDICTIONS (contrat) : aucun prix, aucune quantité, aucune surface,
-//   aucune longueur, aucun choix de produit, aucune règle normative, aucun
-//   accès DOM, aucun moteur métier appelé. Module PUR, DÉTERMINISTE.
+// RÔLE : capturer les BESOINS client entre « Mes pièces » et « Configuration ».
+//   Le questionnaire EXPRIME le besoin ; il ne calcule RIEN (ni quantité, ni
+//   surface, ni prix, ni produit, ni règle normative). La PROJECTION vers les
+//   sources canoniques réellement consommées par les moteurs est faite par
+//   l'adaptateur (js/choix-travaux-adapt.js), à la sortie du questionnaire.
 //
 // SOURCE UNIQUE (règles verrouillées) :
-//   • domotique / irve(=borneVE) / pv : source = chantier (saisis au funnel).
-//     Le questionnaire les RÉFÉRENCE (lecture seule), il ne les re-saisit PAS.
-//   • chauffageAuSol : source unique = choixTravaux.transverse (nouveau).
-//   • volets motorisés : source unique = choixTravaux.transverse (nouveau).
-//   • douche à l'italienne : besoin capté dans plomberie.parPiece ; le produit
-//     (PLO_DOUCHE_ITAL) reste possédé par le moteur plomberie.
-//   • acoustique : source unique = isolation.
-//   • VMC : EXCLUE du questionnaire (contrat VMC figé, piloté à part).
-//
-// SÉPARATION : déclaré/choisi (ici) ≠ configuré (compteurs, gammes) ≠ calculé.
+//   • domotique / irve(=borneVE) / pv : source = chantier. Le questionnaire
+//     les affiche et permet de les MODIFIER, mais la modification retourne
+//     dans chantier.domotique / chantier.borneVE / chantier.pv (pas de copie).
+//   • VMC : source = chantier.intentionVentilation / chantier.solutionVentilation
+//     puis projection existante -> piece.ventilationFonctions. Rien de neuf.
+//   • Chauffage au sol : source canonique = piece.chauffageFonctions.solution
+//     (technologie 'plancher_chauffant'). Descriptif : AUCUN moteur ne le chiffre
+//     aujourd'hui -> signalé « non chiffré » (futur lot chauffage).
+//   • Revêtements sol/faïence : sources = piece.solMateriau / piece.faienceMode
+//     (consommées par appliquerRevetements). Plomberie : piece.config.plomberie.
+//   • Électricité niveau : source = objectifProjet (levier existant recoDSBAT).
 // =====================================================================
 
 (function (global) {
   'use strict';
 
-  var VERSION = 1;
+  var VERSION = 2;
 
   function clone(x) { try { return JSON.parse(JSON.stringify(x)); } catch (e) { return x; } }
 
-  // ------------------------------------------------------------------
-  // Adaptateur : étiquette « mission » -> code métier RÉEL du projet.
-  // (Ce n'est PAS une seconde nomenclature : un seul code fait foi en aval.)
-  // ------------------------------------------------------------------
-  var ADAPTATEUR_METIER = {
-    electricite: 'electricite',
-    plomberie: 'plomberie',
-    chauffage: 'chauffage',
-    carrelageFaience: 'carrelage', // faïence = carrelage mural, même moteur
-    sols: 'sols',
-    peinture: 'peinture',
-    menuiserie: 'menuiserie',
-    isolation: 'isolation',
-    placo: 'isolation'             // placo/cloisons/doublage : porté par isolation
-  };
+  // Pièces cibles (ciblage UI, NON normatif — les moteurs restent seuls juges).
+  var PIECES_SDB = ['sdb', 'sde'];
+  var PIECES_WC = ['wc'];
+  var PIECES_CUISINE = ['cuisine'];
+  // Lave-linge : SEULES les pièces où le moteur plomberie produit PLO_RACCORD_LV.
+  var PIECES_LAVE_LINGE_SUPPORTEES = ['cuisine', 'cave'];
+  // Buanderie : présente dans le programme mais NON modélisée en plomberie -> évolution future.
+  var PIECES_LAVE_LINGE_FUTUR = ['buanderie'];
 
-  // Métiers pilotés par le questionnaire (VMC volontairement absent).
-  // chauffage EXCLU du questionnaire V1 : le besoin chauffage par pièce est déjà capté
-  // canoniquement par piece.chauffageFonctions (existant/intention/solution) en phase 2,
-  // et chauffage.js n'expose aucun « type d'émetteur ». Un champ ici serait sans consommateur
-  // et ferait doublon. Le chauffage au sol (niveau logement) reste un transverse dédié.
-  var METIERS_PILOTES = ['electricite', 'plomberie', 'carrelage', 'sols', 'peinture', 'menuiserie', 'isolation'];
-
-  // Transverses RÉFÉRENCÉS (source = chantier, jamais re-saisis ici).
-  var TRANSVERSE_REFERENCE = [
-    { id: 'domotique', label: 'Domotique / Smart home', cleChantier: 'domotique' },
-    { id: 'irve', label: 'Borne de recharge (IRVE)', cleChantier: 'borneVE' },
-    { id: 'pv', label: 'Panneaux solaires', cleChantier: 'pv' }
+  // Transverses référencés (source = chantier), désormais MODIFIABLES ici.
+  var RAPPEL_CHANTIER = [
+    { id: 'domotique', label: 'Domotique / Smart home', cleChantier: 'domotique',
+      options: [{ v: 'non', l: 'Non' }, { v: 'basique', l: 'Basique' }, { v: 'complet', l: 'Complet' }] },
+    { id: 'irve', label: 'Borne de recharge (IRVE)', cleChantier: 'borneVE',
+      options: [{ v: 'non', l: 'Non' }, { v: 'oui', l: 'Oui' }] },
+    { id: 'pv', label: 'Panneaux solaires', cleChantier: 'pv',
+      options: [{ v: 'non', l: 'Non' }, { v: 'oui', l: 'Oui' }] }
   ];
 
-  // Transverses NOUVEAUX (source unique = choixTravaux.transverse).
-  var TRANSVERSE_NOUVEAU = [
-    {
-      id: 'chauffageAuSol', type: 'choix', label: 'Chauffage au sol ?',
-      options: [{ v: 'non', l: 'Non' }, { v: 'partiel', l: 'Oui, certaines pièces' }, { v: 'complet', l: 'Oui, tout le logement' }]
-    },
-    // voletsMotorises : NOUVEAU. Aucune donnée canonique d'état de besoin n'existe pour la
-    //   motorisation des volets — seulement des codes produit (ELEC_VOLET, MEN_VOLET_ROULANT) et
-    //   des recommandations heuristiques. On capte donc ici le BESOIN déclaré ; les moteurs
-    //   gardent les produits. (À l'inverse de domotique/irve/pv, qui sont RÉFÉRENCÉS.)
-    {
-      id: 'voletsMotorises', type: 'choix', label: 'Volets roulants motorisés ?',
-      options: [{ v: 'non', l: 'Non' }, { v: 'partiel', l: 'Certaines pièces' }, { v: 'oui', l: 'Oui, partout' }]
-    }
+  // Matériaux de sol par défaut (labels UI). Le mapping réel (solType / carrelage)
+  // est possédé par moteur-revetements.js (SOL_MATERIAUX) ; on peut le lui injecter.
+  var SOL_MATERIAUX_FALLBACK = [
+    { v: 'carrelage', l: 'Carrelage' },
+    { v: 'parq_flot', l: 'Parquet flottant' },
+    { v: 'stratifie', l: 'Sol stratifié' },
+    { v: 'pvc', l: 'Sol PVC' },
+    { v: 'moquette', l: 'Moquette' },
+    { v: 'lino', l: 'Linoléum' }
   ];
 
-  // Ciblage UI (NON normatif) : pièces recevant les blocs « par pièce » d'eau.
-  // Sert uniquement à savoir OÙ poser la question — pas à décider une réalité
-  // technique (les moteurs restent seuls juges des quantités/produits).
-  var PIECES_EAU = ['sdb', 'salle_bain', 'sde', 'salle_eau', 'wc', 'cuisine', 'buanderie', 'cellier'];
-  var PIECES_CUISINE_BUANDERIE = ['cuisine', 'buanderie', 'cellier'];
+  var oui_non = [{ v: 'oui', l: 'Oui' }, { v: 'non', l: 'Non' }];
 
-  // ------------------------------------------------------------------
-  // SPEC des questions par métier. Chaque entrée est un CHOIX/BESOIN,
-  // jamais un produit ni une quantité. portee : 'metier' (une réponse pour
-  // le lot) | 'piece' (une réponse par pièce éligible).
-  // ------------------------------------------------------------------
-  var oui_non = [{ v: 'oui', l: 'Oui' }, { v: 'non', l: 'Non' }, { v: 'a_voir', l: 'À voir' }];
-
-  var SPEC_METIER = {
-    electricite: {
-      metier: [
-        { id: 'niveauPrestation', type: 'choix', label: 'Niveau de prestation électrique souhaité', options: [{ v: 'essentiel', l: 'Essentiel' }, { v: 'confort', l: 'Confort' }, { v: 'haut', l: 'Haut de gamme' }] },
-        { id: 'reseauVdi', type: 'choix', label: 'Réseau multimédia / VDI (RJ45) ?', options: oui_non }
-      ]
-    },
-    plomberie: {
-      parPiece: [
-        { id: 'doucheItalienne', type: 'choix', label: 'Douche à l\'italienne ?', options: oui_non },
-        { id: 'baignoire', type: 'choix', label: 'Baignoire ?', options: oui_non }
-      ],
-      // Bloc dédié cuisine / buanderie (parPiece ciblé cuisine/buanderie/cellier).
-      cuisineBuanderie: [
-        { id: 'evier', type: 'choix', label: 'Évier', options: [{ v: 'simple', l: '1 bac' }, { v: 'double', l: '2 bacs' }, { v: 'a_voir', l: 'À voir' }] },
-        { id: 'laveLinge', type: 'choix', label: 'Arrivée / évacuation lave-linge ?', options: oui_non },
-        { id: 'laveVaisselle', type: 'choix', label: 'Arrivée / évacuation lave-vaisselle ?', options: oui_non }
-      ]
-    },
-    // chauffage : volontairement absent (voir METIERS_PILOTES). Source canonique = piece.chauffageFonctions.
-    carrelage: {
-      parPiece: [
-        { id: 'sol', type: 'choix', label: 'Carrelage au sol ?', options: oui_non },
-        { id: 'faience', type: 'choix', label: 'Faïence murale ?', options: oui_non }
-      ]
-    },
-    sols: {
-      parPiece: [
-        { id: 'revetement', type: 'choix', label: 'Revêtement de sol souhaité', options: [{ v: 'parquet', l: 'Parquet' }, { v: 'stratifie', l: 'Stratifié' }, { v: 'souple', l: 'Sol souple' }, { v: 'a_voir', l: 'À voir' }] }
-      ]
-    },
-    peinture: {
-      metier: [
-        { id: 'perimetre', type: 'choix', label: 'Périmètre peinture', options: [{ v: 'murs', l: 'Murs' }, { v: 'murs_plafonds', l: 'Murs + plafonds' }, { v: 'complet', l: 'Complet (murs, plafonds, boiseries)' }] }
-      ]
-    },
-    menuiserie: {
-      // NB : les volets motorisés sont TRANSVERSE (source unique) — absents ici.
-      metier: [
-        { id: 'fenetres', type: 'choix', label: 'Remplacement des fenêtres ?', options: oui_non },
-        { id: 'portesInterieures', type: 'choix', label: 'Portes intérieures ?', options: oui_non }
-      ]
-    },
-    isolation: {
-      // isolation = aussi placo/cloisons + acoustique (source unique).
-      metier: [
-        { id: 'perimetre', type: 'choix', label: 'Isolation thermique', options: [{ v: 'murs', l: 'Murs' }, { v: 'combles', l: 'Combles' }, { v: 'sols', l: 'Sols' }, { v: 'complet', l: 'Complet' }, { v: 'non', l: 'Aucune' }] },
-        { id: 'acoustique', type: 'choix', label: 'Isolation acoustique ?', options: oui_non },
-        { id: 'cloisons', type: 'choix', label: 'Création / modification de cloisons (placo) ?', options: oui_non }
-      ]
-    }
-  };
-
-  // ------------------------------------------------------------------
-  // Utilitaires
-  // ------------------------------------------------------------------
   function clePiece(p) { return String(p && p.id) + '#' + String(p && (p.numero != null ? p.numero : 1)); }
-
-  function codeMetier(x) { return ADAPTATEUR_METIER[x] || x; }
-
-  function metiersRetenus(metiersActifs) {
-    var actifs = Array.isArray(metiersActifs) ? metiersActifs : [];
-    return METIERS_PILOTES.filter(function (m) { return actifs.indexOf(m) !== -1; });
-  }
-
-  function estPieceEau(p) { return PIECES_EAU.indexOf(String(p && p.id)) !== -1; }
-  function estCuisineBuanderie(p) { return PIECES_CUISINE_BUANDERIE.indexOf(String(p && p.id)) !== -1; }
+  function estNeuf(ch) { return ch && (ch.typeProjet === 'neuf' || ch.typeProjet === 'extension'); }
+  function actif(metiers, m) { return Array.isArray(metiers) && metiers.indexOf(m) !== -1; }
+  function filtrer(pieces, ids) { return (pieces || []).filter(function (p) { return ids.indexOf(String(p.id)) !== -1; }); }
 
   // ------------------------------------------------------------------
-  // choixTravauxVide() — squelette v1, toutes clés présentes, valeurs null.
+  // choixTravauxVide() — squelette v2 (les transverses référencés NE sont PAS
+  //   stockés ici : ils vivent dans chantier).
   // ------------------------------------------------------------------
   function choixTravauxVide() {
-    var t = {};
-    TRANSVERSE_NOUVEAU.forEach(function (q) { t[q.id] = null; });
-    return { version: VERSION, transverse: t, parMetier: {} };
+    return {
+      version: VERSION,
+      electricite: { niveau: null, reseauMultimedia: null },
+      plomberie: { sdb: {}, wc: {}, cuisine: {}, laveLinge: { piece: null } },
+      chauffage: { chauffageAuSol: null },
+      vmc: { intention: null, solution: null },
+      revetementsSol: { uniforme: null, global: null, parPiece: {} },
+      faience: { parPiece: {} },
+      menuiserie: { volets: null, motoriser: null, fenetres: null }
+    };
   }
 
   // ------------------------------------------------------------------
-  // initChoix(chantier, pieces, metiersActifs)
-  //   Renvoie un choixTravaux complet (structure), en PRÉSERVANT les réponses
-  //   déjà saisies dans chantier.choixTravaux (fusion non destructive).
-  //   Ne saisit PAS domotique/irve/pv (référencés) ni la VMC.
+  // initChoix — squelette complété + fusion non destructive avec l'existant.
   // ------------------------------------------------------------------
   function initChoix(chantier, pieces, metiersActifs) {
     var base = choixTravauxVide();
-    var pcs = Array.isArray(pieces) ? pieces : [];
-    var retenus = metiersRetenus(metiersActifs);
-
-    retenus.forEach(function (m) {
-      var spec = SPEC_METIER[m];
-      if (!spec) return;
-      var bloc = {};
-      if (spec.metier) { bloc._metier = {}; spec.metier.forEach(function (q) { bloc._metier[q.id] = null; }); }
-      if (spec.parPiece) {
-        bloc.parPiece = {};
-        pcs.forEach(function (p) {
-          if (m === 'carrelage' || m === 'plomberie') { if (!estPieceEau(p)) return; }
-          var k = clePiece(p); bloc.parPiece[k] = {};
-          spec.parPiece.forEach(function (q) { bloc.parPiece[k][q.id] = null; });
-        });
-      }
-      if (spec.cuisineBuanderie) {
-        bloc.cuisineBuanderie = {};
-        pcs.forEach(function (p) {
-          if (!estCuisineBuanderie(p)) return;
-          var k = clePiece(p); bloc.cuisineBuanderie[k] = {};
-          spec.cuisineBuanderie.forEach(function (q) { bloc.cuisineBuanderie[k][q.id] = null; });
-        });
-      }
-      base.parMetier[m] = bloc;
-    });
-
     var existant = chantier && chantier.choixTravaux;
     return existant ? fusionner(base, existant) : base;
   }
 
-  // ------------------------------------------------------------------
-  // fusionner(base, patch) — fusion PURE, profonde, non destructive.
-  //   Les valeurs non nulles de `patch` écrasent celles de `base` ; la
-  //   version reste VERSION. Renvoie un NOUVEL objet.
-  // ------------------------------------------------------------------
   function fusionner(base, patch) {
     var out = clone(base) || choixTravauxVide();
     if (!patch || typeof patch !== 'object') return out;
     out.version = VERSION;
-    if (patch.transverse) {
-      out.transverse = out.transverse || {};
-      Object.keys(patch.transverse).forEach(function (k) {
-        // On ne réintroduit JAMAIS un transverse référencé (domotique/irve/pv).
-        if (TRANSVERSE_REFERENCE.some(function (r) { return r.id === k || r.cleChantier === k; })) return;
-        var v = patch.transverse[k];
-        if (v !== null && v !== undefined) out.transverse[k] = v;
-      });
-    }
-    if (patch.parMetier) {
-      out.parMetier = out.parMetier || {};
-      Object.keys(patch.parMetier).forEach(function (m) {
-        out.parMetier[m] = fusionProfonde(out.parMetier[m] || {}, patch.parMetier[m]);
-      });
-    }
+    ['electricite', 'plomberie', 'chauffage', 'vmc', 'revetementsSol', 'faience', 'menuiserie'].forEach(function (k) {
+      if (patch[k]) out[k] = fusionProfonde(out[k] || {}, patch[k]);
+    });
     return out;
   }
-
   function fusionProfonde(a, b) {
     if (b === null || b === undefined) return a;
     if (typeof b !== 'object') return b;
-    var out = (a && typeof a === 'object') ? clone(a) : {};
+    if (Array.isArray(b)) return clone(b);
+    var out = (a && typeof a === 'object' && !Array.isArray(a)) ? clone(a) : {};
     Object.keys(b).forEach(function (k) {
       var vb = b[k];
       if (vb !== null && typeof vb === 'object' && !Array.isArray(vb)) out[k] = fusionProfonde(out[k] || {}, vb);
-      else if (vb !== null && vb !== undefined) out[k] = vb;
+      else if (vb !== undefined) out[k] = vb;
     });
     return out;
   }
 
   // ------------------------------------------------------------------
-  // construireQuestionnaire(chantier, pieces, metiersActifs)
-  //   Description PURE de l'écran à rendre (l'UI ne décide rien). Dynamique
-  //   selon métiers actifs + pièces réelles (piece.id). VMC exclue.
+  // construireQuestionnaire — description PURE de l'écran (dynamique).
+  //   catalogues (optionnel) : { solMateriaux:[{v,l}], faienceModes:fn(id)->[{v,l}] }
   // ------------------------------------------------------------------
-  function construireQuestionnaire(chantier, pieces, metiersActifs) {
-    var pcs = Array.isArray(pieces) ? pieces : [];
-    var retenus = metiersRetenus(metiersActifs);
+  function construireQuestionnaire(chantier, pieces, metiersActifs, catalogues) {
+    chantier = chantier || {}; pieces = pieces || []; metiersActifs = metiersActifs || [];
+    catalogues = catalogues || {};
+    var solMats = catalogues.solMateriaux || SOL_MATERIAUX_FALLBACK;
+    var faienceModes = catalogues.faienceModes || function () { return [{ v: 'non', l: 'Aucune' }, { v: 'murs', l: 'Murs entiers' }]; };
 
-    var refs = TRANSVERSE_REFERENCE.map(function (r) {
-      var val = chantier ? chantier[r.cleChantier] : null;
-      return { id: r.id, label: r.label, source: 'chantier', cleChantier: r.cleChantier, valeur: (val == null ? null : val), lectureSeule: true };
+    var rappel = RAPPEL_CHANTIER.map(function (r) {
+      var v = chantier[r.cleChantier];
+      return { id: r.id, label: r.label, cleChantier: r.cleChantier, options: clone(r.options), valeur: (v == null ? 'non' : v) };
     });
 
-    var transverse = TRANSVERSE_NOUVEAU.map(function (q) {
-      return { id: q.id, type: q.type, label: q.label, options: clone(q.options), source: 'choixTravaux', portee: 'logement' };
-    });
+    var sections = [];
 
-    var metiers = retenus.map(function (m) {
-      var spec = SPEC_METIER[m] || {};
-      var section = { code: m, questions: [] };
-      if (spec.metier) {
-        spec.metier.forEach(function (q) {
-          section.questions.push({ id: q.id, type: q.type, label: q.label, options: clone(q.options), portee: 'metier' });
+    // --- ÉLECTRICITÉ ---
+    if (actif(metiersActifs, 'electricite')) {
+      sections.push({
+        code: 'electricite', titre: '⚡ Électricité',
+        questions: [
+          { id: 'niveau', type: 'choix', label: 'Niveau de prestations électriques souhaité', options: [{ v: 'essentiel', l: 'Essentiel' }, { v: 'confort', l: 'Confort' }, { v: 'haut', l: 'Haut de gamme' }] },
+          { id: 'reseauMultimedia', type: 'choix', label: 'Réseau multimédia (RJ45) renforcé ?', options: oui_non, note: 'Le socle RJ45 réglementaire (séjour, chambres) est déjà inclus ; « oui » ajoute des prises réseau supplémentaires.' }
+        ]
+      });
+    }
+
+    // --- PLOMBERIE ---
+    if (actif(metiersActifs, 'plomberie')) {
+      var sec = { code: 'plomberie', titre: '🚰 Plomberie', sdb: [], wc: [], cuisine: [], laveLinge: null };
+      filtrer(pieces, PIECES_SDB).forEach(function (p) {
+        var eq = [{ v: 'douche_ital', l: 'Douche à l\'italienne' }, { v: 'baignoire', l: 'Baignoire' }];
+        if (p.id === 'sde') eq = [{ v: 'douche_ital', l: 'Douche à l\'italienne' }, { v: 'cabine', l: 'Cabine de douche' }];
+        sec.sdb.push({
+          cle: clePiece(p), nom: p.nom || p.id, id: p.id,
+          equipements: eq,
+          lavabo: { label: 'Type de lavabo', options: [{ v: 'simple', l: 'Simple vasque' }, { v: 'double', l: 'Double vasque' }] }
+        });
+      });
+      filtrer(pieces, PIECES_WC).forEach(function (p) {
+        sec.wc.push({
+          cle: clePiece(p), nom: p.nom || p.id, id: p.id,
+          type: { label: 'Type de WC', options: [{ v: 'sol', l: 'WC au sol' }, { v: 'suspendu', l: 'WC suspendu' }] },
+          laveMains: { label: 'Lave-mains ?', options: oui_non }
+        });
+      });
+      filtrer(pieces, PIECES_CUISINE).forEach(function (p) {
+        sec.cuisine.push({
+          cle: clePiece(p), nom: p.nom || p.id, id: p.id,
+          evier: { label: 'Style d\'évier', options: [{ v: 'simple', l: '1 bac' }, { v: 'double', l: '2 bacs' }] },
+          laveVaisselle: { label: 'Arrivée + évacuation lave-vaisselle ?', options: oui_non }
+        });
+      });
+      // Lave-linge : question globale, seulement pièces réellement exploitables.
+      var llSupportees = filtrer(pieces, PIECES_LAVE_LINGE_SUPPORTEES).map(function (p) { return { v: clePiece(p), l: p.nom || p.id }; });
+      var llFutur = filtrer(pieces, PIECES_LAVE_LINGE_FUTUR).map(function (p) { return { nom: p.nom || p.id }; });
+      if (llSupportees.length || llFutur.length) {
+        sec.laveLinge = {
+          label: 'Dans quelle pièce prévoir l\'arrivée + évacuation du lave-linge ?',
+          options: [{ v: 'aucun', l: 'Aucun' }].concat(llSupportees),
+          futur: llFutur // pièces présentes mais non modélisées par le moteur (évolution)
+        };
+      }
+      sections.push(sec);
+    }
+
+    // --- CHAUFFAGE (chauffage au sol : canonique mais non chiffré) ---
+    if (actif(metiersActifs, 'chauffage')) {
+      sections.push({
+        code: 'chauffage', titre: '🔥 Chauffage',
+        questions: [{ id: 'chauffageAuSol', type: 'choix', label: 'Souhaitez-vous un chauffage au sol ?', options: oui_non, note: 'Enregistré dans le descriptif chauffage. Non chiffré à ce stade (chiffrage prévu dans un lot chauffage ultérieur).' }]
+      });
+    }
+
+    // --- VMC (déplacée depuis le funnel) ---
+    if (actif(metiersActifs, 'vmc')) {
+      var intentionOptions = estNeuf(chantier)
+        ? [{ v: 'creer', l: 'Créer une ventilation' }, { v: 'inconnu', l: 'Je ne sais pas encore' }]
+        : [{ v: 'conserver', l: 'Conserver l\'existant' }, { v: 'remplacer', l: 'Remplacer' }, { v: 'creer', l: 'Créer' }, { v: 'inconnu', l: 'Je ne sais pas encore' }];
+      sections.push({
+        code: 'vmc', titre: '💨 Ventilation (VMC)',
+        questions: [
+          { id: 'intention', type: 'choix', label: 'Que souhaitez-vous pour la ventilation ?', options: intentionOptions },
+          { id: 'solution', type: 'choix', label: 'Type de VMC souhaité', options: [{ v: 'simple_flux', l: 'Simple flux' }, { v: 'hygro', l: 'Simple flux hygroréglable' }, { v: 'double_flux', l: 'Double flux' }, { v: 'inconnue', l: 'Je ne sais pas encore' }] }
+        ]
+      });
+    }
+
+    // --- REVÊTEMENTS DE SOL (sols + carrelage unifiés) ---
+    if (actif(metiersActifs, 'sols') || actif(metiersActifs, 'carrelage')) {
+      var mats = clone(solMats);
+      var recos = {};
+      pieces.forEach(function (p) {
+        if (PIECES_SDB.indexOf(p.id) !== -1 || p.id === 'wc' || p.id === 'cuisine') recos[clePiece(p)] = 'Pièce humide : carrelage recommandé';
+        else if (p.id === 'chambre' || p.id === 'bureau') recos[clePiece(p)] = 'Parquet / stratifié possible';
+      });
+      sections.push({
+        code: 'revetements', titre: '🪵 Revêtements de sol',
+        uniforme: { label: 'Même revêtement dans toutes les pièces ?', options: oui_non },
+        materiaux: mats,
+        pieces: pieces.map(function (p) { return { cle: clePiece(p), nom: p.nom || p.id, id: p.id, reco: recos[clePiece(p)] || null }; })
+      });
+    }
+
+    // --- FAÏENCE (métier carrelage ; pièces humides + cuisine) ---
+    if (actif(metiersActifs, 'carrelage')) {
+      var piecesFaience = pieces.filter(function (p) { return PIECES_SDB.indexOf(p.id) !== -1 || p.id === 'cuisine'; });
+      if (piecesFaience.length) {
+        sections.push({
+          code: 'faience', titre: '🧱 Faïence',
+          pieces: piecesFaience.map(function (p) { return { cle: clePiece(p), nom: p.nom || p.id, id: p.id, options: clone(faienceModes(p.id)) }; })
         });
       }
-      if (spec.parPiece) {
-        var ciblePP = pcs.filter(function (p) { return (m === 'carrelage' || m === 'plomberie') ? estPieceEau(p) : true; });
-        section.parPiece = { pieces: ciblePP.map(function (p) { return { cle: clePiece(p), nom: p.nom || p.id, id: p.id }; }), questions: spec.parPiece.map(function (q) { return { id: q.id, type: q.type, label: q.label, options: clone(q.options), portee: 'piece' }; }) };
-      }
-      if (spec.cuisineBuanderie) {
-        var cibleCB = pcs.filter(estCuisineBuanderie);
-        section.cuisineBuanderie = { pieces: cibleCB.map(function (p) { return { cle: clePiece(p), nom: p.nom || p.id, id: p.id }; }), questions: spec.cuisineBuanderie.map(function (q) { return { id: q.id, type: q.type, label: q.label, options: clone(q.options), portee: 'bloc' }; }) };
-      }
-      return section;
-    });
+    }
 
-    return { version: VERSION, referencesTransverse: refs, transverse: transverse, metiers: metiers };
+    // --- MENUISERIE ---
+    if (actif(metiersActifs, 'menuiserie')) {
+      sections.push({
+        code: 'menuiserie', titre: '🚪 Menuiserie',
+        questions: [
+          { id: 'volets', type: 'choix', label: 'Voulez-vous des volets roulants ?', options: oui_non },
+          { id: 'motoriser', type: 'choix', label: 'Souhaitez-vous les motoriser ?', options: oui_non, dependDe: 'volets' },
+          { id: 'fenetres', type: 'choix', label: 'Remplacement des fenêtres ?', options: oui_non }
+        ]
+      });
+    }
+
+    return { version: VERSION, rappel: rappel, sections: sections };
   }
 
   // ------------------------------------------------------------------
-  // projeter(chantier) — VUE normalisée LECTURE SEULE pour l'aval.
-  //   Fusionne transverses nouveaux (choixTravaux) + référencés (chantier).
-  //   NE CALCULE RIEN (ni quantité, ni produit, ni prix).
+  // projeter(chantier) — vue LECTURE SEULE (transverses référencés + choix).
   // ------------------------------------------------------------------
   function projeter(chantier) {
     var ct = (chantier && chantier.choixTravaux) || choixTravauxVide();
-    var transverse = {};
-    TRANSVERSE_NOUVEAU.forEach(function (q) { transverse[q.id] = (ct.transverse && ct.transverse[q.id] != null) ? ct.transverse[q.id] : null; });
-    TRANSVERSE_REFERENCE.forEach(function (r) { transverse[r.id] = (chantier && chantier[r.cleChantier] != null) ? chantier[r.cleChantier] : null; });
-    return { version: VERSION, transverse: transverse, parMetier: clone(ct.parMetier) || {} };
-  }
-
-  // ------------------------------------------------------------------
-  // verifierSourceUnique(chantier) — garde-fou : renvoie la liste des
-  //   violations « seconde source ». [] = conforme. (Pour tests/garde-fou.)
-  // ------------------------------------------------------------------
-  function verifierSourceUnique(chantier) {
-    var v = [];
-    var ct = (chantier && chantier.choixTravaux) || null;
-    if (!ct) return v;
-    var t = ct.transverse || {};
-    // Un transverse référencé ne doit JAMAIS être re-stocké dans choixTravaux.
-    TRANSVERSE_REFERENCE.forEach(function (r) {
-      if (Object.prototype.hasOwnProperty.call(t, r.id) || Object.prototype.hasOwnProperty.call(t, r.cleChantier)) {
-        v.push('transverse « ' + r.id +' » dupliqué dans choixTravaux (source unique = chantier.' + r.cleChantier + ')');
-      }
-    });
-    var pm = ct.parMetier || {};
-    Object.keys(pm).forEach(function (m) {
-      var s = JSON.stringify(pm[m] || {});
-      // chauffageAuSol : source unique transverse.
-      if (/chauffageAuSol/i.test(s)) v.push('« chauffageAuSol » présent dans parMetier.' + m + ' (source unique = transverse)');
-      // acoustique : source unique isolation.
-      if (m !== 'isolation' && /acoustique/i.test(s)) v.push('« acoustique » présent dans parMetier.' + m + ' (source unique = isolation)');
-      // domotique/volets motorisés : jamais dans un métier.
-      if (/domotique/i.test(s)) v.push('« domotique » présent dans parMetier.' + m + ' (source unique = chantier)');
-      if (/voletsMotorises/i.test(s)) v.push('« voletsMotorises » présent dans parMetier.' + m + ' (source unique = transverse)');
-      // douche italienne : uniquement plomberie.
-      if (m !== 'plomberie' && /doucheItalienne/i.test(s)) v.push('« doucheItalienne » présent dans parMetier.' + m + ' (source = plomberie)');
-    });
-    return v;
+    return {
+      version: VERSION,
+      domotique: (chantier && chantier.domotique != null) ? chantier.domotique : null,
+      irve: (chantier && chantier.borneVE != null) ? chantier.borneVE : null,
+      pv: (chantier && chantier.pv != null) ? chantier.pv : null,
+      choix: clone(ct)
+    };
   }
 
   var API = {
     VERSION: VERSION,
-    ADAPTATEUR_METIER: ADAPTATEUR_METIER,
-    METIERS_PILOTES: METIERS_PILOTES,
-    TRANSVERSE_REFERENCE: TRANSVERSE_REFERENCE,
-    TRANSVERSE_NOUVEAU: TRANSVERSE_NOUVEAU,
+    RAPPEL_CHANTIER: RAPPEL_CHANTIER,
+    PIECES_SDB: PIECES_SDB, PIECES_WC: PIECES_WC, PIECES_CUISINE: PIECES_CUISINE,
+    PIECES_LAVE_LINGE_SUPPORTEES: PIECES_LAVE_LINGE_SUPPORTEES,
     choixTravauxVide: choixTravauxVide,
     clePiece: clePiece,
-    codeMetier: codeMetier,
+    estNeuf: estNeuf,
     initChoix: initChoix,
     fusionner: fusionner,
     construireQuestionnaire: construireQuestionnaire,
-    projeter: projeter,
-    verifierSourceUnique: verifierSourceUnique
+    projeter: projeter
   };
 
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
-  if (global) global.ChoixTravauxDSBAT = API; // exposé, NON branché à l'UI
+  if (global) global.ChoixTravauxDSBAT = API;
 
 })(typeof globalThis !== 'undefined' ? globalThis : this);

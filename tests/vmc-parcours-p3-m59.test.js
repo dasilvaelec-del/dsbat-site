@@ -79,8 +79,8 @@ function prixVmc(ps) { let t = 0; ps.forEach(p => { const v = (p.config && p.con
   const ps = pieces();
   const api = makeApi(makeDoc(), chantier, ['vmc'], ps, sessionStub());
   const bloc = api.questionsVmcProjetHtml();
-  A(/id="vmc_intention_projet"/.test(bloc) && /id="vmc_solution_projet"/.test(bloc), '1a. bloc PROJET : 2 questions présentes (intention + solution)');
-  A(/onchange="majContexteVmcProjet\(\)"/.test(bloc), '1b. questions câblées sur majContexteVmcProjet');
+  A(!/<select id="vmc_intention_projet"/.test(bloc) && !/<select id="vmc_solution_projet"/.test(bloc), '1a. LOT32 : bloc PROJET = rappel lecture seule (plus de question éditable)');
+  A(/Votre projet de ventilation/.test(bloc) && /Intention/.test(bloc), '1b. rappel VMC affiche intention/solution (lecture seule)');
   const sect = api.renderMetierSection({ metier: 'vmc', icon: 'V', label: 'VMC', prests: VMC.getVmcPourPiece('sdb') }, 0);
   A(!/vmc_intention/.test(sect) && !/vmc_solution/.test(sect) && !/majContexteVmc/.test(sect), '1c. config PAR PIÈCE : AUCUNE question intention/solution');
   A(/id="qty_0_VMC_BOUCHE"/.test(sect), '1d. config par pièce : prestations VMC (bouches) toujours rendues');

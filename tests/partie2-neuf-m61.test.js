@@ -104,7 +104,7 @@ const disp = (el, v) => el.style.display === v;
   A(g('accessSup').value === 'aucune', '1l. accessSup=aucune (jamais « occupé »)');
   A(g('tableauExistant').value === 'inexistant', '1m. tableauExistant=inexistant (débloque le dimensionnement)');
   A(g('vmc').value === 'non', '1n. vmc=non');
-  A(g('intentionVentilation').value === 'creer', '1o. intention VMC = creer');
+  A(g('intentionVentilation').value === 'inconnu', '1o. LOT32 : le funnel ne force plus l\'intention VMC (défaut « créer » neuf appliqué dans le questionnaire)');
   // le chauffage/ECS restent CHOISISSABLES (le forçage M60 est levé)
   g('chauffage').value = 'pompe'; g('eauChaude').value = 'ballon';
   const ch = S.api.collecterDonnees().chantier;

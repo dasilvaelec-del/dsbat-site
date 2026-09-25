@@ -101,7 +101,7 @@ function parcoursReel(intention, solution, vmcCoche) {
 // ===== 1. AVANT clic VMC : bloc caché, aucune projection =====
 {
   const r = parcoursReel('inconnu', 'inconnue', false);
-  A(/id="vmcProjetBloc"[^>]*display:\s*none/.test(DEVIS), '1a. bloc VMC caché par défaut (display:none dans devis.html)');
+  A(!/id="intentionVentilation"/.test(DEVIS) && !/id="solutionVentilation"/.test(DEVIS), '1a. LOT32 : questions VMC retirées du funnel (déplacées vers le questionnaire)');
   A(r.blocApres === 'none', '1b. VMC NON coché -> bloc VMC reste caché');
   A(!r.metiers.includes('vmc') && caissons(r.ps).length === 0, '1c. VMC non retenu -> aucune projection');
 }

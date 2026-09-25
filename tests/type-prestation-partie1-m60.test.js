@@ -101,7 +101,7 @@ function scene() {
   A(S.doc.getElementById('sectionExistant').style.display === 'none', '1d. neuf -> section « existant » masquée (non demandée)');
   A(S.doc.getElementById('tableauExistant').value === 'inexistant', '1e. neuf -> tableauExistant=inexistant (valeur sûre)');
   A(S.doc.getElementById('vmc').value === 'non', '1f. neuf -> vmc=non (valeur sûre)');
-  A(S.doc.getElementById('intentionVentilation').value === 'creer', '1g. neuf -> intention VMC structurelle = creer');
+  A(S.doc.getElementById('intentionVentilation').value === 'inconnu', '1g. LOT32 : neuf ne force plus l\'intention VMC au funnel (défaut « créer » dans le questionnaire)');
   A(S.doc.getElementById('perimetreBloc').style.display === 'block', '1h. neuf (travaux) -> périmètre affiché');
   // La valeur arrive dans chantier
   const chantier = S.api.collecterDonnees().chantier;

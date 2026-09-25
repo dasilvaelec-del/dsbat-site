@@ -91,6 +91,7 @@ window.axeptioSettings = {
 <script src="js/moteurs/menuiserie.js"></script>
 <script src="js/coherence.js"></script>
 <script src="js/choix-travaux.js"></script>
+<script src="js/choix-travaux-adapt.js"></script>
 <!-- Runtime DSBAT (R03) — modules INERTES au chargement : le mode Shadow ne s'active
      qu'explicitement (voir bloc d'activation en bas de page). Aucun effet par défaut. -->
 <script src="js/moteur-piece-complet.js"></script>
@@ -1674,32 +1675,21 @@ function orchestrerVmcPiece(piece) {
 // _contexteVmc -> regles existantes -> fonctions retenues -> projection des bouches,
 // PUIS la projection du GROUPE/MOTEUR VMC (caisson). Aucune regle nouvelle.
 function questionsVmcProjetHtml() {
+  // LOT32 : le BESOIN VMC est saisi UNE SEULE FOIS dans le questionnaire de choix de travaux.
+  // Ici, en Configuration, on n'affiche qu'un RAPPEL EN LECTURE SEULE (pas de 2e question) —
+  // les sources canoniques chantier.intentionVentilation / chantier.solutionVentilation et la
+  // projection VMC restent inchangées.
   if (typeof metiersActifs === 'undefined' || !metiersActifs.includes('vmc')) return '';
   const intention = (typeof chantier !== 'undefined' && chantier && chantier.intentionVentilation) || 'inconnu';
   const solution  = (typeof chantier !== 'undefined' && chantier && chantier.solutionVentilation)  || 'inconnue';
-  const si = (v) => (intention === v ? ' selected' : '');
-  const ss = (v) => (solution === v ? ' selected' : '');
+  const LI = { conserver:'Conserver', reparer:'Réparer', remplacer:'Remplacer', creer:'Créer', analyser:'Analyser', inconnu:'Non précisé' };
+  const LS = { simple_flux:'VMC simple flux', hygro:'Simple flux hygroréglable', double_flux:'VMC double flux', inconnue:'Non précisé' };
   return `
     <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">
       <div style="font-weight:700;margin-bottom:8px;">\u{1F4A8} Votre projet de ventilation (VMC)</div>
-      <label style="display:block;font-weight:600;font-size:0.85rem;margin-bottom:6px;">Que souhaitez-vous faire concernant votre ventilation ?</label>
-      <select id="vmc_intention_projet" onchange="majContexteVmcProjet()" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);">
-        <option value="conserver"${si('conserver')}>Conserver</option>
-        <option value="reparer"${si('reparer')}>Réparer</option>
-        <option value="remplacer"${si('remplacer')}>Remplacer</option>
-        <option value="creer"${si('creer')}>Créer</option>
-        <option value="analyser"${si('analyser')}>Analyser / diagnostiquer</option>
-        <option value="inconnu"${si('inconnu')}>Je ne sais pas encore</option>
-      </select>
-      <label style="display:block;font-weight:600;font-size:0.85rem;margin:12px 0 6px;">Avez-vous déjà une solution de ventilation en tête ?</label>
-      <select id="vmc_solution_projet" onchange="majContexteVmcProjet()" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);">
-        <option value="simple_flux"${ss('simple_flux')}>VMC simple flux</option>
-        <option value="hygro"${ss('hygro')}>VMC simple flux hygroréglable</option>
-        <option value="double_flux"${ss('double_flux')}>VMC double flux</option>
-        <option value="inconnue"${ss('inconnue')}>Je ne sais pas encore</option>
-      </select>
+      <div style="font-size:0.85rem;color:var(--text);">Intention : <strong>${LI[intention] || intention}</strong> · Solution : <strong>${LS[solution] || solution}</strong></div>
       ${_vmcGroupeInfoHtml(intention, solution)}
-      <div style="font-size:0.72rem;color:var(--text-light);margin-top:8px;">Ces réponses concernent tout le logement. DSBAT en déduit automatiquement le groupe VMC et les bouches nécessaires ; rien à ajouter manuellement.</div>
+      <div style="font-size:0.72rem;color:var(--text-light);margin-top:8px;">Défini à l'étape « Choix de travaux ». DSBAT en déduit automatiquement le groupe VMC et les bouches nécessaires.</div>
     </div>`;
 }
 
@@ -2388,30 +2378,32 @@ function validerPieces(apres) {
   return true;
 }
 
-// ===== QUESTIONNAIRE DE CHOIX DE TRAVAUX (entre « Mes pièces » et « Configuration ») =====
-// Capture des CHOIX / BESOINS client dans chantier.choixTravaux (moteur js/choix-travaux.js).
-// Ne calcule rien, ne choisit aucun produit, ne duplique aucune source canonique :
-// domotique / borneVE / pv restent des clés chantier, ici seulement RÉFÉRENCÉES (lecture seule).
+// ===== QUESTIONNAIRE DE CHOIX DE TRAVAUX (entre « Mes pièces » et « Configuration ») — v2 =====
+// Capture des BESOINS client dans chantier.choixTravaux (moteur js/choix-travaux.js) puis
+// PROJECTION vers les sources canoniques réellement consommées par les moteurs
+// (js/choix-travaux-adapt.js) à la validation. Aucune quantité/prix/produit inventé ici.
+// domotique / borneVE / pv restent des clés chantier (modifiables ici, écrites en direct).
 var __choixTravaux = null;
 function __ctEsc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
 function sauverChoixTravaux(){ try { chantier.choixTravaux = __choixTravaux; sessionStorage.setItem('chantier', JSON.stringify(chantier)); } catch(e){} }
-function __ctSetTransverse(id,val){ if(!__choixTravaux)return; __choixTravaux.transverse=__choixTravaux.transverse||{}; __choixTravaux.transverse[id]=(val===''?null:val); sauverChoixTravaux(); }
-function __ctSetMetier(m,qid,val){ if(!__choixTravaux)return; var pm=__choixTravaux.parMetier[m]=__choixTravaux.parMetier[m]||{}; pm._metier=pm._metier||{}; pm._metier[qid]=(val===''?null:val); sauverChoixTravaux(); }
-function __ctSetPiece(m,bloc,cle,qid,val){ if(!__choixTravaux)return; var pm=__choixTravaux.parMetier[m]=__choixTravaux.parMetier[m]||{}; var b=pm[bloc]=pm[bloc]||{}; var pc=b[cle]=b[cle]||{}; pc[qid]=(val===''?null:val); sauverChoixTravaux(); }
-function __ctLireTransverse(id){ return (__choixTravaux&&__choixTravaux.transverse&&__choixTravaux.transverse[id]!=null)?__choixTravaux.transverse[id]:''; }
-function __ctLireMetier(m,qid){ try{ var v=__choixTravaux.parMetier[m]._metier[qid]; return v!=null?v:''; }catch(e){ return ''; } }
-function __ctLirePiece(m,bloc,cle,qid){ try{ var v=__choixTravaux.parMetier[m][bloc][cle][qid]; return v!=null?v:''; }catch(e){ return ''; } }
+function __ctPath(path, val){ if(!__choixTravaux)return; var o=__choixTravaux; for(var i=0;i<path.length-1;i++){ if(o[path[i]]==null||typeof o[path[i]]!=='object') o[path[i]]={}; o=o[path[i]]; } o[path[path.length-1]]=(val===''?null:val); sauverChoixTravaux(); }
+function __ctEquip(cle, val, checked){ if(!__choixTravaux)return; var s=__choixTravaux.plomberie=__choixTravaux.plomberie||{}; var sdb=s.sdb=s.sdb||{}; var e=sdb[cle]=sdb[cle]||{}; var arr=e.equipements=e.equipements||[]; var i=arr.indexOf(val); if(checked && i===-1) arr.push(val); if(!checked && i!==-1) arr.splice(i,1); sauverChoixTravaux(); }
+function __ctSetChantier(cle, val){ try { chantier[cle]=(val===''?null:val); sessionStorage.setItem('chantier', JSON.stringify(chantier)); } catch(e){} }
+
 function __ctSelect(onchange, options, courant){
-  var h='<select onchange="'+onchange+'" style="padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius-md);background:var(--surface);color:var(--text);min-width:180px;">';
+  var h='<select onchange="'+onchange+'" style="padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius-md);background:var(--surface);color:var(--text);min-width:190px;">';
   h+='<option value=""'+(String(courant)===''?' selected':'')+'>— à choisir —</option>';
   options.forEach(function(o){ h+='<option value="'+__ctEsc(o.v)+'"'+(String(courant)===String(o.v)?' selected':'')+'>'+__ctEsc(o.l)+'</option>'; });
   return h+'</select>';
 }
-function __ctLigne(label, contenu){ return '<div style="display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;padding:10px 0;border-bottom:1px dashed var(--border);"><span style="font-weight:600;">'+__ctEsc(label)+'</span>'+contenu+'</div>'; }
+function __ctLigne(label, contenu, note){ return '<div style="padding:10px 0;border-bottom:1px dashed var(--border);"><div style="display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;"><span style="font-weight:600;">'+__ctEsc(label)+'</span>'+contenu+'</div>'+(note?'<div style="font-size:0.78rem;color:var(--text-light);margin-top:4px;">'+__ctEsc(note)+'</div>':'')+'</div>'; }
+function __ctCarte(titre, inner){ return '<div class="form-section" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md);padding:18px 20px;margin-bottom:16px;"><h3 style="color:var(--primary);margin-bottom:10px;">'+__ctEsc(titre)+'</h3>'+inner+'</div>'; }
 
 function ouvrirChoixTravaux(){
-  if (typeof ChoixTravauxDSBAT === 'undefined') { allerPhase(2); return; } // filet : moteur absent -> comportement historique
+  if (typeof ChoixTravauxDSBAT === 'undefined') { allerPhase(2); return; }
   __choixTravaux = ChoixTravauxDSBAT.initChoix(chantier, piecesSelectionnees, metiersActifs);
+  // Neuf : défaut historique « créer » pour la ventilation (repris du funnel), modifiable.
+  try { if (ChoixTravauxDSBAT.estNeuf(chantier) && metiersActifs.indexOf('vmc')!==-1 && __choixTravaux.vmc && !__choixTravaux.vmc.intention) __choixTravaux.vmc.intention='creer'; } catch(e){}
   sauverChoixTravaux();
   document.getElementById('phase1').style.display='none';
   document.getElementById('phase2').style.display='none';
@@ -2423,44 +2415,40 @@ function ouvrirChoixTravaux(){
   window.scrollTo({top:0,behavior:'smooth'});
 }
 
+function __ctCatalogues(){
+  var solMat = (typeof solMateriauxDispo==='function') ? solMateriauxDispo(metiersActifs).map(function(m){return {v:m.val,l:m.label};}) : null;
+  var faMode = (typeof faienceModesDispo==='function') ? function(id){ return faienceModesDispo(id).map(function(m){return {v:m.val,l:m.label};}); } : null;
+  var c={}; if(solMat) c.solMateriaux=solMat; if(faMode) c.faienceModes=faMode; return c;
+}
+
 function renderChoixTravaux(){
-  var q = ChoixTravauxDSBAT.construireQuestionnaire(chantier, piecesSelectionnees, metiersActifs);
-  var LABELS = { electricite:'⚡ Électricité', plomberie:'🚰 Plomberie', chauffage:'🔥 Chauffage', carrelage:'🧱 Carrelage / Faïence', sols:'🪵 Sols', peinture:'🎨 Peinture', menuiserie:'🚪 Menuiserie', isolation:'🧣 Isolation' };
+  var q = ChoixTravauxDSBAT.construireQuestionnaire(chantier, piecesSelectionnees, metiersActifs, __ctCatalogues());
+  var C = __choixTravaux;
   var h='<div style="max-width:820px;margin:0 auto;">';
   h+='<h2 style="color:var(--primary);margin-bottom:6px;">Vos choix de travaux</h2>';
-  h+='<p style="color:var(--text-light);margin-bottom:22px;">Indiquez vos souhaits. Rien n\'est chiffré ici : les quantités et les produits sont déterminés ensuite par la configuration.</p>';
-  if(q.referencesTransverse.length){
-    h+='<div class="form-section" style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-md);padding:18px 20px;margin-bottom:18px;">';
-    h+='<h3 style="color:var(--primary);margin-bottom:10px;">Déjà indiqué (rappel)</h3>';
-    q.referencesTransverse.forEach(function(r){ h+=__ctLigne(r.label, '<span style="color:var(--text-light);">'+__ctEsc(r.valeur==null?'—':r.valeur)+'</span>'); });
-    h+='<p style="color:var(--text-light);font-size:0.82rem;margin-top:8px;">Ces éléments proviennent du questionnaire initial ; ils se modifient à cette étape-là.</p></div>';
+  h+='<p style="color:var(--text-light);margin-bottom:20px;">Dites-nous ce que vous voulez : la configuration traduit ensuite ces choix en prestations.</p>';
+
+  // Rappel chantier (modifiable ; écrit directement dans chantier)
+  if(q.rappel && q.rappel.length){
+    var inner='';
+    q.rappel.forEach(function(r){ inner+=__ctLigne(r.label, __ctSelect("__ctSetChantier('"+r.cleChantier+"', this.value)", r.options, r.valeur==null?'':r.valeur)); });
+    inner+='<p style="font-size:0.78rem;color:var(--text-light);margin-top:8px;">Déjà indiqué au questionnaire initial — modifiable ici si besoin.</p>';
+    h+='<div class="form-section" style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-md);padding:18px 20px;margin-bottom:16px;"><h3 style="color:var(--primary);margin-bottom:10px;">Déjà indiqué (rappel)</h3>'+inner+'</div>';
   }
-  h+='<div class="form-section" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md);padding:18px 20px;margin-bottom:18px;">';
-  h+='<h3 style="color:var(--primary);margin-bottom:10px;">Éléments transverses</h3>';
-  q.transverse.forEach(function(t){ h+=__ctLigne(t.label, __ctSelect("__ctSetTransverse('"+t.id+"', this.value)", t.options, __ctLireTransverse(t.id))); });
-  h+='</div>';
-  q.metiers.forEach(function(sec){
-    h+='<div class="form-section" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md);padding:18px 20px;margin-bottom:18px;">';
-    h+='<h3 style="color:var(--primary);margin-bottom:10px;">'+(LABELS[sec.code]||sec.code)+'</h3>';
-    (sec.questions||[]).forEach(function(qq){ h+=__ctLigne(qq.label, __ctSelect("__ctSetMetier('"+sec.code+"','"+qq.id+"', this.value)", qq.options, __ctLireMetier(sec.code,qq.id))); });
-    if(sec.parPiece && sec.parPiece.pieces.length){
-      sec.parPiece.pieces.forEach(function(p){
-        h+='<div style="margin-top:10px;padding-left:12px;border-left:3px solid var(--border);"><div style="font-weight:700;color:var(--text);margin:6px 0;">'+__ctEsc(p.nom)+'</div>';
-        sec.parPiece.questions.forEach(function(qq){ h+=__ctLigne(qq.label, __ctSelect("__ctSetPiece('"+sec.code+"','parPiece','"+p.cle+"','"+qq.id+"', this.value)", qq.options, __ctLirePiece(sec.code,'parPiece',p.cle,qq.id))); });
-        h+='</div>';
-      });
-    }
-    if(sec.cuisineBuanderie && sec.cuisineBuanderie.pieces.length){
-      h+='<div style="margin-top:12px;"><div style="font-weight:700;color:var(--text);">Cuisine / buanderie</div>';
-      sec.cuisineBuanderie.pieces.forEach(function(p){
-        h+='<div style="margin-top:6px;padding-left:12px;border-left:3px solid var(--border);"><div style="font-weight:600;color:var(--text);margin:6px 0;">'+__ctEsc(p.nom)+'</div>';
-        sec.cuisineBuanderie.questions.forEach(function(qq){ h+=__ctLigne(qq.label, __ctSelect("__ctSetPiece('"+sec.code+"','cuisineBuanderie','"+p.cle+"','"+qq.id+"', this.value)", qq.options, __ctLirePiece(sec.code,'cuisineBuanderie',p.cle,qq.id))); });
-        h+='</div>';
-      });
-      h+='</div>';
-    }
-    h+='</div>';
+
+  q.sections.forEach(function(sec){
+    if(sec.code==='plomberie'){ h+=__renderPlomberie(sec, C); return; }
+    if(sec.code==='revetements'){ h+=__renderRevetements(sec, C); return; }
+    if(sec.code==='faience'){ h+=__renderFaience(sec, C); return; }
+    // sections génériques (électricité, chauffage, vmc, menuiserie)
+    var inner='';
+    (sec.questions||[]).forEach(function(qq){
+      var cur = (C[sec.code] && C[sec.code][qq.id]!=null) ? C[sec.code][qq.id] : '';
+      inner+=__ctLigne(qq.label, __ctSelect("__ctPath(['"+sec.code+"','"+qq.id+"'], this.value)", qq.options, cur), qq.note);
+    });
+    h+=__ctCarte(sec.titre, inner);
   });
+
   h+='<div style="display:flex;justify-content:space-between;gap:12px;margin-top:24px;">';
   h+='<button onclick="retourChoixTravaux()" style="background:var(--surface);color:var(--text);border:2px solid var(--border);padding:14px 28px;border-radius:var(--radius-xl);font-weight:700;cursor:pointer;">← Retour</button>';
   h+='<button class="btn-next" onclick="validerChoixTravaux()" style="background:var(--primary);color:white;border:none;padding:14px 32px;border-radius:var(--radius-xl);font-weight:700;cursor:pointer;">Configurer mes pièces →</button>';
@@ -2468,8 +2456,79 @@ function renderChoixTravaux(){
   document.getElementById('phaseChoixTravaux').innerHTML=h;
 }
 
+function __renderPlomberie(sec, C){
+  var inner='';
+  (sec.sdb||[]).forEach(function(p){
+    inner+='<div style="margin:8px 0 4px;font-weight:700;">'+__ctEsc(p.nom)+'</div>';
+    var cur=(C.plomberie&&C.plomberie.sdb&&C.plomberie.sdb[p.cle])||{};
+    var eqSel=cur.equipements||[];
+    var chk='<div style="display:flex;gap:14px;flex-wrap:wrap;">';
+    p.equipements.forEach(function(e){ var on=eqSel.indexOf(e.v)!==-1; chk+='<label style="display:inline-flex;align-items:center;gap:6px;font-weight:500;"><input type="checkbox" '+(on?'checked':'')+' onchange="__ctEquip(\''+p.cle+'\',\''+e.v+'\', this.checked)"> '+__ctEsc(e.l)+'</label>'; });
+    chk+='</div>';
+    inner+=__ctLigne('Équipements souhaités', chk);
+    inner+=__ctLigne('Type de lavabo', __ctSelect("__ctPath(['plomberie','sdb','"+p.cle+"','lavabo'], this.value)", p.lavabo.options, cur.lavabo==null?'':cur.lavabo));
+  });
+  (sec.wc||[]).forEach(function(p){
+    inner+='<div style="margin:8px 0 4px;font-weight:700;">'+__ctEsc(p.nom)+'</div>';
+    var cur=(C.plomberie&&C.plomberie.wc&&C.plomberie.wc[p.cle])||{};
+    inner+=__ctLigne(p.type.label, __ctSelect("__ctPath(['plomberie','wc','"+p.cle+"','type'], this.value)", p.type.options, cur.type==null?'':cur.type));
+    inner+=__ctLigne(p.laveMains.label, __ctSelect("__ctPath(['plomberie','wc','"+p.cle+"','laveMains'], this.value)", p.laveMains.options, cur.laveMains==null?'':cur.laveMains));
+  });
+  (sec.cuisine||[]).forEach(function(p){
+    inner+='<div style="margin:8px 0 4px;font-weight:700;">'+__ctEsc(p.nom)+'</div>';
+    var cur=(C.plomberie&&C.plomberie.cuisine&&C.plomberie.cuisine[p.cle])||{};
+    inner+=__ctLigne(p.evier.label, __ctSelect("__ctPath(['plomberie','cuisine','"+p.cle+"','evier'], this.value)", p.evier.options, cur.evier==null?'':cur.evier));
+    inner+=__ctLigne(p.laveVaisselle.label, __ctSelect("__ctPath(['plomberie','cuisine','"+p.cle+"','laveVaisselle'], this.value)", p.laveVaisselle.options, cur.laveVaisselle==null?'':cur.laveVaisselle));
+  });
+  if(sec.laveLinge){
+    var curLL=(C.plomberie&&C.plomberie.laveLinge&&C.plomberie.laveLinge.piece)||'';
+    var note = (sec.laveLinge.futur&&sec.laveLinge.futur.length) ? ('Non pris en charge pour l\'instant : '+sec.laveLinge.futur.map(function(f){return f.nom;}).join(', ')+' (évolution future).') : null;
+    inner+=__ctLigne(sec.laveLinge.label, __ctSelect("__ctPath(['plomberie','laveLinge','piece'], this.value)", sec.laveLinge.options, curLL), note);
+  }
+  return __ctCarte(sec.titre, inner);
+}
+
+function __renderRevetements(sec, C){
+  var rs=C.revetementsSol||{};
+  var inner=__ctLigne(sec.uniforme.label, __ctSelect("__ctUniforme(this.value)", sec.uniforme.options, rs.uniforme==null?'':rs.uniforme));
+  if(rs.uniforme==='oui'){
+    inner+=__ctLigne('Revêtement (toutes pièces)', __ctSelect("__ctPath(['revetementsSol','global'], this.value)", sec.materiaux, rs.global==null?'':rs.global));
+  } else if(rs.uniforme==='non'){
+    sec.pieces.forEach(function(p){
+      var cur=(rs.parPiece&&rs.parPiece[p.cle])||'';
+      inner+=__ctLigne(p.nom, __ctSelect("__ctPath(['revetementsSol','parPiece','"+p.cle+"'], this.value)", sec.materiaux, cur), p.reco);
+    });
+  }
+  return __ctCarte(sec.titre, inner);
+}
+function __ctUniforme(val){ __ctPath(['revetementsSol','uniforme'], val); renderChoixTravaux(); }
+
+function __renderFaience(sec, C){
+  var inner='';
+  sec.pieces.forEach(function(p){
+    var cur=(C.faience&&C.faience.parPiece&&C.faience.parPiece[p.cle])||'';
+    inner+=__ctLigne(p.nom, __ctSelect("__ctPath(['faience','parPiece','"+p.cle+"'], this.value)", p.options, cur));
+  });
+  return __ctCarte(sec.titre, inner);
+}
+
 function retourChoixTravaux(){ document.getElementById('phaseChoixTravaux').style.display='none'; allerPhase(1); }
-function validerChoixTravaux(){ sauverChoixTravaux(); document.getElementById('phaseChoixTravaux').style.display='none'; allerPhase(2); }
+function validerChoixTravaux(){
+  sauverChoixTravaux();
+  try {
+    if (typeof ChoixTravauxAdaptDSBAT !== 'undefined') {
+      var rep = ChoixTravauxAdaptDSBAT.appliquer(piecesSelectionnees, chantier, { metiersActifs: metiersActifs });
+      window.__choixTravauxRapport = rep;
+      if (rep.objectif && typeof setObjectif === 'function') { try { setObjectif(rep.objectif); } catch(e){} }
+      if (rep.projeterVmc && typeof projeterVmcToutesPieces === 'function') { try { projeterVmcToutesPieces(); } catch(e){} }
+      piecesSelectionnees.forEach(function(_,i){ try { if (typeof recalcPiece==='function') recalcPiece(i); } catch(e){} });
+      try { sessionStorage.setItem('chantier', JSON.stringify(chantier)); } catch(e){}
+      saveEtat();
+    }
+  } catch(e){}
+  document.getElementById('phaseChoixTravaux').style.display='none';
+  allerPhase(2);
+}
 // ===== FIN QUESTIONNAIRE DE CHOIX DE TRAVAUX =====
 
 // ===== NAVIGATION PHASES =====

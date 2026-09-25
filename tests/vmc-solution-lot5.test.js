@@ -38,24 +38,22 @@ function selectBlocIn(src, id) {
   const e = src.indexOf('</select>', s);
   return e < 0 ? '' : src.slice(s, e + 9);
 }
-const SEL = selectBlocIn(CONFIG, 'vmc_solution_');
+const CT_L32 = require(path.join(RACINE, 'js', 'choix-travaux.js'));
+function vmcSolutionValeurs(tp) { const q = CT_L32.construireQuestionnaire({ typeProjet: tp }, [], ['vmc']); const s = q.sections.find(x => x.code === 'vmc'); return s ? s.questions.find(y => y.id === 'solution').options.map(o => o.v) : []; }
+const SEL = vmcSolutionValeurs('renovation');
 
-// ---- 1. Nouvelle donnée : select + 4 valeurs EXACTES -----------------
-A(SEL.length > 0, 'solution : select présent dans le bloc VMC (Partie 3)');
-A(/onchange="majContexteVmcProjet\(/.test(SEL), 'solution : onchange majContexteVmcProjet branché (niveau projet)');
-A(/id="vmc_solution_projet"/.test(CONFIG), 'solution : select au NIVEAU PROJET (id vmc_solution_projet)');
-A(!/questionsVmcHtml\(pieceIndex\)/.test(CONFIG), 'solution : PLUS de question solution dans la config par pièce');
-// M59bis : select solution présenté à l'étape « Travaux » (devis.html), révélé au clic VMC (m_vmc).
-A(/<select id="solutionVentilation"/.test(DEVIS), 'solution : select présent à l\'étape Travaux (devis.html)');
-A(/id="vmcProjetBloc"[^>]*display:none/.test(DEVIS), 'solution : bloc VMC caché par défaut (révélé au clic VMC)');
+// ---- 1. Question solution dans le questionnaire (source unique) + 4 valeurs EXACTES ----
+A(SEL.length > 0, 'solution : question présente dans le questionnaire (choix-travaux)');
+A(!/<select id="vmc_solution_projet"/.test(CONFIG), 'solution : plus de select éditable en Configuration (rappel lecture seule)');
+A(!/<select id="solutionVentilation"/.test(DEVIS), 'solution : plus de question dans le funnel (déplacée)');
 ['simple_flux', 'hygro', 'double_flux', 'inconnue'].forEach(v =>
-  A(new RegExp('<option value="' + v + '"').test(SEL), 'solutionVentilation : valeur « ' + v + ' » présente'));
-A(/solutionVentilation\)\s*\|\|\s*'inconnue'/.test(CONFIG), 'défaut solution = inconnue quand aucune donnée (bloc VMC)');
-A((SEL.match(/<option /g) || []).length === 4, 'solutionVentilation : exactement 4 options');
+  A(SEL.indexOf(v) !== -1, 'solutionVentilation : valeur « ' + v + ' » présente'));
+A(/solutionVentilation\)\s*\|\|\s*'inconnue'/.test(CONFIG), 'défaut solution (rappel lecture seule) = inconnue');
+A(SEL.length === 4, 'solutionVentilation : exactement 4 options');
 
 // ---- 2. Valeurs hors périmètre ABSENTES ------------------------------
 ['aerateur', 'ventilation_naturelle', 'extraction', 'insufflation', 'mixte', 'autre', 'aucune', 'reparer', 'adapter'].forEach(v =>
-  A(!new RegExp('value="' + v + '"').test(SEL), 'solutionVentilation : valeur hors périmètre « ' + v + ' » absente'));
+  A(SEL.indexOf(v) === -1, 'solutionVentilation : valeur hors périmètre « ' + v + ' » absente'));
 
 // ---- 3. Collecte + défaut inconnue -----------------------------------
 A(/solutionVentilation: \(document\.getElementById\('solutionVentilation'\)/.test(DEVIS), 'chantier collecte solutionVentilation');

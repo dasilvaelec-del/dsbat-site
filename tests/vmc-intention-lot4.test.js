@@ -33,24 +33,23 @@ function selectBlocIn(src, id) {
   const e = src.indexOf('</select>', s);
   return e < 0 ? '' : src.slice(s, e + 9);
 }
-const INTENT_SELECT = selectBlocIn(CONFIG, 'vmc_intention_');
+// LOT32 : la question intention VMC est UNIQUE, dans le questionnaire de choix de travaux
+// (moteur js/choix-travaux.js). Funnel + Configuration n'ont plus de question éditable.
+const CT_L32 = require(path.join(RACINE, 'js', 'choix-travaux.js'));
+function vmcIntentValeurs(tp) { const q = CT_L32.construireQuestionnaire({ typeProjet: tp }, [], ['vmc']); const s = q.sections.find(x => x.code === 'vmc'); return s ? s.questions.find(y => y.id === 'intention').options.map(o => o.v) : []; }
+const INTENT_SELECT = vmcIntentValeurs('renovation');
 
-// ---- 1. Question intention dans le bloc VMC (Partie 3) + valeurs métier ------
-A(INTENT_SELECT.length > 0, 'intention : select présent dans le bloc VMC (Partie 3)');
+// ---- 1. Question intention dans le questionnaire (source unique) + valeurs métier ------
+A(INTENT_SELECT.length > 0, 'intention : question présente dans le questionnaire (choix-travaux)');
 ['conserver', 'remplacer', 'creer', 'inconnu'].forEach(v =>
-  A(new RegExp('<option value="' + v + '"').test(INTENT_SELECT), 'intentionVentilation : valeur « ' + v + ' » présente'));
-A(/onchange="majContexteVmcProjet\(/.test(INTENT_SELECT), 'intention : onchange majContexteVmcProjet branché (niveau projet)');
-A(/id="vmc_intention_projet"/.test(CONFIG), 'intention : select au NIVEAU PROJET (id vmc_intention_projet)');
-A(!/questionsVmcHtml\(pieceIndex\)/.test(CONFIG), 'intention : PLUS de question intention dans la config par pièce');
-// M58bis : la question n'est PLUS en Partie 2 (devis.html)
-// M59bis : select intention présenté à l'étape « Travaux » (devis.html), révélé au clic VMC (m_vmc).
-A(/<select id="intentionVentilation"/.test(DEVIS), 'intention : select présent à l\'étape Travaux (devis.html)');
-A(/id="vmcProjetBloc"[^>]*display:none/.test(DEVIS), 'intention : bloc VMC caché par défaut (révélé au clic VMC)');
-A(/id="m_vmc"[^>]*onchange="majBlocVmcTravaux\(\)"/.test(DEVIS), 'intention : handler branché sur la case VMC (m_vmc)');
+  A(INTENT_SELECT.indexOf(v) !== -1, 'intentionVentilation : valeur « ' + v + ' » présente (réno)'));
+A(vmcIntentValeurs('neuf').indexOf('conserver') === -1, 'intention : neuf sans « conserver » (conditionnel)');
+A(!/<select id="vmc_intention_projet"/.test(CONFIG), 'intention : plus de select éditable en Configuration (rappel lecture seule)');
+A(!/<select id="intentionVentilation"/.test(DEVIS), 'intention : plus de question dans le funnel (déplacée)');
 
 // ---- 2. Valeurs interdites ABSENTES (reparer désormais valide en M58bis) -----
 ['adapter', 'deposer', 'condamner'].forEach(v =>
-  A(!new RegExp('value="' + v + '"').test(INTENT_SELECT), 'intentionVentilation : valeur écartée « ' + v + ' » absente'));
+  A(INTENT_SELECT.indexOf(v) === -1, 'intentionVentilation : valeur écartée « ' + v + ' » absente'));
 // concepts hors périmètre absents du projet (aucun champ créé)
 ['objectifVentilation', 'etatSysteme', 'porteeIntention'].forEach(c => {
   A(!new RegExp(c).test(DEVIS), 'concept hors périmètre « ' + c + ' » absent de devis.html');

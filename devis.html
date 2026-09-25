@@ -1153,36 +1153,9 @@ window.axeptioSettings = {
         ⚠️ Veuillez sélectionner au moins un corps de métier.
       </p>
 
-      <!-- M59bis : questions VMC révélées IMMÉDIATEMENT au clic sur « VMC » (Étape 3 — Travaux),
-           AVANT le configurateur pièce. Elles alimentent chantier.intentionVentilation /
-           chantier.solutionVentilation (collectés plus bas) ; le configurateur projette ensuite
-           automatiquement les bouches obligatoires et le groupe/caisson (cycle M59 inchangé). -->
-      <div id="vmcProjetBloc" style="display:none; margin-top:16px; background:var(--surface-2,#f8fafc); border:1px solid var(--border,#e2e8f0); border-radius:12px; padding:16px;">
-        <div style="font-weight:700; margin-bottom:10px;">💨 Votre projet de ventilation (VMC)</div>
-        <div class="form-group">
-          <label>Que souhaitez-vous faire concernant votre ventilation ?</label>
-          <select id="intentionVentilation">
-            <option value="conserver">Conserver</option>
-            <option value="reparer">Réparer</option>
-            <option value="remplacer">Remplacer</option>
-            <option value="creer">Créer</option>
-            <option value="analyser">Analyser / diagnostiquer</option>
-            <option value="inconnu" selected>Je ne sais pas encore</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label>Avez-vous déjà une solution de ventilation en tête ?</label>
-          <select id="solutionVentilation">
-            <option value="simple_flux">VMC simple flux</option>
-            <option value="hygro">VMC simple flux hygroréglable</option>
-            <option value="double_flux">VMC double flux</option>
-            <option value="inconnue" selected>Je ne sais pas encore</option>
-          </select>
-        </div>
-        <div style="font-size:0.78rem; color:var(--text-light,#64748b); margin-top:4px;">
-          DSBAT en déduit automatiquement le groupe VMC et les bouches nécessaires — rien à ajouter manuellement dans le configurateur.
-        </div>
-      </div>
+      <!-- LOT32 : les questions VMC (intention / solution) ont été déplacées vers le
+           questionnaire de choix de travaux (configurateur). Elles écrivent les mêmes clés
+           canoniques chantier.intentionVentilation / chantier.solutionVentilation. -->
     </div>
 
     <div class="form-section">
@@ -1587,7 +1560,7 @@ function majContexteTypePrestation(kind) {
     set('tableauExistant', 'inexistant');// tableau à créer (débloque le dimensionnement)
     set('vmc', 'non');                   // aucune VMC existante
     if (typeof majTypeVentilation === 'function') majTypeVentilation();
-    var iv = document.getElementById('intentionVentilation'); if (iv) iv.value = 'creer'; // VMC : neuf ⇒ créer
+    // LOT32 : VMC déplacée vers le questionnaire ; le défaut « créer » (neuf) y est appliqué.
   }
   // depannage : Partie 2 non atteinte (redirection) — rien à conditionner ici.
 }
