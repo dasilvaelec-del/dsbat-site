@@ -46,10 +46,11 @@ const SEL = vmcSolutionValeurs('renovation');
 A(SEL.length > 0, 'solution : question présente dans le questionnaire (choix-travaux)');
 A(!/<select id="vmc_solution_projet"/.test(CONFIG), 'solution : plus de select éditable en Configuration (rappel lecture seule)');
 A(!/<select id="solutionVentilation"/.test(DEVIS), 'solution : plus de question dans le funnel (déplacée)');
-['simple_flux', 'hygro', 'double_flux', 'inconnue'].forEach(v =>
+['simple_flux', 'hygro', 'double_flux'].forEach(v =>
   A(SEL.indexOf(v) !== -1, 'solutionVentilation : valeur « ' + v + ' » présente'));
 A(/solutionVentilation\)\s*\|\|\s*'inconnue'/.test(CONFIG), 'défaut solution (rappel lecture seule) = inconnue');
-A(SEL.length === 4, 'solutionVentilation : exactement 4 options');
+A(SEL.indexOf('inconnue') === -1, 'solution : « je ne sais pas » retiré du questionnaire (LOT33, choix direct)');
+A(SEL.length === 3, 'solutionVentilation : 3 systèmes proposés (SF / hygro / DF)');
 
 // ---- 2. Valeurs hors périmètre ABSENTES ------------------------------
 ['aerateur', 'ventilation_naturelle', 'extraction', 'insufflation', 'mixte', 'autre', 'aucune', 'reparer', 'adapter'].forEach(v =>

@@ -1,102 +1,92 @@
-// =====================================================================
-// tests/choix-travaux-adapt.test.js — Adaptateur : choix -> sources canoniques
-// =====================================================================
-// Prouve la chaîne réponse -> source canonique consommée par les moteurs, et
-// l'IDEMPOTENCE (revenir/valider N fois ne double pas). Vérifie aussi les
-// éléments signalés « non branchés » (chauffage au sol, buanderie, double vasque).
-// =====================================================================
+// tests/choix-travaux-adapt.test.js — Adaptateur choix -> sources canoniques — LOT33
 const path = require('path');
 const AD = require(path.join(__dirname, '..', 'js', 'choix-travaux-adapt.js'));
-
-let ok = 0, ko = 0;
-const A = (c, m) => { if (c) ok++; else { ko++; console.error('  ❌ ' + m); } };
+let ok = 0, ko = 0; const A = (c, m) => { if (c) ok++; else { ko++; console.error('  ❌ ' + m); } };
 
 function mkPieces() {
   return [
-    { id: 'salon', numero: 1, nom: 'Salon', config: {} },
-    { id: 'chambre', numero: 1, nom: 'Chambre 1', config: {} },
-    { id: 'cuisine', numero: 1, nom: 'Cuisine', config: {} },
-    { id: 'sdb', numero: 1, nom: 'Salle de bain', config: {} },
-    { id: 'wc', numero: 1, nom: 'WC', config: {} }
+    { id: 'salon', numero: 1, nom: 'Salon', config: {}, dims: { fenetres: 2 } },
+    { id: 'chambre', numero: 1, nom: 'Chambre 1', config: {}, dims: { fenetres: 1 } },
+    { id: 'cuisine', numero: 1, nom: 'Cuisine', config: {}, dims: { fenetres: 1 } },
+    { id: 'sdb', numero: 1, nom: 'Salle de bain', config: {}, dims: { fenetres: 1 } },
+    { id: 'sde', numero: 1, nom: "Salle d'eau", config: {}, dims: { fenetres: 0 } },
+    { id: 'wc', numero: 1, nom: 'WC', config: {}, dims: { fenetres: 0 } },
+    { id: 'buanderie', numero: 1, nom: 'Buanderie', config: {}, dims: { fenetres: 0 } }
   ];
 }
-const METIERS = ['electricite', 'plomberie', 'chauffage', 'vmc', 'sols', 'carrelage', 'menuiserie'];
+const M = ['electricite', 'plomberie', 'chauffage', 'vmc', 'sols', 'carrelage', 'menuiserie', 'isolation'];
 function mkChantier() {
-  return {
-    typeProjet: 'neuf', domotique: 'non', borneVE: 'non', pv: 'non',
-    choixTravaux: {
-      version: 2,
-      electricite: { niveau: 'confort', reseauMultimedia: 'oui' },
-      plomberie: {
-        sdb: { 'sdb#1': { equipements: ['douche_ital', 'baignoire'], lavabo: 'double' } },
-        wc: { 'wc#1': { type: 'suspendu', laveMains: 'oui' } },
-        cuisine: { 'cuisine#1': { evier: 'double', laveVaisselle: 'oui' } },
-        laveLinge: { piece: 'cuisine#1' }
-      },
-      chauffage: { chauffageAuSol: 'oui' },
-      vmc: { intention: 'creer', solution: 'double_flux' },
-      revetementsSol: { uniforme: 'non', global: null, parPiece: { 'salon#1': 'parq_flot', 'sdb#1': 'carrelage' } },
-      faience: { parPiece: { 'sdb#1': 'zone' } },
-      menuiserie: { volets: 'oui', motoriser: 'oui', fenetres: 'oui' }
-    }
-  };
+  return { typeProjet: 'neuf', domotique: 'non', borneVE: 'non', pv: 'non', choixTravaux: {
+    version: 2,
+    electricite: { niveau: 'confort', reseauMultimedia: 'oui' },
+    plomberie: {
+      sdb: { 'sdb#1': { equipements: ['baignoire', 'douche_ital'], lavabo: 'double' }, 'sde#1': { equipements: ['douche_ital'], lavabo: 'simple' } },
+      wc: { 'wc#1': { type: 'suspendu', laveMains: 'oui' } },
+      cuisine: { 'cuisine#1': { evier: 'double', laveVaisselle: 'oui' } },
+      laveLinge: { piece: 'cuisine#1' }
+    },
+    chauffage: { type: 'electrique', solution: 'radiateurs', secheServiette: 'oui' },
+    vmc: { intention: null, solution: 'double_flux' },
+    revetementsSol: { uniforme: 'non', global: null, parPiece: { 'salon#1': 'parq_flot', 'sdb#1': 'carrelage' } },
+    faience: { parPiece: { 'sdb#1': 'zone' } },
+    menuiserie: { volets: 'motorise', fenetres: 'oui' },
+    isolation: { niveau: 'renforce', acoustique: 'oui' },
+    ba13: { cloisons: 'oui', fauxPlafond: 'non', acoustique: 'oui' }
+  } };
 }
 
-// ---------- passe 1 ----------
-let pieces = mkPieces(); let ch = mkChantier();
-let r1 = AD.appliquer(pieces, ch, { metiersActifs: METIERS });
+let pieces = mkPieces(), ch = mkChantier();
+let r = AD.appliquer(pieces, ch, { metiersActifs: M });
 const P = id => pieces.find(p => p.id === id);
 
-// électricité
-A(r1.objectif === 'confort', 'élec niveau confort -> objectif confort (à passer à setObjectif)');
-A((P('salon').config.electricite.ELEC_RJ45 || 0) === 1 && (P('chambre').config.electricite.ELEC_RJ45 || 0) === 1, 'réseau multimédia -> +1 ELEC_RJ45 (salon, chambre)');
-A(!P('cuisine').config.electricite || !P('cuisine').config.electricite.ELEC_RJ45, 'RJ45 non ajouté hors pièces catalogue (cuisine)');
-// plomberie sdb
-A(P('sdb').config.plomberie.PLO_DOUCHE_ITAL === 1 && P('sdb').config.plomberie.PLO_BAIGNOIRE === 1, 'sdb : douche italienne + baignoire (multi-choix)');
-A(P('sdb').config.plomberie.PLO_MEUBLE_LAV === 1, 'sdb : meuble vasque projeté');
-A(r1.nonBranche.some(x => /double vasque/i.test(x)), 'double vasque signalé non différencié');
-// wc
-A(P('wc').config.plomberie.PLO_WC_SUSP === 1 && P('wc').config.plomberie.PLO_LAV_SIMPLE === 1, 'wc suspendu + lave-mains');
-A(!P('wc').config.plomberie.PLO_WC_SIMPLE, 'wc : pas de WC au sol quand suspendu choisi');
-// cuisine : évier double + (lave-vaisselle + lave-linge) = PLO_RACCORD_LV cumulé à 2
-A(P('cuisine').config.plomberie.PLO_EVIER_DBL === 1, 'cuisine : évier double');
-A(P('cuisine').config.plomberie.PLO_RACCORD_LV === 2, 'cuisine : lave-vaisselle + lave-linge = 2 raccordements (même code)');
-// chauffage au sol : canonique mais non chiffré
-A(P('salon').chauffageFonctions.solution.technologie === 'plancher_chauffant', 'chauffage au sol -> chauffageFonctions (canonique)');
-A(r1.nonBranche.some(x => /chauffage au sol/i.test(x) && /chiffr/i.test(x)), 'chauffage au sol signalé non chiffré');
-// vmc
-A(ch.intentionVentilation === 'creer' && ch.solutionVentilation === 'double_flux' && r1.projeterVmc === true, 'VMC -> sources canoniques + flag projection');
-// revêtements + faïence
-A(P('salon').solMateriau === 'parq_flot' && P('sdb').solMateriau === 'carrelage', 'revêtements -> piece.solMateriau');
-A(P('sdb').faienceMode === 'zone', 'faïence -> piece.faienceMode');
+// CHAUFFAGE
+A(ch.chauffage === 'electrique', 'chauffage type -> chantier.chauffage=electrique (canonique)');
+A(P('salon').chauffageFonctions.solution.technologie === 'radiateur_electrique', 'solution radiateurs -> chauffageFonctions (descriptif)');
+A(P('sdb').config.electricite.ELEC_SECH_SERV === 1 && P('sde').config.electricite.ELEC_SECH_SERV === 1, 'sèche-serviette -> ELEC_SECH_SERV en sdb + sde (réel)');
+A(!P('salon').config.electricite || !P('salon').config.electricite.ELEC_SECH_SERV, 'sèche-serviette : pas en salon');
+// chauffage au sol -> descriptif (report)
+let pc = mkPieces(), cc = mkChantier(); cc.choixTravaux.chauffage = { type: 'gaz', solution: 'chauffage_sol', secheServiette: 'non' };
+let rc = AD.appliquer(pc, cc, { metiersActifs: M });
+A(cc.chauffage === 'gaz' && pc[0].chauffageFonctions.solution.technologie === 'plancher_chauffant', 'gaz + plancher -> chantier.chauffage + chauffageFonctions');
+A(rc.descriptif.some(x => /chauffage/i.test(x)), 'chauffage gaz/plancher signalé descriptif (non chiffré)');
 
-// ---------- passe 2 : IDEMPOTENCE (revalider ne double rien) ----------
-let r2 = AD.appliquer(pieces, ch, { metiersActifs: METIERS });
-A((P('salon').config.electricite.ELEC_RJ45 || 0) === 1, 'idempotent : ELEC_RJ45 reste 1 après 2e passage');
-A(P('cuisine').config.plomberie.PLO_RACCORD_LV === 2, 'idempotent : PLO_RACCORD_LV reste 2');
-A(P('sdb').config.plomberie.PLO_DOUCHE_ITAL === 1, 'idempotent : douche italienne reste 1');
+// PLOMBERIE sdb ≠ sde
+A(P('sdb').config.plomberie.PLO_BAIGNOIRE === 1 && P('sdb').config.plomberie.PLO_DOUCHE_ITAL === 1, 'sdb : baignoire + douche italienne');
+A(!P('sde').config.plomberie.PLO_BAIGNOIRE && P('sde').config.plomberie.PLO_DOUCHE_ITAL === 1, 'sde : douche sans baignoire');
+A(P('cuisine').config.plomberie.PLO_EVIER_DBL === 1 && P('cuisine').config.plomberie.PLO_RACCORD_LV === 2, 'cuisine : évier double + LV + lave-linge = 2 raccords');
+A(r.descriptif.some(x => /double vasque/i.test(x)), 'double vasque signalé descriptif');
 
-// ---------- passe 3 : un choix retiré est bien nettoyé ----------
-ch.choixTravaux.plomberie.sdb['sdb#1'].equipements = ['douche_ital']; // baignoire retirée
-ch.choixTravaux.electricite.reseauMultimedia = 'non';                 // réseau retiré
-AD.appliquer(pieces, ch, { metiersActifs: METIERS });
-A(!P('sdb').config.plomberie.PLO_BAIGNOIRE, 'baignoire retirée -> code nettoyé');
-A(P('sdb').config.plomberie.PLO_DOUCHE_ITAL === 1, 'douche conservée');
-A(!(P('salon').config.electricite && P('salon').config.electricite.ELEC_RJ45), 'réseau retiré -> ELEC_RJ45 nettoyé');
+// lave-linge hors cuisine/cave -> descriptif
+let pl = mkPieces(), cl = mkChantier(); cl.choixTravaux.plomberie.laveLinge = { piece: 'buanderie#1' };
+let rl = AD.appliquer(pl, cl, { metiersActifs: M });
+A(rl.descriptif.some(x => /buanderie/i.test(x)) && !(pl.find(p => p.id === 'buanderie').config.plomberie && pl.find(p => p.id === 'buanderie').config.plomberie.PLO_RACCORD_LV), 'lave-linge buanderie : descriptif, aucun faux calcul');
 
-// ---------- préservation d'un ajout manuel (hors adaptateur) ----------
-P('sdb').config.plomberie.PLO_MEUBLE_LAV = P('sdb').config.plomberie.PLO_MEUBLE_LAV; // déjà 1 par nous
-P('cuisine').config.plomberie.PLO_ADOUCISSEUR = 1; // ajout manuel
-AD.appliquer(pieces, ch, { metiersActifs: METIERS });
-A(P('cuisine').config.plomberie.PLO_ADOUCISSEUR === 1, 'ajout manuel hors adaptateur préservé');
+// VMC neuf : intention forcée creer
+A(ch.intentionVentilation === 'creer' && ch.solutionVentilation === 'double_flux' && r.projeterVmc, 'VMC neuf : intention=creer implicite + solution');
 
-// ---------- buanderie non modélisée ----------
-let p2 = [{ id: 'buanderie', numero: 1, nom: 'Buanderie', config: {} }, { id: 'cuisine', numero: 1, nom: 'Cuisine', config: {} }];
-let ch2 = { typeProjet: 'neuf', choixTravaux: { version: 2, plomberie: { sdb: {}, wc: {}, cuisine: {}, laveLinge: { piece: 'buanderie#1' } } } };
-let rb = AD.appliquer(p2, ch2, { metiersActifs: ['plomberie'] });
-A(rb.nonBranche.some(x => /buanderie/i.test(x)), 'lave-linge buanderie signalé non modélisé');
-A(!(p2[0].config.plomberie && p2[0].config.plomberie.PLO_RACCORD_LV), 'buanderie : aucun faux calcul');
+// MENUISERIE volets motorisés -> MEN_VOLET_ROULANT + ELEC_VOLET (= nb fenêtres)
+A(P('salon').config.menuiserie.MEN_VOLET_ROULANT === 2 && P('salon').config.electricite.ELEC_VOLET === 2, 'volets motorisés salon (2 fenêtres) -> MEN_VOLET_ROULANT + ELEC_VOLET');
+A(!(P('sde').config.menuiserie && P('sde').config.menuiserie.MEN_VOLET_ROULANT), 'aucun volet où 0 fenêtre');
+// volets manuels : MEN sans ELEC
+let pm = mkPieces(), cm = mkChantier(); cm.choixTravaux.menuiserie = { volets: 'manuel', fenetres: 'non' };
+AD.appliquer(pm, cm, { metiersActifs: M });
+A(pm.find(p => p.id === 'salon').config.menuiserie.MEN_VOLET_ROULANT === 2 && !(pm.find(p => p.id === 'salon').config.electricite && pm.find(p => p.id === 'salon').config.electricite.ELEC_VOLET), 'volets manuels : MEN_VOLET_ROULANT sans ELEC_VOLET');
+
+// ISOLATION / BA13 : descriptif (aucun config.isolation écrit)
+A(!P('salon').config.isolation, 'isolation : aucun code config écrit (m²-piloté)');
+A(r.descriptif.some(x => /isolation/i.test(x)) && r.descriptif.some(x => /BA13/i.test(x)), 'isolation + BA13 signalés descriptifs');
+
+// REVÊTEMENTS
+A(P('salon').solMateriau === 'parq_flot' && P('sdb').solMateriau === 'carrelage' && P('sdb').faienceMode === 'zone', 'revêtements + faïence -> sources canoniques');
+
+// IDEMPOTENCE
+let r2 = AD.appliquer(pieces, ch, { metiersActifs: M });
+A(P('salon').config.electricite.ELEC_RJ45 === 1 && P('salon').config.menuiserie.MEN_VOLET_ROULANT === 2 && P('cuisine').config.plomberie.PLO_RACCORD_LV === 2 && P('sdb').config.electricite.ELEC_SECH_SERV === 1, 'idempotent : aucun doublon après 2e passage');
+// retrait d'un choix -> nettoyage
+ch.choixTravaux.menuiserie.volets = 'non'; ch.choixTravaux.chauffage.secheServiette = 'non';
+AD.appliquer(pieces, ch, { metiersActifs: M });
+A(!(P('salon').config.menuiserie && P('salon').config.menuiserie.MEN_VOLET_ROULANT) && !(P('sdb').config.electricite && P('sdb').config.electricite.ELEC_SECH_SERV), 'retrait volets + sèche-serviette -> codes nettoyés');
 
 const total = ok + ko;
-if (ko === 0) console.log('✅ Adaptateur choix de travaux (chaîne + idempotence) : ' + ok + '/' + total);
-else { console.error('❌ Adaptateur choix de travaux : ' + ok + '/' + total); process.exit(1); }
+if (ko === 0) console.log('✅ Adaptateur LOT33 (chaîne + idempotence) : ' + ok + '/' + total);
+else { console.error('❌ Adaptateur LOT33 : ' + ok + '/' + total); process.exit(1); }

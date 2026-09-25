@@ -36,13 +36,15 @@ function selectBlocIn(src, id) {
 // LOT32 : la question intention VMC est UNIQUE, dans le questionnaire de choix de travaux
 // (moteur js/choix-travaux.js). Funnel + Configuration n'ont plus de question éditable.
 const CT_L32 = require(path.join(RACINE, 'js', 'choix-travaux.js'));
-function vmcIntentValeurs(tp) { const q = CT_L32.construireQuestionnaire({ typeProjet: tp }, [], ['vmc']); const s = q.sections.find(x => x.code === 'vmc'); return s ? s.questions.find(y => y.id === 'intention').options.map(o => o.v) : []; }
+function vmcIntentValeurs(tp) { const q = CT_L32.construireQuestionnaire({ typeProjet: tp }, [], ['vmc']); const s = q.sections.find(x => x.code === 'vmc'); const iq = s ? s.questions.find(y => y.id === 'intention') : null; return iq ? iq.options.map(o => o.v) : []; }
 const INTENT_SELECT = vmcIntentValeurs('renovation');
 
 // ---- 1. Question intention dans le questionnaire (source unique) + valeurs métier ------
 A(INTENT_SELECT.length > 0, 'intention : question présente dans le questionnaire (choix-travaux)');
-['conserver', 'remplacer', 'creer', 'inconnu'].forEach(v =>
+['conserver', 'remplacer', 'creer'].forEach(v =>
   A(INTENT_SELECT.indexOf(v) !== -1, 'intentionVentilation : valeur « ' + v + ' » présente (réno)'));
+// LOT33 : le questionnaire ne propose plus « je ne sais pas » (choix direct) ; la valeur canonique reste supportée.
+A(INTENT_SELECT.indexOf('inconnu') === -1, 'intention : « je ne sais pas » retiré du questionnaire (LOT33)');
 A(vmcIntentValeurs('neuf').indexOf('conserver') === -1, 'intention : neuf sans « conserver » (conditionnel)');
 A(!/<select id="vmc_intention_projet"/.test(CONFIG), 'intention : plus de select éditable en Configuration (rappel lecture seule)');
 A(!/<select id="intentionVentilation"/.test(DEVIS), 'intention : plus de question dans le funnel (déplacée)');

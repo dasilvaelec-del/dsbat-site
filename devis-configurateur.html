@@ -2437,6 +2437,7 @@ function renderChoixTravaux(){
   }
 
   q.sections.forEach(function(sec){
+    if(sec.code==='chauffage'){ h+=__renderChauffage(sec, C); return; }
     if(sec.code==='plomberie'){ h+=__renderPlomberie(sec, C); return; }
     if(sec.code==='revetements'){ h+=__renderRevetements(sec, C); return; }
     if(sec.code==='faience'){ h+=__renderFaience(sec, C); return; }
@@ -2468,6 +2469,16 @@ function __renderPlomberie(sec, C){
     inner+=__ctLigne('Équipements souhaités', chk);
     inner+=__ctLigne('Type de lavabo', __ctSelect("__ctPath(['plomberie','sdb','"+p.cle+"','lavabo'], this.value)", p.lavabo.options, cur.lavabo==null?'':cur.lavabo));
   });
+  (sec.sde||[]).forEach(function(p){
+    inner+='<div style="margin:8px 0 4px;font-weight:700;">'+__ctEsc(p.nom)+' <span style="font-weight:400;color:var(--text-light);font-size:0.82rem;">(salle d\'eau)</span></div>';
+    var cur=(C.plomberie&&C.plomberie.sdb&&C.plomberie.sdb[p.cle])||{};
+    var eqSel=cur.equipements||[];
+    var chk='<div style="display:flex;gap:14px;flex-wrap:wrap;">';
+    p.equipements.forEach(function(e){ var on=eqSel.indexOf(e.v)!==-1; chk+='<label style="display:inline-flex;align-items:center;gap:6px;font-weight:500;"><input type="checkbox" '+(on?'checked':'')+' onchange="__ctEquip(\''+p.cle+'\',\''+e.v+'\', this.checked)"> '+__ctEsc(e.l)+'</label>'; });
+    chk+='</div>';
+    inner+=__ctLigne('Équipements souhaités', chk);
+    inner+=__ctLigne('Type de lavabo', __ctSelect("__ctPath(['plomberie','sdb','"+p.cle+"','lavabo'], this.value)", p.lavabo.options, cur.lavabo==null?'':cur.lavabo));
+  });
   (sec.wc||[]).forEach(function(p){
     inner+='<div style="margin:8px 0 4px;font-weight:700;">'+__ctEsc(p.nom)+'</div>';
     var cur=(C.plomberie&&C.plomberie.wc&&C.plomberie.wc[p.cle])||{};
@@ -2482,11 +2493,25 @@ function __renderPlomberie(sec, C){
   });
   if(sec.laveLinge){
     var curLL=(C.plomberie&&C.plomberie.laveLinge&&C.plomberie.laveLinge.piece)||'';
-    var note = (sec.laveLinge.futur&&sec.laveLinge.futur.length) ? ('Non pris en charge pour l\'instant : '+sec.laveLinge.futur.map(function(f){return f.nom;}).join(', ')+' (évolution future).') : null;
+    var nonC=(sec.laveLinge.options||[]).filter(function(oo){ return oo.v!=='aucun' && oo.consomme===false; }).map(function(oo){return oo.l;});
+    var note = nonC.length ? ('Chiffré aujourd\'hui uniquement en cuisine/cave ; autres pièces conservées mais non chiffrées : '+nonC.join(', ')+'.') : null;
     inner+=__ctLigne(sec.laveLinge.label, __ctSelect("__ctPath(['plomberie','laveLinge','piece'], this.value)", sec.laveLinge.options, curLL), note);
   }
   return __ctCarte(sec.titre, inner);
 }
+
+function __renderChauffage(sec, C){
+  var cur = C.chauffage || {};
+  var inner = __ctLigne(sec.type.label, __ctSelect("__ctChauffageType(this.value)", sec.type.options, cur.type==null?'':cur.type));
+  if(cur.type && sec.solutionsParType && sec.solutionsParType[cur.type]){
+    inner += __ctLigne('Solution', __ctSelect("__ctPath(['chauffage','solution'], this.value)", sec.solutionsParType[cur.type], cur.solution==null?'':cur.solution));
+  }
+  if(sec.secheServiette){
+    inner += __ctLigne(sec.secheServiette.label, __ctSelect("__ctPath(['chauffage','secheServiette'], this.value)", sec.secheServiette.options, cur.secheServiette==null?'':cur.secheServiette));
+  }
+  return __ctCarte(sec.titre, inner);
+}
+function __ctChauffageType(val){ __ctPath(['chauffage','type'], val); __ctPath(['chauffage','solution'], ''); renderChoixTravaux(); }
 
 function __renderRevetements(sec, C){
   var rs=C.revetementsSol||{};
