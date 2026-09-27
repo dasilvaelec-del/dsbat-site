@@ -60,6 +60,7 @@
     if (metiers.indexOf('electricite') !== -1 && choix.electricite) {
       objectif = mapNiveauObjectif(choix.electricite.niveau);
       if (objectif) applique.push('électricité niveau « ' + choix.electricite.niveau + ' » → objectifProjet=' + objectif + ' (recoDSBAT)');
+      if (choix.electricite.eclairageExtEntree === 'oui') descriptif.push('éclairage extérieur entrée : besoin conservé (choixTravaux.electricite.eclairageExtEntree) — aucun code moteur dédié aujourd\'hui (descriptif)');
       if (choix.electricite.reseauMultimedia === 'oui') {
         var n = 0; pieces.forEach(function (p) { if (RJ45_PIECES.indexOf(p.id) !== -1) { addCfg(p, 'electricite', 'ELEC_RJ45', 1); n++; } });
         if (n) applique.push('réseau multimédia renforcé → +1 ELEC_RJ45 dans ' + n + ' pièce(s)');

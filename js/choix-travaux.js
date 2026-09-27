@@ -72,7 +72,7 @@
   function choixTravauxVide() {
     return {
       version: VERSION,
-      electricite: { niveau: null, reseauMultimedia: null },
+      electricite: { niveau: null, reseauMultimedia: null, eclairageExtEntree: null }, // LOT35 : éclairage extérieur entrée
       plomberie: { sdb: {}, wc: {}, cuisine: {}, laveLinge: { piece: null } },
       chauffage: { type: null, solution: null, secheServiette: null },
       ecs: { type: null }, // LOT34 : ECS déplacée ici (canonique chantier.eauChaude)
@@ -132,7 +132,8 @@
         code: 'electricite', titre: '⚡ Électricité',
         questions: [
           { id: 'niveau', type: 'choix', label: 'Niveau de prestations électriques souhaité', options: [{ v: 'essentiel', l: 'Essentiel' }, { v: 'confort', l: 'Confort' }, { v: 'haut', l: 'Haut de gamme' }] },
-          { id: 'reseauMultimedia', type: 'choix', label: 'Réseau multimédia (RJ45) renforcé ?', options: oui_non, note: 'Le socle RJ45 réglementaire est déjà inclus ; « oui » ajoute des prises réseau supplémentaires.' }
+          { id: 'reseauMultimedia', type: 'choix', label: 'Réseau multimédia (RJ45) renforcé ?', options: oui_non, note: 'Le socle RJ45 réglementaire est déjà inclus ; « oui » ajoute des prises réseau supplémentaires.' },
+          { id: 'eclairageExtEntree', type: 'choix', label: 'Souhaitez-vous un éclairage extérieur à l\'entrée de la maison ?', options: oui_non }
         ]
       });
     }

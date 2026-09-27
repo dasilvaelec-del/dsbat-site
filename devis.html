@@ -855,14 +855,36 @@ window.axeptioSettings = {
         </div>
         <div class="form-group">
           <label>Garage</label>
-          <select id="garage">
+          <select id="garage" onchange="majGarageConfig()">
             <option value="non" selected>Non</option>
             <option value="oui">Oui</option>
+          </select>
+        </div>
+        <div class="form-group" id="garageConfigWrap" style="display:none;">
+          <label>Quelle configuration pour le garage ?</label>
+          <select id="garageConfig">
+            <option value="" selected>Sélectionnez</option>
+            <option value="separe">Garage séparé de la maison</option>
+            <option value="attenant">Garage attenant à la maison (accès direct depuis la maison)</option>
           </select>
         </div>
         <div class="form-group">
           <label>Cellier / buanderie</label>
           <select id="cellier">
+            <option value="non" selected>Non</option>
+            <option value="oui">Oui</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Avez-vous une terrasse ?</label>
+          <select id="terrasse" onchange="majTerrasse()">
+            <option value="non" selected>Non</option>
+            <option value="oui">Oui</option>
+          </select>
+        </div>
+        <div class="form-group" id="terrasseEclairageWrap" style="display:none;">
+          <label>Souhaitez-vous un éclairage extérieur pour la terrasse ?</label>
+          <select id="terrasseEclairage">
             <option value="non" selected>Non</option>
             <option value="oui">Oui</option>
           </select>
@@ -913,11 +935,10 @@ window.axeptioSettings = {
         <div class="form-group">
           <label>Quel type d'énergie voulez-vous ?</label>
           <select id="energie">
-            <option value="electrique">Électrique</option>
-            <option value="gaz">Gaz</option>
+            <option value="" selected>Sélectionnez</option>
+            <option value="electrique">Électricité</option>
+            <option value="gaz_electricite">Gaz + électricité</option>
             <option value="fioul">Fioul</option>
-            <option value="pompe">Pompe à chaleur</option>
-            <option value="autre">Autre</option>
           </select>
           <div style="font-size:0.8rem;color:var(--text-light);margin-top:4px;">Énergie du logement. Le système de chauffage et l'eau chaude se choisissent à l'étape « Choix de travaux ».</div>
         </div>
@@ -1519,6 +1540,18 @@ function choisirPrestation(kind) {
 //   neuf  -> ne pas demander l'existant ; neutraliser avec des valeurs sûres
 //            (tableauExistant='inexistant', vmc='non') ; VMC : intention structurelle 'creer'.
 //   renov -> conserver les questions d'existant (comportement actuel).
+function majGarageConfig() {
+  var on = ((document.getElementById('garage') || {}).value === 'oui');
+  var w = document.getElementById('garageConfigWrap'); if (w) w.style.display = on ? '' : 'none';
+  var sel = document.getElementById('garageConfig'); if (!on && sel) sel.value = '';
+}
+function majTerrasse() {
+  var on = ((document.getElementById('terrasse') || {}).value === 'oui');
+  var w = document.getElementById('terrasseEclairageWrap'); if (w) w.style.display = on ? '' : 'none';
+  var sel = document.getElementById('terrasseEclairage'); if (!on && sel) sel.value = '';
+}
+window.addEventListener('DOMContentLoaded', function () { if (document.getElementById('garage')) majGarageConfig(); if (document.getElementById('terrasse')) majTerrasse(); });
+
 function majNbChambres() {
   // LOT34 : nombre de chambres DÉRIVÉ de la typologie (T1->0 ... T6->5). Source unique = #pieces.
   var p = parseInt((document.getElementById('pieces') || {}).value, 10) || 0;
@@ -1546,8 +1579,10 @@ function majContexteTypePrestation(kind) {
   var en = document.getElementById('energie');
   var fio = (typeof document.querySelector === 'function') ? document.querySelector('#energie option[value="fioul"]') : (en && en.querySelector ? en.querySelector('option[value="fioul"]') : null);
   if (fio) { fio.style.display = neuf ? 'none' : ''; fio.disabled = neuf; }
-  if (neuf && en && en.value === 'fioul') en.value = 'electrique';
+  if (neuf && en && en.value === 'fioul') en.value = '';
   if (typeof majNbChambres === 'function') majNbChambres();
+  if (typeof majGarageConfig === 'function') majGarageConfig();
+  if (typeof majTerrasse === 'function') majTerrasse();
   if (neuf) {
     // Neutraliser l'existant avec des valeurs SÛRES existantes (aucun nouvel enum ; aucune propriété supprimée).
     var set = function (id, v) { var el = document.getElementById(id); if (el) el.value = v; };
@@ -1702,6 +1737,11 @@ function collecterDonnees() {
       nbWc: (document.getElementById('nbWc') ? document.getElementById('nbWc').value : ''),
       garage: (document.getElementById('garage') ? document.getElementById('garage').value : ''),
       cellier: (document.getElementById('cellier') ? document.getElementById('cellier').value : ''),
+      // LOT35 : configuration garage (seulement si garage=oui) ; programme logement.
+      garageConfig: ((document.getElementById('garage') || {}).value === 'oui' && document.getElementById('garageConfig')) ? document.getElementById('garageConfig').value : '',
+      // LOT35 : terrasse + éclairage terrasse (éclairage seulement si terrasse=oui) ; programme logement.
+      terrasse: (document.getElementById('terrasse') ? document.getElementById('terrasse').value : ''),
+      terrasseEclairage: ((document.getElementById('terrasse') || {}).value === 'oui' && document.getElementById('terrasseEclairage')) ? document.getElementById('terrasseEclairage').value : '',
       ageBati: document.getElementById('ageBati').value,
       etatLieux: document.getElementById('etatLieux').value,
       typeProjet: document.getElementById('typeProjet').value,
