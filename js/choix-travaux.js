@@ -75,6 +75,7 @@
       electricite: { niveau: null, reseauMultimedia: null },
       plomberie: { sdb: {}, wc: {}, cuisine: {}, laveLinge: { piece: null } },
       chauffage: { type: null, solution: null, secheServiette: null },
+      ecs: { type: null }, // LOT34 : ECS déplacée ici (canonique chantier.eauChaude)
       vmc: { intention: null, solution: null },
       revetementsSol: { uniforme: null, global: null, parPiece: {} },
       faience: { parPiece: {} },
@@ -94,7 +95,7 @@
     var out = clone(base) || choixTravauxVide();
     if (!patch || typeof patch !== 'object') return out;
     out.version = VERSION;
-    ['electricite', 'plomberie', 'chauffage', 'vmc', 'revetementsSol', 'faience', 'menuiserie', 'isolation', 'ba13'].forEach(function (k) {
+    ['electricite', 'plomberie', 'chauffage', 'ecs', 'vmc', 'revetementsSol', 'faience', 'menuiserie', 'isolation', 'ba13'].forEach(function (k) {
       if (patch[k]) out[k] = fusionProfonde(out[k] || {}, patch[k]);
     });
     return out;
@@ -144,6 +145,16 @@
         type: { label: 'Quel type de chauffage souhaitez-vous ?', options: clone(CHAUFFAGE_TYPES) },
         solutionsParType: clone(CHAUFFAGE_SOLUTIONS),
         secheServiette: piecesSS.length ? { label: 'Souhaitez-vous un sèche-serviettes dans vos salles de bain / salles d\'eau ?', options: oui_non, pieces: piecesSS } : null
+      });
+    }
+
+    // EAU CHAUDE SANITAIRE (déplacée de la Partie 2 ; source canonique chantier.eauChaude ; consommateur réel : ballon)
+    if (actif(metiersActifs, 'plomberie')) {
+      sections.push({
+        code: 'ecs', titre: '💧 Eau chaude sanitaire',
+        questions: [
+          { id: 'type', type: 'choix', label: 'Production d\'eau chaude souhaitée', options: [{ v: 'chaudiere', l: 'Chaudière centrale' }, { v: 'ballon', l: 'Ballon électrique' }, { v: 'instantane', l: 'Chauffe-eau instantané' }, { v: 'autre', l: 'Autre' }], note: '« Ballon électrique » déclenche l\'installation automatique d\'un ballon (chiffré).' }
+        ]
       });
     }
 

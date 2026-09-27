@@ -44,6 +44,7 @@ A(/Ventilation \(VMC\)/.test(z.innerHTML) && !/Conserver/.test(z.innerHTML), '(1
 A(/salle d'eau|salle d’eau/i.test(z.innerHTML) || /Salle d'eau/.test(z.innerHTML), '(1c) salle d\'eau rendue distincte');
 A(/Voulez-vous des volets/.test(z.innerHTML) && /motorisés/.test(z.innerHTML), '(1d) volets tri-état');
 A(/Isolation/.test(z.innerHTML) && /BA13|placo/i.test(z.innerHTML), '(1e) isolation + BA13 présents');
+A(/Eau chaude sanitaire/.test(z.innerHTML), '(1f) ECS rendue dans le questionnaire');
 
 // (2) chauffage type -> solution apparaît
 W.__ctChauffageType('electrique');
@@ -60,6 +61,7 @@ W.__ctEquip('sdb#1', 'baignoire', true);
 W.__ctPath(['plomberie', 'wc', 'wc#1', 'type'], 'suspendu');
 W.__ctPath(['menuiserie', 'volets'], 'motorise');
 W.__ctPath(['electricite', 'niveau'], 'confort');
+W.__ctPath(['ecs', 'type'], 'ballon');
 
 // (5) validation -> adaptateur (canonique) + hooks
 W.validerChoixTravaux();
@@ -68,6 +70,7 @@ A(piecesSelectionnees.find(p => p.id === 'sdb').config.electricite.ELEC_SECH_SER
 A(piecesSelectionnees.find(p => p.id === 'sdb').config.plomberie.PLO_BAIGNOIRE === 1, '(5c) baignoire projetée');
 A(piecesSelectionnees.find(p => p.id === 'salon').config.menuiserie.MEN_VOLET_ROULANT === 2, '(5d) volets -> MEN_VOLET_ROULANT');
 A(calls.setObjectif.indexOf('confort') !== -1 && calls.projeterVmc >= 1 && calls.recalc >= 1 && calls.allerPhase[calls.allerPhase.length - 1] === 2, '(5e) setObjectif + projeterVmc + recalc + allerPhase(2)');
+A(global.chantier.eauChaude === 'ballon', '(5f) ECS -> chantier.eauChaude (déplacée de la Partie 2)');
 
 // (6) idempotence
 W.validerChoixTravaux();

@@ -36,12 +36,12 @@ A(!/nombre de pièces rénovées/i.test(DEVIS), 'pieces NON transformé en « pi
 const chBlock = extraire(DEVIS, 'chantier: {');
 ['codePostal', 'ville', 'typeBien', 'typeLogement', 'etage', 'ascenseur', 'surface', 'pieces',
  'ageBati', 'etatLieux', 'typeProjet', 'hauteurPlafond', 'accessibilite', 'accessSup',
- 'qualiteMateriaux', 'chauffage', 'vmc', 'eauChaude', 'tableauExistant', 'borneVE', 'pv',
+ 'qualiteMateriaux', 'energie', 'vmc', 'tableauExistant', 'borneVE', 'pv',
  'domotique', 'anneeConstruction', 'contraintes', 'contraintePrecision']
   .forEach(f => A(new RegExp('\\b' + f + ':').test(chBlock), 'chantier conserve le champ « ' + f + ' »'));
 
 // pénibilité / contraintes / existant explicitement préservés
-['accessibilite', 'accessSup', 'contraintes', 'chauffage', 'vmc', 'eauChaude', 'tableauExistant', 'borneVE', 'pv', 'domotique']
+['accessibilite', 'accessSup', 'contraintes', 'energie', 'vmc', 'tableauExistant', 'borneVE', 'pv', 'domotique']
   .forEach(f => A(new RegExp('\\b' + f + ':').test(chBlock), 'donnée métier préservée (pénibilité/existant) : ' + f));
 
 // pas de nouveau champ chantier.perimetre

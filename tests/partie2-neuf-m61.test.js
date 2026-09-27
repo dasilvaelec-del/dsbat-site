@@ -55,7 +55,7 @@ function scene() {
   doc.reg('tableauExistant', { value: 'recent' }); doc.reg('vmc', { value: 'oui' });
   doc.reg('typeVentilationExistante', { value: 'inconnu' }); doc.reg('intentionVentilation', { value: 'inconnu' });
   // Partie 2 — Énergie (toujours visible)
-  doc.reg('sectionEnergie', { style: { display: '' } }); doc.reg('chauffage', { value: 'electrique' }); doc.reg('eauChaude', { value: 'chaudiere' });
+  doc.reg('sectionEnergie', { style: { display: '' } }); doc.reg('energie', { value: 'electrique' }); // LOT34 : énergie (descriptive) ; ECS déplacée au questionnaire
   // Partie 2 — Programme neuf (visible en neuf seulement)
   doc.reg('sectionProgrammeNeuf', { style: { display: 'none' } });
   doc.reg('nbChambres', { value: '2' }); doc.reg('nbNiveaux', { value: '1' }); doc.reg('nbSallesEau', { value: '1' });
@@ -72,12 +72,10 @@ const disp = (el, v) => el.style.display === v;
 // ===== 0. CONTRAT HTML =====
 {
   A(/id="sectionEnergie"/.test(DEVIS), '0a. section Énergie présente');
-  const iEne = DEVIS.indexOf('id="sectionEnergie"'), iCh = DEVIS.indexOf('id="chauffage"'), iEc = DEVIS.indexOf('id="eauChaude"'), iEx = DEVIS.indexOf('id="sectionExistant"');
-  A(iEne < iCh && iCh < iEx && iEne < iEc && iEc < iEx, '0b. chauffage + ECS placés dans la section Énergie (avant Installations existantes)');
-  const existBloc = DEVIS.slice(DEVIS.indexOf('id="sectionExistant"'), DEVIS.indexOf('id="sectionEnergie"') >= 0 ? DEVIS.length : DEVIS.length);
-  const sectionExistantHtml = DEVIS.slice(DEVIS.indexOf('id="sectionExistant"'), DEVIS.indexOf('</div>\n\n    <div class="form-section">\n      <h3>⭐'));
-  A(!/id="chauffage"/.test(sectionExistantHtml) && !/id="eauChaude"/.test(sectionExistantHtml), '0c. chauffage/ECS ne sont PLUS dans « Installations existantes »');
-  A((DEVIS.match(/id="chauffage"/g) || []).length === 1 && (DEVIS.match(/id="eauChaude"/g) || []).length === 1, '0d. pas de double question chauffage/ECS');
+  const iEne = DEVIS.indexOf('id="sectionEnergie"'), iEn = DEVIS.indexOf('id="energie"'), iEx = DEVIS.indexOf('id="sectionExistant"');
+  A(iEne >= 0 && iEn > iEne && iEn < iEx, '0b. LOT34 : question énergie dans la section Énergie (avant Installations existantes)');
+  A(!/id="eauChaude"/.test(DEVIS), '0c. LOT34 : ECS retirée de la Partie 2 (déplacée vers le questionnaire)');
+  A((DEVIS.match(/id="energie"/g) || []).length === 1 && (DEVIS.match(/id="chauffage"/g) || []).length === 0, '0d. LOT34 : une seule question énergie, plus de #chauffage en Partie 2');
   ['nbChambres', 'nbNiveaux', 'nbSallesEau', 'nbWc', 'garage', 'cellier'].forEach(f => A(new RegExp('id="' + f + '"').test(DEVIS), '0e. champ programme « ' + f + ' » présent'));
   A(/id="sectionProgrammeNeuf" style="display:none;"/.test(DEVIS), '0f. programme neuf masqué par défaut');
   A(/id="fgAgeBati"/.test(DEVIS) && /id="fgEtatLieux"/.test(DEVIS) && /id="sectionAccessibilite"/.test(DEVIS), '0g. champs existant toujours dans le modèle (ids ajoutés)');
@@ -106,11 +104,11 @@ const disp = (el, v) => el.style.display === v;
   A(g('vmc').value === 'non', '1n. vmc=non');
   A(g('intentionVentilation').value === 'inconnu', '1o. LOT32 : le funnel ne force plus l\'intention VMC (défaut « créer » neuf appliqué dans le questionnaire)');
   // le chauffage/ECS restent CHOISISSABLES (le forçage M60 est levé)
-  g('chauffage').value = 'pompe'; g('eauChaude').value = 'ballon';
+  g('energie').value = 'pompe';
   const ch = S.api.collecterDonnees().chantier;
   A(ch.typeProjet === 'neuf', '1p. chantier.typeProjet=neuf conservé');
-  A(ch.chauffage === 'pompe', '1q. chauffage CHOISISSABLE en neuf (M60 corrigé)');
-  A(ch.eauChaude === 'ballon', '1r. ECS choisissable en neuf');
+  A(ch.energie === 'pompe', '1q. LOT34 : énergie choisissable en neuf (chantier.energie, descriptive)');
+  A(ch.eauChaude === undefined && ch.chauffage === undefined, '1r. LOT34 : ECS et système chauffage NON collectés en Partie 2 (déplacés au questionnaire)');
   A(ch.nbChambres === '2' && ch.nbNiveaux === '1' && ch.nbSallesEau === '1' && ch.nbWc === '1' && ch.garage === 'non' && ch.cellier === 'non', '1s. programme neuf collecté dans chantier');
   A(ch.ageBati === 'recent' && ch.etatLieux === 'bon' && ch.accessSup === 'aucune', '1t. valeurs sûres présentes dans chantier (existant conservé)');
 }
@@ -126,7 +124,7 @@ const disp = (el, v) => el.style.display === v;
   A(disp(g('sectionEnergie'), ''), '2d. réno : Énergie visible');
   const ch = S.api.collecterDonnees().chantier;
   A(ch.typeProjet === 'renov', '2e. chantier.typeProjet=renov');
-  A(ch.chauffage === 'electrique' && ch.eauChaude === 'chaudiere', '2f. chauffage/ECS toujours collectés en réno (aucune régression)');
+  A(ch.energie === 'electrique' && ch.eauChaude === undefined && ch.chauffage === undefined, '2f. LOT34 : réno collecte l\'énergie (descriptive) ; système/ECS via questionnaire');
   // réno ne force AUCUNE valeur d'existant (comportement inchangé)
   A(g('ageBati').value === 'moyen' && g('vmc').value === 'oui', '2g. réno : valeurs d\'existant non écrasées');
 }

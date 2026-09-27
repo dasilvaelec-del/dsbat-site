@@ -51,6 +51,8 @@ A(volets.options.length === 3 && volets.options.some(o => o.v === 'manuel') && v
 A(!men.questions.some(x => x.id === 'motoriser'), 'plus de 2e question motorisation');
 
 // ISOLATION + BA13
+const ecs = sec('ecs');
+A(ecs && ecs.questions[0].id === 'type' && ecs.questions[0].options.some(o => o.v === 'ballon'), 'ECS : section présente (déplacée de la Partie 2), valeurs réelles');
 const iso = sec('isolation'); const ba13 = sec('ba13');
 A(iso.questions.some(x => x.id === 'niveau') && iso.questions.some(x => x.id === 'acoustique'), 'isolation : niveau + acoustique');
 A(ba13 && ba13.questions.some(x => x.id === 'cloisons') && ba13.questions.some(x => x.id === 'fauxPlafond'), 'BA13 : cloisons + faux plafond');

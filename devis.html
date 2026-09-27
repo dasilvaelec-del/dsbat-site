@@ -775,7 +775,7 @@ window.axeptioSettings = {
         </div>
         <div class="form-group">
           <label>Combien de pièces principales compte votre logement ? *</label>
-          <select id="pieces">
+          <select id="pieces" onchange="majNbChambres()">
             <option value="1">T1 / F1 — 1 pièce (studio)</option>
             <option value="2">T2 / F2 — 2 pièces</option>
             <option value="3">T3 / F3 — 3 pièces</option>
@@ -824,15 +824,8 @@ window.axeptioSettings = {
       <h3>🏘️ Votre programme (logement neuf)</h3>
       <div class="form-grid">
         <div class="form-group">
-          <label>Nombre de chambres</label>
-          <select id="nbChambres">
-            <option value="0">Aucune (studio)</option>
-            <option value="1">1</option>
-            <option value="2" selected>2</option>
-            <option value="3">3</option>
-            <option value="4">4</option>
-            <option value="5">5 et +</option>
-          </select>
+          <label>Nombre de chambres <span style="font-weight:400;color:var(--text-light);font-size:0.8rem;">(déduit de la typologie)</span></label>
+          <input id="nbChambres" type="text" value="1" readonly style="background:var(--surface-2,#f1f5f9);cursor:not-allowed;">
         </div>
         <div class="form-group">
           <label>Nombre de niveaux</label>
@@ -918,23 +911,15 @@ window.axeptioSettings = {
       <h3>⚡ Énergie</h3>
       <div class="form-grid">
         <div class="form-group">
-          <label>Type de chauffage / énergie</label>
-          <select id="chauffage">
+          <label>Quel type d'énergie voulez-vous ?</label>
+          <select id="energie">
             <option value="electrique">Électrique</option>
             <option value="gaz">Gaz</option>
             <option value="fioul">Fioul</option>
             <option value="pompe">Pompe à chaleur</option>
             <option value="autre">Autre</option>
           </select>
-        </div>
-        <div class="form-group">
-          <label>Eau chaude sanitaire</label>
-          <select id="eauChaude">
-            <option value="chaudiere">Chaudière centrale</option>
-            <option value="ballon">Ballon électrique</option>
-            <option value="instantane">Chauffe-eau instantané</option>
-            <option value="autre">Autre</option>
-          </select>
+          <div style="font-size:0.8rem;color:var(--text-light);margin-top:4px;">Énergie du logement. Le système de chauffage et l'eau chaude se choisissent à l'étape « Choix de travaux ».</div>
         </div>
       </div>
     </div>
@@ -1534,6 +1519,14 @@ function choisirPrestation(kind) {
 //   neuf  -> ne pas demander l'existant ; neutraliser avec des valeurs sûres
 //            (tableauExistant='inexistant', vmc='non') ; VMC : intention structurelle 'creer'.
 //   renov -> conserver les questions d'existant (comportement actuel).
+function majNbChambres() {
+  // LOT34 : nombre de chambres DÉRIVÉ de la typologie (T1->0 ... T6->5). Source unique = #pieces.
+  var p = parseInt((document.getElementById('pieces') || {}).value, 10) || 0;
+  var n = Math.max(0, p - 1);
+  var el = document.getElementById('nbChambres'); if (el) el.value = String(n);
+}
+window.addEventListener('DOMContentLoaded', function () { if (document.getElementById('pieces')) majNbChambres(); });
+
 function majContexteTypePrestation(kind) {
   var echo = document.getElementById('typeProjetEcho');
   var LBL = { neuf: 'Construction neuve', renov: 'Rénovation', depannage: 'Dépannage' };
@@ -1549,6 +1542,12 @@ function majContexteTypePrestation(kind) {
   });
   // M61 : programme du logement neuf — visible en NEUF uniquement.
   var prog = document.getElementById('sectionProgrammeNeuf'); if (prog) prog.style.display = neuf ? '' : 'none';
+  // LOT34 : fioul retiré de l'UI en NEUF (valeur conservée pour la rénovation) ; chambres resynchronisées.
+  var en = document.getElementById('energie');
+  var fio = (typeof document.querySelector === 'function') ? document.querySelector('#energie option[value="fioul"]') : (en && en.querySelector ? en.querySelector('option[value="fioul"]') : null);
+  if (fio) { fio.style.display = neuf ? 'none' : ''; fio.disabled = neuf; }
+  if (neuf && en && en.value === 'fioul') en.value = 'electrique';
+  if (typeof majNbChambres === 'function') majNbChambres();
   if (neuf) {
     // Neutraliser l'existant avec des valeurs SÛRES existantes (aucun nouvel enum ; aucune propriété supprimée).
     var set = function (id, v) { var el = document.getElementById(id); if (el) el.value = v; };
@@ -1710,7 +1709,8 @@ function collecterDonnees() {
       accessibilite: document.getElementById('accessibilite').value,
       accessSup: document.getElementById('accessSup').value,
       qualiteMateriaux: document.getElementById('qualiteMateriaux').value,
-      chauffage: document.getElementById('chauffage').value,
+      // LOT34 : Partie 2 = énergie du logement (descriptif). Le SYSTÈME de chauffage (chantier.chauffage) est choisi au questionnaire.
+      energie: (document.getElementById('energie') ? document.getElementById('energie').value : null),
       vmc: document.getElementById('vmc').value,
       // M57 LOT2 : type de ventilation existante (déclaré) — distinct de `vmc` (compat. historique/b.vmc).
       typeVentilationExistante: (document.getElementById('typeVentilationExistante') ? document.getElementById('typeVentilationExistante').value : 'inconnu'),
@@ -1728,7 +1728,7 @@ function collecterDonnees() {
         },
         fonctionsParPiece: {}
       },
-      eauChaude: document.getElementById('eauChaude').value,
+      // LOT34 : ECS déplacée vers le questionnaire (écrit chantier.eauChaude via l'adaptateur).
       tableauExistant: document.getElementById('tableauExistant').value,
       borneVE: document.getElementById('borneVE').value,
       pv: document.getElementById('pv').value,

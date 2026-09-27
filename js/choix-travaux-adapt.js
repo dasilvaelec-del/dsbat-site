@@ -120,6 +120,13 @@
       Object.keys(raccord).forEach(function (cle) { var p = pieceByCle(cle); if (p) addCfg(p, 'plomberie', 'PLO_RACCORD_LV', raccord[cle]); });
     }
 
+    // 3bis) ECS (déplacée de la Partie 2) -> chantier.eauChaude (source canonique)
+    if (metiers.indexOf('plomberie') !== -1 && choix.ecs && choix.ecs.type) {
+      chantier.eauChaude = choix.ecs.type;
+      if (choix.ecs.type === 'ballon') applique.push('ECS « ballon » → chantier.eauChaude=ballon (ballon auto chiffré par moteur-devis)');
+      else descriptif.push('ECS « ' + choix.ecs.type + ' » → chantier.eauChaude (conservé ; seul « ballon » déclenche un chiffrage auto aujourd\'hui)');
+    }
+
     // 4) VMC (neuf : intention = creer implicite ; sources canoniques)
     var projeterVmc = false;
     if (metiers.indexOf('vmc') !== -1 && choix.vmc) {
