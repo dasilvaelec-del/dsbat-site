@@ -68,27 +68,32 @@ function controlesOublisPeinture(piece) {
   // Portes intérieures (2 faces) — d'après le nombre de portes de la pièce
   add(projetNeuf ? 'PEINT_PORTE_NEUVE' : 'PEINT_PORTE_EXIST', d.portes || 0,
       'Vous n\'avez pas prévu de peindre les ' + (d.portes || 0) + ' porte(s) intérieure(s). Souhaitez-vous les ajouter ?', 'U');
-  // Plinthes — périmètre de la pièce moins les passages de portes
+  // LOT37 §8 : les plinthes ne sont PLUS une prestation du métier peinture — leur logique est
+  // portée par les sols (SOL_PLINT_BOIS / SOL_PLINT_STR). Aucune peinture de plinthe auto ici.
+  // LOT37 §4 (corrigé) : moulures = code catalogue réel PEINT_MOULURE, unité ml, quantité
+  // AUTOMATIQUE = périmètre de la pièce 2·(l+la). Générique : toutes pièces (y compris dynamiques).
   if (d.l && d.la) {
-    const per = 2 * (d.l + d.la) - 0.8 * (d.portes || 0);
-    add('PEINT_PLINTHE', Math.max(0, per),
-        'Vous n\'avez pas prévu de peindre les plinthes (~' + Math.round(per) + ' ml). Souhaitez-vous les ajouter ?', 'ml');
+    const perimetre = Math.round(2 * (d.l + d.la) * 10) / 10;
+    add('PEINT_MOULURE', perimetre,
+        'Boiserie diverse à peindre — moulures (~' + perimetre + ' ml, périmètre de la pièce). Les ajouter ?', 'ml');
   }
-  // Coffres de volets roulants — d'après le nombre de fenêtres
-  add('PEINT_COFFRE_VR', d.fenetres || 0,
-      'Coffres de volets roulants (' + (d.fenetres || 0) + ') non prévus. Les peindre ?', 'U');
-  // Radiateurs — pièces de vie chauffées (hors SDB à sèche-serviette)
-  if (['salon','salle_manger','chambre','bureau','couloir','entree'].includes(piece.id)) {
+  // LOT37 §7 : coffrets de volets roulants — supprimés en NEUF (métal/PVC), conservés en rénovation.
+  if (!projetNeuf) {
+    add('PEINT_COFFRE_VR', d.fenetres || 0,
+        'Coffres de volets roulants (' + (d.fenetres || 0) + ') non prévus. Les peindre ?', 'U');
+  }
+  // LOT37 §6 : radiateurs — supprimés en NEUF (radiateurs neufs), conservés en rénovation.
+  if (!projetNeuf && ['salon','salle_manger','chambre','bureau','couloir','entree'].includes(piece.id)) {
     add('PEINT_RAD', 1, 'Un radiateur à peindre dans cette pièce ? (à ajuster)', 'U');
   }
-  // Tuyaux / canalisations apparents — pièces humides et techniques
+  // Tuyaux / canalisations apparents — inchangé
   if (['sdb','sde','wc','cuisine','cave','garage'].includes(piece.id)) {
     add('PEINT_TUYAU', 2, 'Tuyaux apparents à peindre ? (~2 ml, à ajuster)', 'ml');
   }
-  // Boiseries diverses — pièces de réception
-  if (['salon','salle_manger','entree'].includes(piece.id)) {
-    add('PEINT_BOISERIE', 1, 'Boiseries diverses à peindre (moulures, habillages) ?', 'm²');
-  }
+  // LOT37 §5 : ROSACES (unité U, quantité = nb de points lumineux plafond
+  //   = elec.ELEC_PL_SA + ELEC_PL_VV + ELEC_PL_3BP + ELEC_PL_SUP) — EN ATTENTE : aucun code
+  //   catalogue « rosace » (U) dans le Runtime. Non branché (aucun faux code/prix). Prêt à activer
+  //   dès qu'un code Runtime existera.
   return list;
 }
 

@@ -40,7 +40,7 @@ A(/id="chauffage_present_0"/.test(hR) && /chauffage_technologie_0/.test(hR), 'ch
 let pN = api(neufCh, METIERS, [mkP('salon')]).renderPeintureAuto(0);
 A(!/Rafraîchissement \(2 couches sur bon état\)/.test(pN), 'peinture neuf : plus de « rafraîchissement bon état »');
 A(/impression \+ 2 couches/i.test(pN), 'peinture neuf : impression + 2 couches');
-A(/Enduit \(2 passes\)/i.test(pN) && /option/i.test(pN), 'peinture neuf : enduit 2 passes en OPTION');
+A(/Enduit mural — 2 passes/i.test(pN) && /Option/i.test(pN), 'peinture neuf : enduit 2 passes en OPTION séparée (LOT37 : toggle distinct, plus dans la gamme)');
 A(!/id="peint_papier_0"/.test(pN), 'peinture neuf : pas de décollage papier peint (pièce sèche)');
 A(!/Faïence murale/.test(pN), 'neuf : pas de faïence générique dans une pièce sèche (salon)');
 // pièces humides : faïence conservée en neuf

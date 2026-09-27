@@ -3629,7 +3629,6 @@ function renderPeintureAuto(pieceIndex) {
     const defPap = piece.peintPapier || 'non';
     const gammes = projetNeuf ? [
       { val:'std', label:'Standard (impression + 2 couches)' },
-      { val:'fort', label:'Enduit (2 passes) + 2 couches — option' },
     ] : [
       { val:'less', label:'Rafraîchissement (2 couches sur bon état)' },
       { val:'std', label:'Standard (égrenage + 2 couches)' },
@@ -3651,6 +3650,13 @@ function renderPeintureAuto(pieceIndex) {
         ${plafOpts}
       </select>
     </div>
+    ${projetNeuf ? `<div style="margin-bottom:14px;">
+      <label style="font-size:0.82rem;font-weight:700;color:var(--text-light);text-transform:uppercase;">Option : Enduit mural — 2 passes (chiffré séparément)</label>
+      <select id="enduit_mur_${pieceIndex}" onchange="recalcPiece(${pieceIndex})" style="width:100%;margin-top:6px;padding:10px 14px;border-radius:12px;border:1.5px solid var(--border);background:var(--surface);color:var(--text);font-size:0.95rem;">
+        <option value="non" ${(piece.enduitMur||'non')==='non'?'selected':''}>Non</option>
+        <option value="oui" ${piece.enduitMur==='oui'?'selected':''}>Oui</option>
+      </select>
+    </div>` : ''}
     ${projetNeuf ? '' : `<div style="margin-bottom:8px;">
       <label style="font-size:0.82rem;font-weight:700;color:var(--text-light);text-transform:uppercase;">Décollage papier peint ?</label>
       <select id="peint_papier_${pieceIndex}" onchange="recalcPiece(${pieceIndex})" style="width:100%;margin-top:6px;padding:10px 14px;border-radius:12px;border:1.5px solid var(--border);background:var(--surface);color:var(--text);font-size:0.95rem;">
@@ -4132,9 +4138,11 @@ function recalcPiece(index) {
     const murGamme = document.getElementById(`peint_mur_${index}`)?.value;
     const plafGamme = document.getElementById(`peint_plaf_${index}`)?.value;
     const papier = document.getElementById(`peint_papier_${index}`)?.value;
+    const enduitMur = document.getElementById(`enduit_mur_${index}`)?.value; // LOT37 §1 : option enduit mural
     if (murGamme !== undefined) piece.peintMur = murGamme;
     if (plafGamme !== undefined) piece.peintPlaf = plafGamme;
     if (papier !== undefined) piece.peintPapier = papier;
+    if (enduitMur !== undefined) piece.enduitMur = enduitMur;
   }
   // Revêtement de sol (matériau unique : souple OU carrelage) + sous-couche
   if (metiersActifs.includes('sols') || metiersActifs.includes('carrelage')) {

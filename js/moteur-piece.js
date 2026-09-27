@@ -47,6 +47,9 @@ function calculerPiece(piece, chantier, metiers) {
     const pMur = CODES_PEINT_MUR[murGamme] ? getMoyenPrixFor(CODES_PEINT_MUR[murGamme], piece) * surfMursNette : 0;
     const pPlaf = CODES_PEINT_PLAF[plafGamme] ? getMoyenPrixFor(CODES_PEINT_PLAF[plafGamme], piece) * surfPlaf : 0;
     const pPapier = papier === 'oui' ? getMoyenPrixFor('PREP_DCOL_PAP', piece) * surfMursNette : 0;
+    // LOT37 §1 : option « Enduit mural — 2 passes » — prestation DISTINCTE, chiffrée SÉPARÉMENT de
+    // la peinture (code catalogue réel PREP_ENDUIT_MUR, « hors peinture »). Quantité = surface murs nette.
+    const pEnduitMur = (piece.enduitMur === 'oui') ? getMoyenPrixFor('PREP_ENDUIT_MUR', piece) * surfMursNette : 0;
 
     const sc = detectionSousCouche(piece, chantier, surfMursNette, surfPlaf);
     const pSousCouche = sc ? getMoyenPrixFor('PEINT_SOUS_COUCHE', piece) * sc.surf : 0;
@@ -56,11 +59,12 @@ function calculerPiece(piece, chantier, metiers) {
       ? quantitesPeinture(surfMursNette, surfPlaf, sc ? sc.surf : 0)
       : null;
 
-    const totalPeinture = pMur + pPlaf + pPapier + pSousCouche;
+    const totalPeinture = pMur + pPlaf + pPapier + pSousCouche + pEnduitMur;
     addTemps('peinture',
       (CODES_PEINT_MUR[murGamme] ? tempsUnitaire(CODES_PEINT_MUR[murGamme]) * surfMursNette : 0)
       + (CODES_PEINT_PLAF[plafGamme] ? tempsUnitaire(CODES_PEINT_PLAF[plafGamme]) * surfPlaf : 0)
       + (papier === 'oui' ? tempsUnitaire('PREP_DCOL_PAP') * surfMursNette : 0)
+      + (piece.enduitMur === 'oui' ? tempsUnitaire('PREP_ENDUIT_MUR') * surfMursNette : 0)
       + (sc ? tempsUnitaire('PEINT_SOUS_COUCHE') * sc.surf : 0));
     totalPiece += totalPeinture;
     piece.config['peinture_auto'] = totalPeinture;
