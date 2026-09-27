@@ -3262,6 +3262,29 @@ function syncChauffageDOM(pieceIndex) {
 
 function renderChauffageConfig(pieceIndex) {
   const piece = piecesSelectionnees[pieceIndex];
+  // LOT36 : en NEUF, le chauffage est déjà décidé au questionnaire (chantier.chauffage +
+  // piece.chauffageFonctions.solution). On ne repose PAS les questions situation/intention/
+  // objectif/solution/statut : on affiche un rappel en lecture seule ; le moteur continue de
+  // dimensionner automatiquement la pièce (dimensionnementChauffage, inchangé).
+  if (chantier && (chantier.typeProjet === 'neuf' || chantier.typeProjet === 'extension')) {
+    const d = piece.dims || {}; const surf = ((d.l || 0) * (d.la || 0));
+    const SYS = { electrique: 'Électricité', gaz: 'Gaz', pompe: 'Pompe à chaleur', fioul: 'Fioul' };
+    const SOL = { radiateur_electrique: 'Radiateurs électriques', plancher_chauffant: 'Plancher chauffant', convecteur: 'Convecteurs', chaudiere: 'Chaudière', pompe_a_chaleur: 'Pompe à chaleur', autre: 'Solution à préciser' };
+    const sys = chantier.chauffage ? (SYS[chantier.chauffage] || chantier.chauffage) : null;
+    const tech = (piece.chauffageFonctions && piece.chauffageFonctions.solution && piece.chauffageFonctions.solution.technologie) || null;
+    const ligne = sys
+      ? `Énergie : <strong>${sys}</strong>${tech ? ' · Solution : <strong>' + (SOL[tech] || tech) + '</strong>' : ''}`
+      : 'Chauffage à définir à l\'étape « Choix de travaux ».';
+    return `
+    <div class="chauffage-config" id="chauffage_config_${pieceIndex}">
+      <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:12px;padding:16px;">
+        <div style="font-weight:700;margin-bottom:6px;">🔥 Chauffage (défini au questionnaire)</div>
+        <div style="font-size:0.9rem;margin-bottom:6px;">${ligne}</div>
+        <div style="font-size:0.8rem;color:var(--text-light);">Le dimensionnement (nombre d'appareils, puissance) est calculé automatiquement pour cette pièce${surf > 0 ? ' (~' + surf.toFixed(0) + ' m²)' : ''} — rien à ressaisir ici.</div>
+      </div>
+      <div id="chauffage_etat_local_${pieceIndex}" style="margin-top:12px;"></div>
+    </div>`;
+  }
   const ch = piece.chauffageFonctions || {
     existant: {
       present: null,
@@ -3596,15 +3619,25 @@ function renderPeintureAuto(pieceIndex) {
   const carrOn = metiersActifs.includes('carrelage');
   let html = '';
 
+  // LOT36 : NEUF = support neuf. Impression auto (detectionSousCouche) + 2 couches ; enduit en option.
+  // On retire « rafraîchissement (bon état) » (logique rénovation) et le décollage papier peint
+  // (pas de papier peint existant dans un logement neuf). Rénovation : comportement inchangé.
+  const projetNeuf = chantier && (chantier.typeProjet === 'neuf' || chantier.typeProjet === 'extension');
   if (paintOn) {
-    const defMur = piece.peintMur || ({ bon:'less', moyen:'std', mauvais:'fort' })[(chantier && chantier.etatLieux)] || 'std';
+    const defMur = piece.peintMur || (projetNeuf ? 'std' : (({ bon:'less', moyen:'std', mauvais:'fort' })[(chantier && chantier.etatLieux)] || 'std'));
     const defPlaf = piece.peintPlaf || (defMur === 'less' ? 'less' : 'std');
     const defPap = piece.peintPapier || 'non';
-    const gammes = [
+    const gammes = projetNeuf ? [
+      { val:'std', label:'Standard (impression + 2 couches)' },
+      { val:'fort', label:'Enduit (2 passes) + 2 couches — option' },
+    ] : [
       { val:'less', label:'Rafraîchissement (2 couches sur bon état)' },
       { val:'std', label:'Standard (égrenage + 2 couches)' },
       { val:'fort', label:'Travaux importants (enduit + 2 couches)' },
     ];
+    const plafOpts = projetNeuf
+      ? `<option value="std" ${defPlaf!=='less'?'selected':''}>Standard plafond (impression + 2 couches)</option>`
+      : `<option value="less" ${defPlaf==='less'?'selected':''}>Rafraîchissement plafond</option><option value="std" ${defPlaf==='std'?'selected':''}>Standard plafond</option>`;
     html += `
     <div style="margin-bottom:14px;">
       <label style="font-size:0.82rem;font-weight:700;color:var(--text-light);text-transform:uppercase;">Peinture — gamme murs</label>
@@ -3615,29 +3648,31 @@ function renderPeintureAuto(pieceIndex) {
     <div style="margin-bottom:14px;">
       <label style="font-size:0.82rem;font-weight:700;color:var(--text-light);text-transform:uppercase;">Peinture — gamme plafond</label>
       <select id="peint_plaf_${pieceIndex}" onchange="recalcPiece(${pieceIndex})" style="width:100%;margin-top:6px;padding:10px 14px;border-radius:12px;border:1.5px solid var(--border);background:var(--surface);color:var(--text);font-size:0.95rem;">
-        <option value="less" ${defPlaf==='less'?'selected':''}>Rafraîchissement plafond</option>
-        <option value="std" ${defPlaf==='std'?'selected':''}>Standard plafond</option>
+        ${plafOpts}
       </select>
     </div>
-    <div style="margin-bottom:8px;">
+    ${projetNeuf ? '' : `<div style="margin-bottom:8px;">
       <label style="font-size:0.82rem;font-weight:700;color:var(--text-light);text-transform:uppercase;">Décollage papier peint ?</label>
       <select id="peint_papier_${pieceIndex}" onchange="recalcPiece(${pieceIndex})" style="width:100%;margin-top:6px;padding:10px 14px;border-radius:12px;border:1.5px solid var(--border);background:var(--surface);color:var(--text);font-size:0.95rem;">
         <option value="non" ${defPap==='non'?'selected':''}>Non</option>
         <option value="oui" ${defPap==='oui'?'selected':''}>Oui</option>
       </select>
-    </div>
+    </div>`}
     <div id="souscouche_info_${pieceIndex}" style="font-size:0.8rem;color:var(--accent);margin-top:8px;"></div>
     <div id="reco_support_${pieceIndex}" style="margin-top:10px;"></div>
     <div id="oublis_peinture_${pieceIndex}"></div>`;
   }
 
-  if (carrOn) html += renderFaienceBlock(pieceIndex, piece);
+  // LOT36 : en NEUF, pas de faïence générique dans les pièces sèches ; on ne l'affiche que
+  // dans les pièces réellement concernées (cuisine, SDB, SDE, WC). Rénovation : inchangé.
+  if (carrOn && (!projetNeuf || __faiencePertinente(piece.id))) html += renderFaienceBlock(pieceIndex, piece);
   return html || '<p style="font-size:0.85rem;color:var(--text-light);">Aucune finition murale à configurer.</p>';
 }
 
 // Bloc faïence : mode par type de pièce (pré-rempli), hauteur et surface ajustables,
 // bascule libre vers « murs entiers ». La surface est calculée automatiquement ;
 // l'override manuel reste possible sans limitation.
+function __faiencePertinente(pieceId) { return ['cuisine', 'sdb', 'sde', 'wc'].indexOf(pieceId) !== -1; }
 function renderFaienceBlock(pieceIndex, piece) {
   deriveFaience(piece);
   const mode = piece.faienceMode || 'non';
@@ -3731,13 +3766,14 @@ function renderSolsAuto(pieceIndex) {
       </select>
       <span style="display:block;margin-top:4px;font-size:0.72rem;color:var(--text-light);">📐 Surface = Longueur × Largeur, calculée automatiquement depuis vos dimensions.</span>
     </div>
-    <div>
+    <div id="sol_souscouche_wrap_${pieceIndex}" style="${_flottant ? '' : 'display:none;'}">
       <label style="font-size:0.82rem;font-weight:700;color:var(--text-light);text-transform:uppercase;">Sous-couche ?</label>
       <select id="sol_souscouche_${pieceIndex}" onchange="recalcPiece(${pieceIndex})" style="${_SEL_SS}">
         <option value="non" ${defSC==='non'?'selected':''}>Non</option>
         <option value="std" ${defSC==='std'?'selected':''}>Standard</option>
         <option value="liege" ${defSC==='liege'?'selected':''}>Liège</option>
       </select>
+      <span style="display:block;margin-top:4px;font-size:0.72rem;color:var(--text-light);">Recommandée sous un sol flottant (parquet / stratifié).</span>
     </div>
     <div id="reco_support_sol_${pieceIndex}" style="margin-top:10px;"></div>
     <div id="oublis_sols_${pieceIndex}"></div>
@@ -4103,9 +4139,16 @@ function recalcPiece(index) {
   // Revêtement de sol (matériau unique : souple OU carrelage) + sous-couche
   if (metiersActifs.includes('sols') || metiersActifs.includes('carrelage')) {
     const mat = document.getElementById(`sol_materiau_${index}`)?.value;
-    const sousCouche = document.getElementById(`sol_souscouche_${index}`)?.value;
     if (mat !== undefined) piece.solMateriau = mat;
-    if (sousCouche !== undefined) piece.solSousCouche = sousCouche;
+    // LOT36 : la sous-couche ne concerne que les sols flottants (parquet/stratifié) ; jamais le
+    // carrelage. On masque le sélecteur et on force « non » hors flottant (pas de sous-couche auto carrelage).
+    const _matEff = (mat !== undefined) ? mat : deriveSolMateriau(piece);
+    const _flott = (_matEff === 'parq_flot' || _matEff === 'stratifie');
+    const _scWrap = document.getElementById(`sol_souscouche_wrap_${index}`);
+    if (_scWrap) _scWrap.style.display = _flott ? '' : 'none';
+    const sousCouche = document.getElementById(`sol_souscouche_${index}`)?.value;
+    if (!_flott) piece.solSousCouche = 'non';
+    else if (sousCouche !== undefined) piece.solSousCouche = sousCouche;
   }
   // Faïence murale (mode par type de pièce, hauteur / surface ajustables)
   if (metiersActifs.includes('carrelage')) {
