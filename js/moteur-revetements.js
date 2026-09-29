@@ -13,8 +13,8 @@
 const _r2 = v => Math.round((v || 0) * 100) / 100;
 
 const SOL_MATERIAUX = [
-  { val:'carrelage',       label:'Carrelage (fourniture + pose)',      kind:'carrelage', code:'CAR_POSE_SOL' },
-  { val:'carrelage_grand', label:'Carrelage grand format',             kind:'carrelage', code:'CAR_POSE_SOL_GRAND' },
+  { val:'carrelage',       label:'Carrelage — fourniture + pose',       kind:'carrelage', code:'CAR_POSE_SOL' },
+  { val:'carrelage_grand', label:'Carrelage grand format — fourniture + pose', kind:'carrelage', code:'CAR_POSE_SOL_GRAND' },
   { val:'parq_flot',       label:'Parquet flottant (pose seule)',      kind:'souple' },
   { val:'stratifie',       label:'Sol stratifié (fourniture + pose)',  kind:'souple' },
   { val:'pvc',             label:'Sol PVC (fourniture + pose)',         kind:'souple' },
@@ -80,6 +80,32 @@ function deriveFaience(piece) {
   }
 }
 
+// LOT38 : coefficient de pertes fourniture par pose (repli si CARRELAGE_PARAMS absent).
+function _pertePose(code) {
+  var dflt = { CAR_POSE_SOL: 0.10, CAR_POSE_SOL_GRAND: 0.12, CAR_POSE_MUR: 0.10, CAR_POSE_MUR_PETIT: 0.15 };
+  if (typeof CARRELAGE_PARAMS === 'undefined') return dflt[code] || 0.10;
+  var type = CARRELAGE_PARAMS.perteParPose[code];
+  var pv = CARRELAGE_PARAMS.pertes[type];
+  return (pv === undefined) ? (dflt[code] || 0.10) : pv;
+}
+// LOT38 : revêtement effectif d'une pièce (pour détecter un logement mono-revêtement).
+function revetementEffectif(piece) {
+  var c = (piece && piece.config && piece.config.carrelage) || {};
+  if ((c.CAR_POSE_SOL || 0) > 0 || (c.CAR_POSE_SOL_GRAND || 0) > 0) return 'carrelage';
+  if (piece && piece.solType) return piece.solType;
+  if (piece && (piece.solMateriau === 'carrelage' || piece.solMateriau === 'carrelage_grand')) return 'carrelage';
+  return (piece && piece.solMateriau) || '';
+}
+// LOT38 : vrai s'il n'existe aucune TRANSITION de revêtement dans le logement
+// (0 ou 1 pièce revêtue, ou toutes revêtues du même matériau). Sans modèle de topologie :
+// on ne peut pas localiser une transition précise, mais on supprime les faux seuils du cas
+// mono-revêtement (cf. rapport). Aucune détection d'adjacence inventée.
+function logementMonoRevetement(pieces) {
+  var mats = (pieces || []).map(revetementEffectif).filter(Boolean);
+  if (mats.length <= 1) return true;
+  return mats.every(function (m) { return m === mats[0]; });
+}
+
 // Alimente piece.solType + piece.config.carrelage à partir des choix de revêtement
 // et des SURFACES déjà calculées. N'écrit QUE les codes de pose gérés ici ; les
 // compléments ajoutés via les oublis (fourniture, colle, plinthes…) restent intacts.
@@ -112,6 +138,37 @@ function appliquerRevetements(piece, surfaces, metiers) {
       if (surf > 0) carr[code] = _r2(surf);
     }
   }
+  // LOT38 §1-3 : carrelage = prestation COMPLÈTE. La fourniture du carreau/faïence et le
+  // mortier-colle + joint sont AUTOMATIQUEMENT associés à la pose (plus d'« oublis » à accepter).
+  // Codes catalogue réels réutilisés (CAR_FOURN_CARREAU / CAR_FOURN_FAIENCE / CAR_MORTIER_COLLE),
+  // quantités et pertes existantes conservées.
+  delete carr.CAR_FOURN_CARREAU; delete carr.CAR_FOURN_FAIENCE; delete carr.CAR_MORTIER_COLLE;
+  if (metiers.includes('carrelage')) {
+    var solQ = (carr.CAR_POSE_SOL || 0) + (carr.CAR_POSE_SOL_GRAND || 0);
+    var murQ = (carr.CAR_POSE_MUR || 0) + (carr.CAR_POSE_MUR_PETIT || 0);
+    if (solQ > 0) carr.CAR_FOURN_CARREAU = _r2((carr.CAR_POSE_SOL || 0) * (1 + _pertePose('CAR_POSE_SOL')) + (carr.CAR_POSE_SOL_GRAND || 0) * (1 + _pertePose('CAR_POSE_SOL_GRAND')));
+    if (murQ > 0) carr.CAR_FOURN_FAIENCE = _r2((carr.CAR_POSE_MUR || 0) * (1 + _pertePose('CAR_POSE_MUR')) + (carr.CAR_POSE_MUR_PETIT || 0) * (1 + _pertePose('CAR_POSE_MUR_PETIT')));
+    if (solQ + murQ > 0) carr.CAR_MORTIER_COLLE = _r2(solQ + murQ);
+  }
+
+  // LOT38 §9 : plinthes = CHOIX du revêtement (piece.plinthesType), quantité AUTO = périmètre.
+  //   Défaut = plinthe assortie au revêtement. Codes réels : CAR_PLINTHE / SOL_PLINT_BOIS / SOL_PLINT_STR.
+  var _d = piece.dims || {};
+  var _perim = (_d.l && _d.la) ? Math.max(0, 2 * (_d.l + _d.la) - 0.8 * (_d.portes || 0)) : 0;
+  delete carr.CAR_PLINTHE;
+  var _sols = piece.config.sols || {};
+  delete _sols.SOL_PLINT_BOIS; delete _sols.SOL_PLINT_STR;
+  var _matEff = ((carr.CAR_POSE_SOL || 0) + (carr.CAR_POSE_SOL_GRAND || 0) > 0) ? 'carrelage' : (piece.solType || '');
+  var _pt = piece.plinthesType;
+  if (_pt === undefined || _pt === null || _pt === '') {
+    _pt = (_matEff === 'carrelage') ? 'carrelage' : (_matEff === 'parq_flot') ? 'bois' : (_matEff ? 'stratifiee' : 'aucune');
+  }
+  if (_perim > 0 && _pt !== 'aucune') {
+    if (_pt === 'carrelage' && metiers.includes('carrelage')) carr.CAR_PLINTHE = _r2(_perim);
+    else if (_pt === 'bois') { _sols.SOL_PLINT_BOIS = _r2(_perim); piece.config.sols = _sols; }
+    else if (_pt === 'stratifiee') { _sols.SOL_PLINT_STR = _r2(_perim); piece.config.sols = _sols; }
+  }
+
   // Nettoyage : ne pas laisser un objet carrelage vide polluer le modèle
   if (Object.keys(carr).length === 0) delete piece.config.carrelage;
 }
@@ -119,5 +176,5 @@ function appliquerRevetements(piece, surfaces, metiers) {
 // Export Node (tests) + exposition navigateur (globaux déjà disponibles pour les scripts classiques).
 if (typeof module !== 'undefined' && module.exports) module.exports = {
   _r2, SOL_MATERIAUX, solMateriauxDispo, deriveSolMateriau, FAIENCE_PARAMS,
-  faienceModeDefaut, faienceModesDispo, faienceLongueur, faienceSurfaceBase, deriveFaience, appliquerRevetements
+  faienceModeDefaut, faienceModesDispo, faienceLongueur, faienceSurfaceBase, deriveFaience, appliquerRevetements, revetementEffectif, logementMonoRevetement
 };

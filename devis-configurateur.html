@@ -3763,6 +3763,13 @@ function renderSolsAuto(pieceIndex) {
   const defSC = piece.solSousCouche || (_flottant ? 'std' : 'non');
   const mats = solMateriauxDispo(metiersActifs);
   const carrOn = metiersActifs.includes('carrelage');
+  // LOT38 §9 : plinthes = vrai choix du revêtement (adapté au matériau), quantité auto au périmètre.
+  const _matPl = (mat === 'carrelage' || mat === 'carrelage_grand') ? 'carrelage' : (mat === 'parq_flot') ? 'bois' : (mat ? 'stratifiee' : '');
+  const _plOpts = _matPl === 'carrelage' ? [{ v:'carrelage', l:'Plinthes carrelage' }, { v:'aucune', l:'Aucune' }]
+    : _matPl === 'bois' ? [{ v:'bois', l:'Plinthes bois' }, { v:'aucune', l:'Aucune' }]
+    : _matPl === 'stratifiee' ? [{ v:'stratifiee', l:'Plinthes stratifiées' }, { v:'aucune', l:'Aucune' }]
+    : [];
+  const _defPl = piece.plinthesType || (_matPl || 'aucune');
   return `
     <div style="margin-bottom:14px;">
       <label style="font-size:0.82rem;font-weight:700;color:var(--text-light);text-transform:uppercase;">Matériau du sol</label>
@@ -3780,6 +3787,13 @@ function renderSolsAuto(pieceIndex) {
         <option value="liege" ${defSC==='liege'?'selected':''}>Liège</option>
       </select>
       <span style="display:block;margin-top:4px;font-size:0.72rem;color:var(--text-light);">Recommandée sous un sol flottant (parquet / stratifié).</span>
+    </div>
+    <div id="sol_plinthes_wrap_${pieceIndex}" style="${_matPl ? '' : 'display:none;'}margin-top:14px;">
+      <label style="font-size:0.82rem;font-weight:700;color:var(--text-light);text-transform:uppercase;">Type de plinthes</label>
+      <select id="sol_plinthes_${pieceIndex}" onchange="recalcPiece(${pieceIndex})" style="${_SEL_SS}">
+        ${_plOpts.map(oo => `<option value="${oo.v}" ${oo.v===_defPl?'selected':''}>${oo.l}</option>`).join('')}
+      </select>
+      <span style="display:block;margin-top:4px;font-size:0.72rem;color:var(--text-light);">Quantité (ml) calculée automatiquement au périmètre. (Plinthes prépeintes MDF : non disponibles au catalogue.)</span>
     </div>
     <div id="reco_support_sol_${pieceIndex}" style="margin-top:10px;"></div>
     <div id="oublis_sols_${pieceIndex}"></div>
@@ -4157,6 +4171,12 @@ function recalcPiece(index) {
     const sousCouche = document.getElementById(`sol_souscouche_${index}`)?.value;
     if (!_flott) piece.solSousCouche = 'non';
     else if (sousCouche !== undefined) piece.solSousCouche = sousCouche;
+    // LOT38 §9 : type de plinthes (choix du revêtement) ; sélecteur affiché selon le matériau.
+    const _matPl = (_matEff === 'carrelage' || _matEff === 'carrelage_grand') ? 'carrelage' : (_matEff === 'parq_flot') ? 'bois' : (_matEff ? 'stratifiee' : '');
+    const _plWrap = document.getElementById(`sol_plinthes_wrap_${index}`);
+    if (_plWrap) _plWrap.style.display = _matPl ? '' : 'none';
+    const _plinthes = document.getElementById(`sol_plinthes_${index}`)?.value;
+    if (_plinthes !== undefined) piece.plinthesType = _plinthes;
   }
   // Faïence murale (mode par type de pièce, hauteur / surface ajustables)
   if (metiersActifs.includes('carrelage')) {

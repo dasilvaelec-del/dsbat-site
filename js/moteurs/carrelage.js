@@ -60,36 +60,22 @@ function controlesOublisCarr(piece) {
 
   if (solCarrele + murCarrele <= 0) return list; // le reste ne s'affiche qu'une fois une pose saisie
 
-  // Coefficient de pertes par format (CARRELAGE_PARAMS) — appliqué à la FOURNITURE seule
-  const perte = (code, defaut) => {
-    if (typeof CARRELAGE_PARAMS === 'undefined') return defaut;
-    const type = CARRELAGE_PARAMS.perteParPose[code];
-    const p = CARRELAGE_PARAMS.pertes[piece.carPose === 'diagonale' ? 'diagonale' : type];
-    return (p === undefined) ? defaut : p;
-  };
-  // Fourniture carreau (pose sol) avec pertes selon le format
-  const fournCarreau = (carr.CAR_POSE_SOL || 0) * (1 + perte('CAR_POSE_SOL', 0.10)) + (carr.CAR_POSE_SOL_GRAND || 0) * (1 + perte('CAR_POSE_SOL_GRAND', 0.12));
-  if (solCarrele > 0 && !(carr.CAR_FOURN_CARREAU > 0)) {
-    add('CAR_FOURN_CARREAU', fournCarreau, 'Fourniture du carreau (' + Math.round(fournCarreau) + ' m², chutes incluses) — l\'ajouter ?', 'm²');
-  }
-  // Fourniture faïence (pose murale) avec pertes selon le format
-  const fournFaience = (carr.CAR_POSE_MUR || 0) * (1 + perte('CAR_POSE_MUR', 0.10)) + (carr.CAR_POSE_MUR_PETIT || 0) * (1 + perte('CAR_POSE_MUR_PETIT', 0.15));
-  if (murCarrele > 0 && !(carr.CAR_FOURN_FAIENCE > 0)) {
-    add('CAR_FOURN_FAIENCE', fournFaience, 'Fourniture de la faïence (' + Math.round(fournFaience) + ' m², chutes incluses) — l\'ajouter ?', 'm²');
-  }
+  // LOT38 §2-4 : la fourniture du carreau/faïence (CAR_FOURN_CARREAU / CAR_FOURN_FAIENCE) et le
+  //   mortier-colle + joint (CAR_MORTIER_COLLE) sont désormais AUTOMATIQUEMENT intégrés à la
+  //   prestation carrelage (voir appliquerRevetements) — ils ne sont PLUS proposés en « oubli ».
+  // LOT38 §6 : primaire d'accrochage (CAR_PRIMAIRE) — plus de génération systématique : aucune
+  //   règle de support fiable sans inventer un diagnostic (cf. rapport). Code catalogue conservé.
+  // LOT38 §7 : CAR_PREP_MORTIER — plus de génération automatique (évite des préparations support
+  //   redondantes avec le réagréage) ; code catalogue conservé. Le réagréage (CAR_RAGREAGE) reste
+  //   la seule option de préparation de support (recommandation distincte).
+  // LOT38 §9 : plinthes portées par le choix de revêtement (renderSolsAuto), plus par un oubli.
 
-  // Consommables : primaire, mortier-colle + joint, préparation du support
-  add('CAR_PRIMAIRE', solCarrele + murCarrele, 'Primaire d\'accrochage non prévu (' + (solCarrele + murCarrele) + ' m²) — l\'ajouter ?', 'm²');
-  add('CAR_MORTIER_COLLE', solCarrele + murCarrele, 'Mortier-colle + joint non prévu (' + (solCarrele + murCarrele) + ' m²) — l\'ajouter ?', 'm²');
-  add('CAR_PREP_MORTIER', solCarrele, 'Préparation du support au mortier (' + solCarrele + ' m²) — l\'ajouter ?', 'm²');
-
-  // Plinthes carrelage (périmètre moins passages de portes) si sol carrelé
-  if (solCarrele > 0 && d.l && d.la) {
-    const per = 2 * (d.l + d.la) - 0.8 * (d.portes || 0);
-    add('CAR_PLINTHE', Math.max(0, per), 'Plinthes carrelage non prévues (~' + Math.round(per) + ' ml) — les ajouter ?', 'ml');
-  }
-  // Seuils de transition aux passages de porte
-  if (solCarrele > 0) {
+  // LOT38 §8 : seuils de transition — supprimés si le logement est MONO-revêtement (aucun
+  //   changement de revêtement -> aucune transition). Sans topologie des pièces adjacentes, on ne
+  //   localise pas une transition précise (limite documentée) ; on évite au moins les faux seuils.
+  var _pieces = (typeof piecesSelectionnees !== 'undefined') ? piecesSelectionnees : [];
+  var _mono = (typeof logementMonoRevetement === 'function') ? logementMonoRevetement(_pieces) : false;
+  if (solCarrele > 0 && !_mono) {
     add('CAR_SEUIL', Math.round(0.8 * (d.portes || 0) * 10) / 10, 'Seuils de transition aux ' + (d.portes || 0) + ' passage(s) de porte non prévus — les ajouter ?', 'ml');
   }
   // Accessoires de finition (optionnels) : profilés d'arête si faïence

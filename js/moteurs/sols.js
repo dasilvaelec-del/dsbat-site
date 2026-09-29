@@ -27,16 +27,17 @@ function controlesOublisSol(piece) {
     if (qty <= 0 || cfg[code] || ign[code]) return;
     list.push({ code, qty, question, unite });
   };
-  // Plinthes assorties au revêtement — périmètre moins les passages de portes
-  if (d.l && d.la) {
-    const per = 2 * (d.l + d.la) - 0.8 * (d.portes || 0);
-    const codePlinthe = (type === 'parq_flot') ? 'SOL_PLINT_BOIS' : 'SOL_PLINT_STR';
-    add(codePlinthe, Math.max(0, per),
-        'Vous n\'avez pas prévu de plinthes (~' + Math.round(per) + ' ml). Souhaitez-vous les ajouter ?', 'ml');
+  // LOT38 §9 : plinthes = CHOIX du revêtement (piece.plinthesType, via appliquerRevetements),
+  //   codes SOL_PLINT_BOIS / SOL_PLINT_STR — ne sont PLUS proposées en « oubli ».
+  // LOT38 §8 : barres de seuil supprimées si le logement est MONO-revêtement (aucune transition).
+  //   Sans topologie des pièces adjacentes, la localisation d'une transition n'est pas possible
+  //   (limite documentée) ; on supprime au moins les faux seuils du cas mono-revêtement.
+  const _pieces = (typeof piecesSelectionnees !== 'undefined') ? piecesSelectionnees : [];
+  const _mono = (typeof logementMonoRevetement === 'function') ? logementMonoRevetement(_pieces) : false;
+  if (!_mono) {
+    add('SOL_SEUIL', d.portes || 0,
+        'Barres de seuil aux ' + (d.portes || 0) + ' passage(s) de porte non prévues. Les ajouter ?', 'U');
   }
-  // Barres de seuil — une par passage de porte
-  add('SOL_SEUIL', d.portes || 0,
-      'Barres de seuil aux ' + (d.portes || 0) + ' passage(s) de porte non prévues. Les ajouter ?', 'U');
   // Ragréage — si le support le justifie
   const ev = evaluationSupportSol(piece, chantier);
   if (ev.ragreageConseille && d.l && d.la) {
