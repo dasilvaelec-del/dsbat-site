@@ -34,6 +34,7 @@ global.poseParDefaut = () => 'saignee';
 global.gammeElecParDefaut = () => 'mosaic';
 global.gammePloParDefaut = () => 'standard';
 global.normaliserGammesIP44 = () => {};
+global._appliquerSocleLot39 = (liste) => liste; // LOT39 P2 : collaborateur du raccordement (socle testé ailleurs)
 global.verifierCoherenceGlobale = () => [];   // cohérence testée ailleurs ; ici on cible navigation/fusion
 global.afficherCoherence = () => {};
 global.masquerCoherence = () => {};

@@ -102,8 +102,9 @@ A(dejaProjet.projet.existant && dejaProjet.projet.existant.note === 'x', '6. pro
 // ===== 7. Les moteurs actuels reçoivent toujours les contrats attendus ==
 // Socle NON branché : le configurateur et les moteurs ne sont pas modifiés.
 const html = fs.readFileSync(path.join(RACINE, 'devis-configurateur.html'), 'utf8');
-A(!/normaliserPieceSocle|categorieSurfacePiece|projetPieceVierge/.test(html),
-  '7. socle NON branché au configurateur (raccordement = Passe 2)');
+A(/ModeleProjetDSBAT\.normaliserPieceSocle/.test(html)
+  && !/CATEGORIE_PAR_ID|function\s+categorieSurfacePiece/.test(html),
+  '7. socle branché au configurateur via le modèle (LOT39 P2), sans table dupliquée');
 // et une pièce normalisée reste consommable par le moteur de pièce (surfaces dérivées OK)
 global.chantier = { typeProjet: 'neuf' };
 const pm = { id: 'salon', nom: 'Salon', dims: { l: 5, la: 4, h: 2.5, fenetres: 1, portes: 1 }, config: {} };

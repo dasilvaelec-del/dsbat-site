@@ -105,10 +105,10 @@ function fabriqueTypo(chantier) {
   const initial = [{ id: 'salon', numero: 1, nom: 'Salon', icon: 's', dims: { l: 4, la: 5, h: 2.5, fenetres: 2, portes: 1 }, config: { electricite: { ELEC_PL_SA: 3, ELEC_PRISE10: 5 } }, elecGamme: 'mosaic', chauffageFonctions: { intention: { action: 'creer' } } }];
   const compteurs = { salon: 1 };
   const api = new Function(
-    'piecesSelectionnees', 'compteurs', 'chantier', 'dimsParPiece', 'dimKey', 'poseParDefaut', 'gammeElecParDefaut', 'gammePloParDefaut', 'normaliserGammesIP44', 'verifierCoherenceGlobale', 'afficherCoherence', 'masquerCoherence', 'appliquerNorme', 'appliquerObjectif', 'saveEtat', 'allerPhase', 'document', '__coherenceAcquittee',
+    'piecesSelectionnees', 'compteurs', 'chantier', 'dimsParPiece', 'dimKey', 'poseParDefaut', 'gammeElecParDefaut', 'gammePloParDefaut', 'normaliserGammesIP44', '_appliquerSocleLot39', 'verifierCoherenceGlobale', 'afficherCoherence', 'masquerCoherence', 'appliquerNorme', 'appliquerObjectif', 'saveEtat', 'allerPhase', 'document', '__coherenceAcquittee',
     PIECES_DEF_SRC + '\n' + extraire('function validerPieces(') +
     ';return { run: validerPieces, get: function(){ return piecesSelectionnees; } };'
-  )(initial, compteurs, {}, {}, (id, i) => id + '#' + i, () => 'placo', () => 'mosaic', () => 'standard', stub, () => [], stub, stub, stub, stub, stub, stub, doc, true);
+  )(initial, compteurs, {}, {}, (id, i) => id + '#' + i, () => 'placo', () => 'mosaic', () => 'standard', stub, stub, () => [], stub, stub, stub, stub, stub, stub, doc, true);
   api.run();
   const res = api.get();
   const salon = res.find(p => p.id === 'salon' && p.numero === 1);

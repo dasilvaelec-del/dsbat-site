@@ -23,6 +23,47 @@ const SEUILS_COHERENCE = {
   chambresMinGrandeSurface: 3
 };
 
+// ============================================================================
+// LOT39 P3 — Coherence de surface par CATEGORIE.
+// La coherence de surface LOGEMENT ne compte QUE les pieces de categorie
+// 'logement'. Les annexes / exterieurs — et les categories indeterminees
+// (ex. veranda) — restent dans le projet mais sont EXCLUS de ce controle
+// (jamais ajoutees a la surface logement).
+// Source unique de la categorie ET de la surface geometrique : le modele LOT39
+// (ModeleProjetDSBAT). Aucune table ni formule concurrente recreee ici ; le
+// repli `l x la` n'est utilise que si le modele n'est pas charge (compat).
+// ============================================================================
+function _lot39Modele() {
+  return (typeof ModeleProjetDSBAT !== 'undefined' && ModeleProjetDSBAT) ? ModeleProjetDSBAT : null;
+}
+function surfaceGeometriquePiece(p) {
+  var M = _lot39Modele();
+  if (M && typeof M.surfacePiece === 'function') return M.surfacePiece(p);
+  var d = (p && p.dims) || {};                 // repli historique (formule identique) si modele absent
+  return (Number(d.l) || 0) * (Number(d.la) || 0);
+}
+function categorieSurfaceDe(p) {
+  var c = p && p.categorieSurface;             // posee par le socle (P2) sur les pieces vivantes
+  if (c === undefined || c === null) {
+    var M = _lot39Modele();
+    if (M && typeof M.categorieSurfacePiece === 'function') c = M.categorieSurfacePiece(p);
+  }
+  return c;
+}
+// Surface LOGEMENT = somme des pieces de categorie 'logement' uniquement.
+function surfaceLogement(pieces) {
+  var modelePresent = !!_lot39Modele();
+  return (pieces || []).reduce(function (s, p) {
+    var cat = categorieSurfaceDe(p);
+    if (cat === 'annexe' || cat === 'exterieur') return s;      // EXCLU de la coherence logement
+    if (cat === 'logement') return s + surfaceGeometriquePiece(p);
+    // Categorie indeterminee (null/undefined, ex. veranda) :
+    //  - modele charge  -> EXCLU (regle sure : pas d'ajout arbitraire au logement) ;
+    //  - modele absent   -> repli historique (comptee) pour ne pas regresser un appelant sans socle.
+    return modelePresent ? s : s + surfaceGeometriquePiece(p);
+  }, 0);
+}
+
 function controlesCoherence(pieces, ch) {
   const S = SEUILS_COHERENCE;
   const alertes = [];
@@ -103,7 +144,7 @@ function controlesCoherence(pieces, ch) {
 
   // Contrôles globaux
   const surfDeclaree = parseFloat(ch && ch.surface) || 0;
-  const surfSaisie = pieces.reduce((s, p) => s + (((p.dims || {}).l || 0) * ((p.dims || {}).la || 0)), 0);
+  const surfSaisie = surfaceLogement(pieces); // LOT39 P3 : cohérence LOGEMENT uniquement (annexes/extérieurs/indéterminées exclus)
   if (surfDeclaree > 0 && surfSaisie > 0) {
     // AIC-001/M1-B : contrôle de surface PROGRESSIF (transversal, non bloquant).
     // Bascule calée sur le POURCENTAGE AFFICHÉ. 0 % → aucun message ici
@@ -193,4 +234,4 @@ function verifierCoherenceGlobale(pieces, ch) {
   return controlesCoherence(pieces, ch);
 }
 
-if (typeof module !== "undefined" && module.exports) module.exports = { SEUILS_COHERENCE, controlesCoherence, verifierCoherenceGlobale };
+if (typeof module !== "undefined" && module.exports) module.exports = { SEUILS_COHERENCE, controlesCoherence, verifierCoherenceGlobale, surfaceLogement, surfaceGeometriquePiece, categorieSurfaceDe };

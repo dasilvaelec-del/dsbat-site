@@ -1898,6 +1898,7 @@ function restaurerEtat() {
     });
   }
   piecesSelectionnees = Array.isArray(etat.pieces) ? etat.pieces : [];
+  _appliquerSocleLot39(piecesSelectionnees); // LOT39 P2 : socle aussi applique aux sessions restaurees (migration additive)
   normaliserGammesIP44(); // migration des sessions sauvegardées avant la règle IP44
   if (etat.objectif) objectifProjet = etat.objectif;
   if (etat.mode) modeChantier = etat.mode;
@@ -2316,6 +2317,17 @@ function masquerCoherence() {
 // ne doit JAMAIS effacer la configuration déjà saisie en phase 2.
 // Les pièces existantes sont retrouvées par (id + numero) et conservées
 // avec leur config, leur normeMin et leurs choix de pose/gamme.
+// LOT39 P2 — Raccordement du socle metier des pieces (Passe 1) au configurateur.
+// Delegue ENTIEREMENT la categorisation et le contrat projet au modele
+// (ModeleProjetDSBAT.normaliserPieceSocle) : AUCUNE table id->categorie dupliquee ici.
+// Additif, idempotent, non destructif ; garde defensive si le module est absent.
+function _appliquerSocleLot39(liste) {
+  if (typeof ModeleProjetDSBAT !== 'undefined' && ModeleProjetDSBAT && typeof ModeleProjetDSBAT.normaliserPieceSocle === 'function') {
+    (liste || []).forEach(function (p) { ModeleProjetDSBAT.normaliserPieceSocle(p); });
+  }
+  return liste;
+}
+
 function validerPieces(apres) {
   // AIC-001/M6-B : `apres` = continuation optionnelle. Sans callback, comportement
   // historique inchangé (allerPhase(2)). Reconstruction/fusion ci-dessous INCHANGÉE.
@@ -2349,6 +2361,7 @@ function validerPieces(apres) {
   });
 
   piecesSelectionnees = nouvelles;
+  _appliquerSocleLot39(piecesSelectionnees); // LOT39 P2 : socle (categorieSurface + projet) applique a toutes les pieces creees
   normaliserGammesIP44(); // extérieur + garage -> gamme étanche IP44 imposée
 
   if (piecesSelectionnees.length === 0) {
