@@ -96,6 +96,7 @@ window.axeptioSettings = {
      qu'explicitement (voir bloc d'activation en bas de page). Aucun effet par défaut. -->
 <script src="js/moteur-piece-complet.js"></script>
 <script src="js/modele-projet.js"></script>
+<script src="js/applicabilite-metiers.js"></script>
 <script src="js/runtime-client.js"></script>
 <script src="js/shadow.js"></script>
 <script src="js/moteur-mode.js"></script>
@@ -1000,14 +1001,19 @@ function getVmcPourPieceUI(pieceId) {
   return base.filter(function (pr) { return pr.code === codeApplicable; });
 }
 
-function getPrestationsPourPiece(pieceId, metiersActifs) {
+function getPrestationsPourPiece(piece, metiersActifs, chantier) {
   const sections = [];
+  // LOT40 P1 : accepte l'objet piece (ou un id, rétro-compat) + le chantier.
+  const pieceId = (piece && typeof piece === 'object') ? piece.id : piece;
+  // Gate d'applicabilité (couche LOT40) AVANT la création de chaque section.
+  // Défaut sûr : si le module n'est pas chargé, tout reste applicable (comportement inchangé).
+  const _appl = (m) => (typeof ApplicabiliteMetiers === 'undefined') || ApplicabiliteMetiers.estMetierApplicable(m, piece, chantier);
 
-  if (metiersActifs.includes('electricite')) {
+  if (metiersActifs.includes('electricite') && _appl('electricite')) {
     const prests = getElecPourPiece(pieceId);
     if (prests.length > 0) sections.push({ metier:'electricite', icon:'⚡', label:'Électricité', prests });
   }
-    if (metiersActifs.includes('chauffage')) {
+    if (metiersActifs.includes('chauffage') && _appl('chauffage')) {
     sections.push({
       metier: 'chauffage',
       icon: '🔥',
@@ -1015,28 +1021,28 @@ function getPrestationsPourPiece(pieceId, metiersActifs) {
       prests: []
     });
   }
-  if (metiersActifs.includes('plomberie')) {
+  if (metiersActifs.includes('plomberie') && _appl('plomberie')) {
     const prests = getPlombPourPiece(pieceId);
     if (prests.length > 0) sections.push({ metier:'plomberie', icon:'🚿', label:'Plomberie', prests });
   }
   // Familles harmonisées (MISSION 052) : le carrelage/faïence n'est plus un métier
   // séparé — le carrelage sol rejoint « Revêtement de sol », la faïence rejoint
   // « Revêtement mural ». Une famille apparaît si son métier OU le carrelage est actif.
-  if (metiersActifs.includes('peinture') || metiersActifs.includes('carrelage')) {
+  if ((metiersActifs.includes('peinture') || metiersActifs.includes('carrelage')) && _appl('peinture')) {
     sections.push({ metier:'peinture', icon:'🎨', label:'Revêtement mural', prests: [], auto: true, autoType: 'peinture' });
   }
-  if (metiersActifs.includes('sols') || metiersActifs.includes('carrelage')) {
+  if ((metiersActifs.includes('sols') || metiersActifs.includes('carrelage')) && _appl('sols')) {
     sections.push({ metier:'sols', icon:'🪵', label:'Revêtement de sol', prests: [], auto: true, autoType: 'sols' });
   }
-  if (metiersActifs.includes('isolation')) {
+  if (metiersActifs.includes('isolation') && _appl('isolation')) {
     const prests = getIsolationPourPiece(pieceId);
     if (prests.length > 0) sections.push({ metier:'isolation', icon:'🧱', label:'Isolation / Plâtrerie', prests });
   }
-  if (metiersActifs.includes('menuiserie')) {
+  if (metiersActifs.includes('menuiserie') && _appl('menuiserie')) {
     const prests = getMenuiseriePourPiece(pieceId);
     if (prests.length > 0) sections.push({ metier:'menuiserie', icon:'🚪', label:'Menuiserie', prests });
   }
-  if (metiersActifs.includes('vmc')) {
+  if (metiersActifs.includes('vmc') && _appl('vmc')) {
     const prests = getVmcPourPieceUI(pieceId); // M62-UI : uniquement la prestation applicable au rôle
     if (prests.length > 0) sections.push({ metier:'vmc', icon:'💨', label:'VMC', prests });
   }
@@ -3132,7 +3138,7 @@ function renderPhase2() {
 }
 
 function renderPieceConfig(piece, index) {
-  const sections = getPrestationsPourPiece(piece.id, metiersActifs);
+  const sections = getPrestationsPourPiece(piece, metiersActifs, chantier);
 
   return `
     <div class="piece-config ${index === 0 ? 'active' : ''}" id="config_${index}">
@@ -4314,7 +4320,7 @@ function recalcPiece(index) {
 }
 
 function updateSectionTotals(index, piece) {
-  const sections = getPrestationsPourPiece(piece.id, metiersActifs);
+  const sections = getPrestationsPourPiece(piece, metiersActifs, chantier);
   sections.forEach(s => {
     const sid = `sec_${index}_${s.metier}`;
     const totalEl = document.getElementById(`${sid}_total`);

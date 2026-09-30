@@ -6,7 +6,7 @@
 set -euo pipefail
 PUBLIC="${1:?chemin du dépôt public requis}"
 FICHIERS=(
-  js/modele-projet.js js/moteur-devis.js js/moteur-mode.js js/moteur-piece.js
+  js/applicabilite-metiers.js js/modele-projet.js js/moteur-devis.js js/moteur-mode.js js/moteur-piece.js
   js/moteur-piece-complet.js js/moteur-revetements.js js/moteur-tva.js
   js/moteurs/peinture.js js/shadow.js js/tarifs-mode.js
   js/vue-tarifaire.js js/vue-tarifaire-data.js
