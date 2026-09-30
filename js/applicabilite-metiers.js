@@ -25,6 +25,23 @@
   // au niveau de la couche (les moteurs restent inchangés).
   var MASQUES_EXTERIEUR = ['peinture', 'sols', 'carrelage', 'vmc'];
 
+  // LOT40 P2 — MATRICE DOCUMENTAIRE annexe × métier (INTENTIONS, PAS des masques).
+  // Elle décrit l'USAGE ACTUEL connu d'une annexe : quels métiers sont « pertinents »
+  // et lesquels sont « conditionnels ». En P2, AUCUN conditionnel n'est masqué :
+  // tant qu'aucune donnée fiable d'usage/état per-pièce n'existe (piece.projet.* est
+  // dormant et toujours null), on n'exclut QUE les métiers manifestement hors contexte
+  // — ce que fait déjà la règle extérieure. Cette table est donc purement indicative
+  // et servira de base au futur enrichissement (quand un vrai état/usage existera).
+  // NE PAS transformer ces « conditionnels » en false : l'API reste booléenne et sûre.
+  var MATRICE_ANNEXE = {
+    garage:  { pertinents: ['electricite', 'sols', 'menuiserie'],
+               conditionnels: ['plomberie', 'peinture', 'carrelage', 'isolation', 'vmc', 'chauffage'] },
+    cave:    { pertinents: ['electricite', 'sols', 'vmc'],
+               conditionnels: ['plomberie', 'peinture', 'carrelage', 'isolation', 'menuiserie', 'chauffage'] },
+    grenier: { pertinents: ['isolation', 'menuiserie'],
+               conditionnels: ['electricite', 'plomberie', 'peinture', 'sols', 'carrelage', 'vmc', 'chauffage'] }
+  };
+
   // Catégorie de surface d'une pièce — SANS dupliquer la table LOT39.
   function _categorie(piece) {
     var c = piece && piece.categorieSurface;
@@ -36,9 +53,13 @@
   }
 
   // Un métier est-il applicable à une pièce dans son contexte ?
-  // Défaut SÛR = applicable. En P1 : seul l'extérieur masque un sous-ensemble.
-  //   logement / annexe / catégorie indéterminée -> comportement actuel conservé.
-  // `chantier` fait partie du contrat (contexte) ; non exploité en P1.
+  // Défaut SÛR = applicable. Seul l'EXTÉRIEUR masque un sous-ensemble (P1, inchangé).
+  //   logement -> tous applicables ;
+  //   annexe   -> tous applicables en P2 (la MATRICE_ANNEXE reste documentaire :
+  //               aucun « conditionnel » n'est masqué faute de donnée d'usage fiable) ;
+  //   catégorie indéterminée (ex. véranda = null) -> défaut sûr, tous applicables.
+  // N'accède JAMAIS à piece.projet.* (dormant/null) ; ne simule aucune transformation.
+  // `chantier` fait partie du contrat (contexte) ; non exploité ici.
   function estMetierApplicable(metier, piece, chantier) {
     if (_categorie(piece) === 'exterieur') {
       return MASQUES_EXTERIEUR.indexOf(metier) === -1;
@@ -55,6 +76,7 @@
   var API = {
     METIERS: METIERS,
     MASQUES_EXTERIEUR: MASQUES_EXTERIEUR,
+    MATRICE_ANNEXE: MATRICE_ANNEXE, // documentaire (intentions métier) — n'altère pas les booléens
     estMetierApplicable: estMetierApplicable,
     metiersApplicables: metiersApplicables
   };
