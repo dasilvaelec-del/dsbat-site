@@ -3488,7 +3488,7 @@ function renderMetierSection(section, pieceIndex) {
     // Sections avec calcul automatique depuis les dimensions
     const isPaint = section.autoType === 'peinture';
     return `
-      <div class="metier-section open" id="${sid}">
+      <div class="metier-section" id="${sid}">
         <div class="metier-section-header" onclick="toggleSection('${sid}')">
           <span>${section.icon}</span>
           <h3>${section.label}</h3>
