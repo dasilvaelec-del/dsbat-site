@@ -190,6 +190,86 @@
     return { ok: pb.length === 0, problemes: pb };
   }
 
+  // ==================================================================
+  // LOT39 — PASSE 1 : SOCLE DU MODÈLE MÉTIER DES PIÈCES (additif, non branché)
+  // ------------------------------------------------------------------
+  // Pose un contrat de données propre et extensible pour la pièce : catégorie de
+  // surface + préparation existant/cible/transformation. Fonctions PURES,
+  // additives, réversibles. NE MODIFIE NI le modèle vivant, NI les moteurs, NI le
+  // configurateur (raccordement = Passe 2). Contraintes respectées :
+  //   • AUCUNE nouvelle source de vérité géométrique : la surface reste DÉRIVÉE
+  //     de dims (longueur × largeur), jamais persistée en piece.surface.
+  //   • AUCUNE duplication de la pièce dans existant/cible (bloc plat et vide).
+  //   • Le neuf reste le cas par défaut : une pièce peut exister sans existant.
+  // ==================================================================
+
+  // Catégories de surface autorisées pour cette passe (aucune autre sans justification).
+  var CATEGORIES_SURFACE = ['logement', 'annexe', 'exterieur'];
+
+  // Cartographie id de pièce -> catégorie de surface, basée sur les identifiants
+  // RÉELS du configurateur (PIECES_DEF). Les cas ambigus (véranda, hybrides) et
+  // les identifiants inconnus ne sont PAS forcés : catégorie indéterminée (null)
+  // = comportement sûr, à trancher ultérieurement (cf. rapport).
+  var CATEGORIE_PAR_ID = {
+    // Logement (surfaces habitables intérieures)
+    salon: 'logement', salle_manger: 'logement', cuisine: 'logement',
+    bureau: 'logement', chambre: 'logement', dressing: 'logement',
+    sdb: 'logement', sde: 'logement', wc: 'logement',
+    entree: 'logement', couloir: 'logement', escalier: 'logement',
+    buanderie: 'logement',
+    // Annexes (non habitables, closes)
+    garage: 'annexe', cave: 'annexe', cellier: 'annexe',
+    grenier: 'annexe', remise: 'annexe',
+    // Extérieur
+    terrasse: 'exterieur', jardin: 'exterieur', facade: 'exterieur',
+    carport: 'exterieur'
+    // NB : 'veranda' volontairement absent -> catégorie indéterminée (hybride).
+  };
+
+  function categorieSurfaceValide(v) {
+    return CATEGORIES_SURFACE.indexOf(v) !== -1;
+  }
+
+  // Détermine la catégorie de surface d'une pièce (ou d'un id). Retourne l'une des
+  // 3 valeurs autorisées, ou null si indéterminée (cas ambigu / id inconnu).
+  function categorieSurfacePiece(pieceOuId) {
+    var id = (pieceOuId && typeof pieceOuId === 'object') ? pieceOuId.id : pieceOuId;
+    if (typeof id !== 'string' || !id) return null;
+    var c = CATEGORIE_PAR_ID[id];
+    return categorieSurfaceValide(c) ? c : null;
+  }
+
+  // Surface DÉRIVÉE de la géométrie existante (longueur × largeur). Ne lit que
+  // piece.dims ; n'écrit rien ; ne crée AUCUNE propriété piece.surface persistée.
+  function surfacePiece(piece) {
+    var d = (piece && piece.dims) || {};
+    var l = Number(d.l) || 0, la = Number(d.la) || 0;
+    return l * la;
+  }
+
+  // Bloc « projet » minimal préparant existant / cible / transformation.
+  // Volontairement plat et vide : PAS de copie de la pièce, PAS de mécanique de
+  // transformation ici. Le neuf est le défaut : existant = null.
+  function projetPieceVierge() {
+    return { existant: null, cible: null, transformation: null };
+  }
+
+  // Normalise une pièce vers le socle LOT39 SANS rien écraser : ajoute
+  // categorieSurface (si déterminable et absente) et projet (si absent). Additif
+  // et idempotent. Ne touche à AUCUNE autre propriété (id, nom, dims, config…
+  // conservées telles quelles). Retourne la même référence.
+  function normaliserPieceSocle(piece) {
+    if (!piece || typeof piece !== 'object') return piece;
+    if (piece.categorieSurface === undefined) {
+      var c = categorieSurfacePiece(piece);
+      if (c !== null) piece.categorieSurface = c; // sinon on laisse indéterminé (sûr)
+    }
+    if (piece.projet === undefined || piece.projet === null) {
+      piece.projet = projetPieceVierge();
+    }
+    return piece;
+  }
+
   var API = {
     VERSION_CONTRAT: VERSION_CONTRAT,
     VERSIONS_DEFAUT: VERSIONS_DEFAUT,
@@ -200,7 +280,14 @@
     serialiser: serialiser,
     deserialiser: deserialiser,
     conforme: conforme,
-    empreinte: empreinte
+    empreinte: empreinte,
+    // LOT39 P1 — socle modèle pièce (additif, non branché)
+    CATEGORIES_SURFACE: CATEGORIES_SURFACE,
+    categorieSurfaceValide: categorieSurfaceValide,
+    categorieSurfacePiece: categorieSurfacePiece,
+    surfacePiece: surfacePiece,
+    projetPieceVierge: projetPieceVierge,
+    normaliserPieceSocle: normaliserPieceSocle
   };
 
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
