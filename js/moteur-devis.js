@@ -40,7 +40,14 @@ function calculerDevis() {
   // découle est injecté dans le tableau électrique (cohérence chauffage <-> tableau).
   let chauffage = null;
   if (chantier.chauffage === 'electrique' && typeof dimensionnementChauffage === 'function') {
-    chauffage = dimensionnementChauffage(piecesSelectionnees, chantier);
+    // LOT42 — Pont chauffage : si piece.chauffageFonctions est utilisé, piloter le
+    // dimensionnement par pièce (fail-closed : [] => aucun radiateur). Sinon undefined
+    // => le Runtime reprend CHAUFFAGE_PARAMS.piecesChauffees par défaut (legacy inchangé).
+    // Gate chantier.chauffage INCHANGÉ ; jamais écrasé. prix.js non modifié.
+    const paramsChauffage = (typeof chauffageFonctionsUtilise === 'function' && chauffageFonctionsUtilise(piecesSelectionnees))
+      ? { piecesChauffees: piecesChauffeesDepuisFonctions(piecesSelectionnees) }
+      : undefined;
+    chauffage = dimensionnementChauffage(piecesSelectionnees, chantier, paramsChauffage);
     if (chauffage) totalGlobalHT += chauffage.prixTotalHT;
   }
   _pub('__chauffageAuto', chauffage);

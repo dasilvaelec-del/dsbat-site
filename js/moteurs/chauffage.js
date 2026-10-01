@@ -31,4 +31,29 @@ function verifierChauffage(pieces, ch) {
 }
 
 
-if (typeof module !== "undefined" && module.exports) module.exports = { verifierChauffage };
+// LOT42 — Pont chauffage -> chiffrage (fonctions PURES : aucune écriture, aucun DOM, aucun prix).
+// Source de vérité = piece.chauffageFonctions. Ne modifient ni la pièce ni chantier.chauffage.
+function chauffageFonctionsUtilise(pieces) {
+  return (pieces || []).some(function (p) {
+    var f = p && p.chauffageFonctions;
+    if (!f) return false;
+    var act = f.intention && f.intention.action;
+    var tech = f.solution && f.solution.technologie;
+    return !!act || !!tech;
+  });
+}
+// Ids des pièces chiffrables en V1 (radiateur électrique, travaux d'émetteur, non déjà devisées,
+// dimensions exploitables). Sert à alimenter params.piecesChauffees du Runtime (prix.js inchangé).
+function piecesChauffeesDepuisFonctions(pieces) {
+  return (pieces || []).filter(function (p) {
+    var f = p && p.chauffageFonctions;
+    if (!f) return false;
+    var s = f.solution || {}, i = f.intention || {}, d = p.dims || {};
+    return s.technologie === 'radiateur_electrique'
+      && (i.action === 'installer' || i.action === 'remplacer' || i.action === 'ajouter')
+      && s.statut !== 'devis_existant'
+      && (Number(d.l) > 0) && (Number(d.la) > 0);
+  }).map(function (p) { return p.id; });
+}
+
+if (typeof module !== "undefined" && module.exports) module.exports = { verifierChauffage, chauffageFonctionsUtilise, piecesChauffeesDepuisFonctions };
