@@ -2331,7 +2331,10 @@ function masquerCoherence() {
 // Additif, idempotent, non destructif ; garde defensive si le module est absent.
 function _appliquerSocleLot39(liste) {
   if (typeof ModeleProjetDSBAT !== 'undefined' && ModeleProjetDSBAT && typeof ModeleProjetDSBAT.normaliserPieceSocle === 'function') {
-    (liste || []).forEach(function (p) { ModeleProjetDSBAT.normaliserPieceSocle(p); });
+    // LOT42 P2 : contexte projet passé au modèle pour la projection PASSIVE existant/cible
+    // (aucune lecture par les moteurs ; uniquement le type de projet neuf/renov).
+    var _ctxLot42 = { typeProjet: (typeof chantier !== 'undefined' && chantier) ? chantier.typeProjet : undefined };
+    (liste || []).forEach(function (p) { ModeleProjetDSBAT.normaliserPieceSocle(p, _ctxLot42); });
   }
   return liste;
 }

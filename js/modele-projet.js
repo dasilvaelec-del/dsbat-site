@@ -274,11 +274,57 @@
     };
   }
 
+  // LOT42 P2 — Source CANONIQUE de l'usage = l'IDENTIFIANT de pièce (piece.id),
+  // jamais piece.nom ni du texte libre. Les ids coïncident avec le vocabulaire d'usage,
+  // sauf 'salon' (libellé « Salon / Séjour ») -> usage 'sejour'. Si l'usage obtenu n'est
+  // pas valide, on renvoie null (aucune invention).
+  var _USAGE_PAR_ID = { salon: 'sejour' };
+  function _usageCanoniqueDepuisId(id) {
+    if (typeof id !== 'string' || !id) return null;
+    var u = _USAGE_PAR_ID[id] || id;
+    return usageProjetValide(u) ? u : null;
+  }
+
+  // LOT42 P2 — Projection PASSIVE du conteneur projet. Remplit UNIQUEMENT les sous-champs
+  // à null, ne remplace JAMAIS une valeur explicite, ne déduit AUCUNE transformation.
+  //   • neuf/extension : rien n'existe -> existant reste null ; cible = la pièce construite
+  //     (usage canonique + categorieSurface LOT39). transformation = null (PAS 'creation').
+  //   • rénovation : existant = usage/categorieSurface ACTUELS de la pièce ; cible NON fabriquée
+  //     (aucune projection de continuité) ; transformation = null (jamais déduite).
+  //   • contexte inconnu : on s'arrête au conteneur (aucune projection).
+  // Idempotent : un sous-champ déjà renseigné n'est jamais retouché.
+  function _projeterProjetSocle(piece, options) {
+    var pr = piece && piece.projet;
+    if (!pr || typeof pr !== 'object') return;
+    // Garantir la forme {usage, categorieSurface} sans écraser l'existant déjà présent.
+    if (!pr.existant || typeof pr.existant !== 'object') pr.existant = { usage: null, categorieSurface: null };
+    else { if (!('usage' in pr.existant)) pr.existant.usage = null; if (!('categorieSurface' in pr.existant)) pr.existant.categorieSurface = null; }
+    if (!pr.cible || typeof pr.cible !== 'object') pr.cible = { usage: null, categorieSurface: null };
+    else { if (!('usage' in pr.cible)) pr.cible.usage = null; if (!('categorieSurface' in pr.cible)) pr.cible.categorieSurface = null; }
+    if (!('transformation' in pr)) pr.transformation = null;
+
+    var typeProjet = options && options.typeProjet;
+    if (typeProjet !== 'neuf' && typeProjet !== 'extension' && typeProjet !== 'renov') return; // contexte non déterminé
+
+    var usageCanon = _usageCanoniqueDepuisId(piece.id);
+    var catPiece = categorieSurfaceValide(piece.categorieSurface) ? piece.categorieSurface : null;
+
+    if (typeProjet === 'renov') {
+      if (pr.existant.usage === null && usageCanon !== null) pr.existant.usage = usageCanon;
+      if (pr.existant.categorieSurface === null && catPiece !== null) pr.existant.categorieSurface = catPiece;
+      // cible : NON fabriquée ; transformation : reste null (valeur explicite préservée plus haut).
+    } else { // neuf / extension
+      if (pr.cible.usage === null && usageCanon !== null) pr.cible.usage = usageCanon;
+      if (pr.cible.categorieSurface === null && catPiece !== null) pr.cible.categorieSurface = catPiece;
+      // transformation : reste null (NE PAS mettre 'creation' en P2).
+    }
+  }
+
   // Normalise une pièce vers le socle LOT39 SANS rien écraser : ajoute
   // categorieSurface (si déterminable et absente) et projet (si absent). Additif
   // et idempotent. Ne touche à AUCUNE autre propriété (id, nom, dims, config…
   // conservées telles quelles). Retourne la même référence.
-  function normaliserPieceSocle(piece) {
+  function normaliserPieceSocle(piece, options) {
     if (!piece || typeof piece !== 'object') return piece;
     if (piece.categorieSurface === undefined) {
       var c = categorieSurfacePiece(piece);
@@ -287,6 +333,8 @@
     if (piece.projet === undefined || piece.projet === null) {
       piece.projet = projetPieceVierge();
     }
+    // LOT42 P2 : projection passive/idempotente de existant/cible (sous-champs null seulement).
+    _projeterProjetSocle(piece, options);
     return piece;
   }
 
