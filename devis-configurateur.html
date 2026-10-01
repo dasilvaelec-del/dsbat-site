@@ -5077,8 +5077,9 @@ function envoyerNotifications(numero, totalHT, tva, ttc, clientData, pdfBlob) {
   envoyerEmail('📄 PDF généré — devis ' + numero + ' — ' + (clientData.nom || 'client'),
     champs, pdfBlob, 'Devis_DSBAT_' + numero + '.pdf');
 
-  // 2) WhatsApp pré-rempli vers DS.BAT (le client appuie sur Envoyer)
-  window.open('https://wa.me/33629556627?text=' + encodeURIComponent(recap), '_blank');
+  // CORRECTION UX : plus d'ouverture AUTOMATIQUE de WhatsApp ici (le message visait DS.BAT,
+  // pas le client, et détournait le parcours). L'email automatique ci-dessus est conservé ;
+  // le bouton manuel « 💬 Envoyer sur WhatsApp » du récapitulatif reste disponible pour un envoi volontaire.
 }
 
 // ===== PDF =====
