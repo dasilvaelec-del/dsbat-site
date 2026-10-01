@@ -69,14 +69,14 @@ A(pinc.categorieSurface === undefined, '§3 id inconnu : categorieSurface indét
 
 // ===== 5. Le modèle supporte une pièce sans existant (neuf) ============
 const vierge = M.projetPieceVierge();
-A(vierge.existant === null, '5. projet.existant = null par défaut (neuf sans existant)');
-A(vierge.cible === null && vierge.transformation === null, '5. cible/transformation présents et vides (préparation)');
+A(vierge.existant && vierge.existant.usage === null && vierge.existant.categorieSurface === null, '5. projet.existant vierge (usage/categorieSurface null — aucun état inventé) [LOT42]');
+A(vierge.cible && vierge.cible.usage === null && vierge.cible.categorieSurface === null && vierge.transformation === null, '5. cible vierge + transformation null [LOT42]');
 A(Object.keys(vierge).sort().join(',') === 'cible,existant,transformation',
   '5. bloc projet minimal = { existant, cible, transformation } (rien de plus)');
 // une pièce neuve normalisée reste exploitable sans existant réel
 const neuve = { id: 'salon', dims: { l: 5, la: 4 }, config: {} };
 M.normaliserPieceSocle(neuve);
-A(neuve.projet.existant === null, '5. pièce neuve : projet.existant reste null (aucune supposition d\'existant)');
+A(neuve.projet.existant && neuve.projet.existant.usage === null, '5. pièce neuve : existant vierge (aucune supposition d\'existant) [LOT42]');
 
 // ===== 6. Le bloc projet ne casse pas les pièces existantes ============
 // additif : n'ajoute que categorieSurface + projet, ne retire/altère rien.

@@ -247,11 +247,31 @@
     return l * la;
   }
 
-  // Bloc « projet » minimal préparant existant / cible / transformation.
-  // Volontairement plat et vide : PAS de copie de la pièce, PAS de mécanique de
-  // transformation ici. Le neuf est le défaut : existant = null.
+  // LOT42 P1 — Vocabulaire du conteneur de transformation d'espace (état existant /
+  // état cible / transformation). Données PURES, aucune règle de compatibilité entre
+  // usages (ex. garage -> chambre) : le socle STOCKE les états, il ne les arbitre pas.
+  // La categorieSurface réutilise l'API LOT39 (categorieSurfaceValide) — pas de doublon.
+  var USAGES_PROJET = [
+    'sejour', 'salle_manger', 'cuisine', 'chambre', 'bureau', 'dressing',
+    'sdb', 'sde', 'wc', 'entree', 'couloir', 'escalier',
+    'buanderie', 'cellier', 'garage', 'cave', 'grenier', 'remise',
+    'terrasse', 'jardin', 'allee', 'carport', 'facade', 'veranda'
+  ];
+  var TRANSFORMATIONS_PROJET = ['conserver', 'vers_logement', 'vers_annexe', 'demolition', 'creation'];
+
+  function usageProjetValide(v) { return USAGES_PROJET.indexOf(v) !== -1; }
+  function transformationProjetValide(v) { return TRANSFORMATIONS_PROJET.indexOf(v) !== -1; }
+
+  // Bloc « projet » préparant état existant / état cible / transformation.
+  // Conteneur VIERGE : tous les champs à null — AUCUN état inventé (ni pour le neuf
+  // ni pour la rénovation). PAS de copie de la pièce, PAS de mécanique de
+  // transformation ici (le socle ne fait que stocker les états).
   function projetPieceVierge() {
-    return { existant: null, cible: null, transformation: null };
+    return {
+      existant: { usage: null, categorieSurface: null },
+      cible: { usage: null, categorieSurface: null },
+      transformation: null
+    };
   }
 
   // Normalise une pièce vers le socle LOT39 SANS rien écraser : ajoute
@@ -287,7 +307,12 @@
     categorieSurfacePiece: categorieSurfacePiece,
     surfacePiece: surfacePiece,
     projetPieceVierge: projetPieceVierge,
-    normaliserPieceSocle: normaliserPieceSocle
+    normaliserPieceSocle: normaliserPieceSocle,
+    // LOT42 P1 — conteneur état existant / cible / transformation
+    USAGES_PROJET: USAGES_PROJET,
+    TRANSFORMATIONS_PROJET: TRANSFORMATIONS_PROJET,
+    usageProjetValide: usageProjetValide,
+    transformationProjetValide: transformationProjetValide
   };
 
   if (typeof module !== 'undefined' && module.exports) module.exports = API;

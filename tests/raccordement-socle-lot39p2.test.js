@@ -75,8 +75,8 @@ A(pver.projet !== undefined, '§9.3 véranda : projet quand même posé');
 // ===== §9.4 projet présent avec le contrat attendu =====
 const pj = fabNeuve('salon');
 appliquer([pj]);
-A(pj.projet && pj.projet.existant === null && pj.projet.cible === null && pj.projet.transformation === null,
-  '§9.4 projet = { existant:null, cible:null, transformation:null }');
+A(pj.projet && pj.projet.existant && pj.projet.existant.usage === null && pj.projet.cible && pj.projet.cible.usage === null && pj.projet.transformation === null,
+  '§9.4 projet vierge enrichi (existant/cible = {usage,categorieSurface:null}, transformation null) [LOT42]');
 A(Object.keys(pj.projet).sort().join(',') === 'cible,existant,transformation', '§9.4 projet minimal (rien de plus)');
 
 // ===== §9.5 dims inchangé =====
@@ -99,8 +99,8 @@ A(pm.chauffageFonctions === null && pm.elecMethode === 'saignee' && pm.elecGamme
 // Les ajouts manuels et transformations passent par validerPieces (compteurs -> fabrique).
 const manuelle = fabNeuve('bureau', 2);
 appliquer([manuelle]);
-A(manuelle.categorieSurface === 'logement' && manuelle.projet && manuelle.projet.existant === null,
-  '§9.7 pièce ajoutée manuellement (via la fabrique) reçoit le socle');
+A(manuelle.categorieSurface === 'logement' && manuelle.projet && manuelle.projet.existant && manuelle.projet.existant.usage === null,
+  '§9.7 pièce ajoutée manuellement (via la fabrique) reçoit le socle [LOT42]');
 // branche "existante" (fusion) : une pièce déjà normalisée n'est pas cassée (idempotence)
 const avant = JSON.stringify(manuelle);
 appliquer([manuelle]);
