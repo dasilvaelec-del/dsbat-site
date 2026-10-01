@@ -1813,12 +1813,8 @@ function envoyerDevis() {
     }).catch(() => {});
   } catch(e) {}
 
-  // Message WhatsApp pour toi
-  const metiersStr = data.metiers.map(m => getLabel('metier', m)).join(', ');
-  const msgWA = `🔔 *Nouveau devis DS.BAT*\n\n👤 *${data.client.nom}*\n📞 ${data.client.tel}\n📧 ${data.client.email}\n📍 ${data.client.adresse}\n\n🏗️ ${getLabel('typeBien', data.chantier.typeBien)} – ${data.chantier.surface}m² – ${data.chantier.pieces} pièces\n🔨 ${metiersStr}\n⏱️ Délai : ${data.client.delai}\n\n${data.description ? '💬 ' + data.description : ''}`;
-
-  // Ouvrir WhatsApp
-  window.open('https://wa.me/33629556627?text=' + encodeURIComponent(msgWA), '_blank');
+  // MICRO-LOT UX : ouverture automatique de WhatsApp supprimée (le message visait DS.BAT,
+  // pas le client). Le bouton manuel « 💬 Contacter sur WhatsApp » du récapitulatif reste disponible.
 // Sauvegarder les métiers sélectionnés
 sessionStorage.setItem('devisMetiers', JSON.stringify(data.metiers));
 
